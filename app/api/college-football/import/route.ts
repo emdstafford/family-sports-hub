@@ -102,6 +102,7 @@ export async function POST(request: Request) {
         { status: 500 },
       );
     }
+      const competitionSportId = competition.sport_id;
 
     /*
      * IMPORTANT:
@@ -200,7 +201,7 @@ export async function POST(request: Request) {
           .from("teams")
           .upsert(
             {
-              sport_id: competition.sport_id,
+              sport_id: competitionSportId,
               name,
               external_provider: "cfbd",
               external_id: key,
@@ -249,7 +250,7 @@ export async function POST(request: Request) {
         .from("games")
         .upsert(
           {
-            sport_id: competition.sport_id,
+            sport_id: competitionSportId,
             competition_id: competition.id,
             home_team_id: homeTeamId,
             away_team_id: awayTeamId,

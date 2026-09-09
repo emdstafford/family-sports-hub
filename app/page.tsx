@@ -66,6 +66,13 @@ type SavedPick = {
   submitted_at: string;
 };
 
+type ChallengePickStatusRow = {
+  player_id: string;
+  display_name: string;
+  picks_made: number;
+};
+
+type ChallengePickStatus = Record<string, number>;
 
 type LeaderboardRow = {
   player_id: string;
@@ -453,6 +460,9 @@ export default function Home() {
   const [savedPickGameIds, setSavedPickGameIds] =
     useState<string[]>([]);
 
+  const [challengePickStatus, setChallengePickStatus] =
+    useState<ChallengePickStatus>({});
+
   useEffect(() => {
     setCurrentTime(Date.now());
 
@@ -545,15 +555,51 @@ export default function Home() {
           },
         );
 
+        let loadedChallengeGameIds: string[] = [];
+
         if (challengeGameError) {
           console.error(challengeGameError);
         } else {
-          setChallengeGameIds(
+          loadedChallengeGameIds =
             (challengeGameData ?? []).map(
               (row: { game_id: string }) =>
                 row.game_id,
-            ),
+            );
+
+          setChallengeGameIds(
+            loadedChallengeGameIds,
           );
+        }
+
+        const {
+          data: pickStatusData,
+          error: pickStatusError,
+        } = await supabase.rpc(
+          "get_challenge_pick_status",
+          {
+            target_challenge_id:
+              openChallenge.id,
+          },
+        );
+
+        if (pickStatusError) {
+          console.error(pickStatusError);
+          setChallengePickStatus({});
+        } else {
+          const nextPickStatus: ChallengePickStatus = {};
+
+          loadedPlayers.forEach((player) => {
+            nextPickStatus[player.id] = 0;
+          });
+
+          (
+            (pickStatusData ?? []) as ChallengePickStatusRow[]
+          ).forEach((row) => {
+            nextPickStatus[row.player_id] =
+              Number(row.picks_made) || 0;
+          });
+
+          setChallengePickStatus(nextPickStatus);
         }
 
         const {
@@ -1194,6 +1240,11 @@ export default function Home() {
         ),
       ]).size;
 
+      setChallengePickStatus((current) => ({
+        ...current,
+        [signedInPlayer.id]: totalSaved,
+      }));
+
       setPicksSuccess(
         totalSaved === challengeGames.length
           ? `You're all set! ${totalSaved}/${challengeGames.length} picks saved. ✅`
@@ -1212,9 +1263,9 @@ export default function Home() {
 
 
   const challengeGamesWithSavedPick =
-    challengeGames.filter((game) =>
-      savedPickGameIds.includes(game.id),
-    ).length;
+    signedInPlayer
+      ? challengePickStatus[signedInPlayer.id] ?? 0
+      : 0;
 
   const currentPlayerReady =
     challengeGames.length > 0 &&
@@ -1316,7 +1367,9 @@ export default function Home() {
             </h2>
 
             <p className="mt-1 text-sm text-blue-100">
-              {challengeGameIds.length}/10 picks selected
+              {signedInPlayer
+  ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved`
+  : `${challengeGames.length} games this week`}
             </p>
 
             {signedInPlayer && (

@@ -1121,7 +1121,7 @@ export default function Home() {
     setPicksSuccess(null);
   }
 
-  async function saveAllPicks() {
+    async function saveAllPicks() {
     if (
       !signedInPlayer ||
       !challenge ||
@@ -1131,14 +1131,15 @@ export default function Home() {
       return;
     }
 
-    for (const game of availablePickGames) {
-      if (!pickChoices[game.id]) {
-        setPicksError(
-          `Pick a winner for ${game.away} at ${game.home}.`,
-        );
+    const gamesToSave = availablePickGames.filter(
+      (game) => pickChoices[game.id],
+    );
 
-        return;
-      }
+    if (gamesToSave.length === 0) {
+      setPicksError(
+        "Make at least one pick before saving.",
+      );
+      return;
     }
 
     setSavingPicks(true);
@@ -1148,7 +1149,11 @@ export default function Home() {
     try {
       const supabase = createClient();
 
-      for (const game of availablePickGames) {
+      for (const game of gamesToSave) {
+        const choice = pickChoices[game.id];
+
+        if (!choice) continue;
+
         const { error } =
           await supabase.rpc(
             "save_player_pick",
@@ -1162,7 +1167,7 @@ export default function Home() {
               attempted_pin:
                 picksPin,
               target_pick_choice:
-                pickChoices[game.id],
+                choice,
             },
           );
 
@@ -1173,16 +1178,26 @@ export default function Home() {
         }
       }
 
-      setSavedPickGameIds(
-        availablePickGames.map(
+      setSavedPickGameIds((current) => [
+        ...new Set([
+          ...current,
+          ...gamesToSave.map(
+            (game) => game.id,
+          ),
+        ]),
+      ]);
+
+      const totalSaved = new Set([
+        ...savedPickGameIds,
+        ...gamesToSave.map(
           (game) => game.id,
         ),
-      );
+      ]).size;
 
       setPicksSuccess(
-        availablePickGames.length === 1
-          ? "Pick saved! 🔒"
-          : "All picks saved! 🔒",
+        totalSaved === challengeGames.length
+          ? `You're all set! ${totalSaved}/${challengeGames.length} picks saved. ✅`
+          : `${totalSaved}/${challengeGames.length} picks saved. Come back anytime to finish!`,
       );
     } catch (error) {
       setPicksError(
@@ -1194,6 +1209,7 @@ export default function Home() {
       setSavingPicks(false);
     }
   }
+
 
   const challengeGamesWithSavedPick =
     challengeGames.filter((game) =>
@@ -1880,11 +1896,10 @@ export default function Home() {
                       className="mt-5 w-full rounded-2xl bg-blue-600 py-4 font-black text-white disabled:bg-slate-300"
                     >
                       {savingPicks
-                        ? "Saving..."
-                        : savedPickGameIds.length >
-                            0
-                          ? "Save Changes 🔒"
-                          : "Lock In My Picks 🔒"}
+  ? "Saving..."
+  : savedPickGameIds.length > 0
+    ? "Save My Picks 🔒"
+    : "Save My Picks 🔒"}
                     </button>
                   )}
                 </div>

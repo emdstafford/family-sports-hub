@@ -378,6 +378,103 @@ function getWatchInfo(
   };
 }
 
+
+function getGameContext(
+  game: BrowserGame,
+  rankings: CollegeFootballRanking[],
+) {
+  if (game.sport === "College Football") {
+    const homeRank = getTeamRank(game.home, rankings);
+    const awayRank = getTeamRank(game.away, rankings);
+
+    if (homeRank && awayRank) {
+      if (homeRank <= 5 && awayRank <= 5) {
+        return "Two Top-5 teams meet in one of the biggest games of the week.";
+      }
+      return `A ranked-vs-ranked matchup with #${awayRank} ${game.away} visiting #${homeRank} ${game.home}.`;
+    }
+
+    const rankedTeam = awayRank
+      ? { rank: awayRank, team: game.away, opponent: game.home, away: true }
+      : homeRank
+        ? { rank: homeRank, team: game.home, opponent: game.away, away: false }
+        : null;
+
+    if (rankedTeam) {
+      if (hasTeam(game, "Kentucky") && rankedTeam.team !== "Kentucky") {
+        return `Kentucky gets a home shot at the #${rankedTeam.rank} team in the country.`;
+      }
+      if (hasTeam(game, "Georgia")) {
+        return `Georgia brings a #${rankedTeam.rank} ranking into this week's matchup.`;
+      }
+      return `#${rankedTeam.rank} ${rankedTeam.team} is one of the ranked teams to watch this week.`;
+    }
+
+    if (hasTeam(game, "Kentucky") || hasTeam(game, "Georgia")) {
+      return "A FamBam college football game worth keeping on the radar.";
+    }
+  }
+
+  if (game.sport === "Soccer") {
+    if (game.competition === "Premier League") {
+      if (
+        hasTeam(game, "Arsenal") ||
+        hasTeam(game, "Liverpool") ||
+        hasTeam(game, "Aston Villa")
+      ) {
+        return "A Premier League match featuring one of the FamBam teams.";
+      }
+      return "A Premier League matchup worth watching this week.";
+    }
+
+    if (game.competition === "UEFA Champions League") {
+      return "A Champions League night with European stakes.";
+    }
+  }
+
+  return "One of this week's FamBam Challenge games.";
+}
+
+function getGameFacts(
+  game: BrowserGame,
+  rankings: CollegeFootballRanking[],
+) {
+  const facts: string[] = [];
+
+  if (game.sport === "College Football") {
+    const awayRank = getTeamRank(game.away, rankings);
+    const homeRank = getTeamRank(game.home, rankings);
+
+    if (awayRank) facts.push(`${game.away} is ranked #${awayRank} in the latest AP Top 25.`);
+    if (homeRank) facts.push(`${game.home} is ranked #${homeRank} in the latest AP Top 25.`);
+
+    if (hasTeam(game, "Kentucky")) {
+      facts.push("Kentucky is one of the FamBam must-in teams for the weekly Challenge.");
+    } else if (hasTeam(game, "Georgia")) {
+      facts.push("Georgia is one of the FamBam must-in teams for the weekly Challenge.");
+    }
+  }
+
+  if (game.sport === "Soccer") {
+    facts.push(`This match is in the ${game.competition}.`);
+    if (
+      hasTeam(game, "Arsenal") ||
+      hasTeam(game, "Liverpool") ||
+      hasTeam(game, "Aston Villa") ||
+      hasTeam(game, "AFC Wimbledon")
+    ) {
+      facts.push("A FamBam-supported club is playing.");
+    }
+    facts.push("Soccer picks can be home win, draw, or away win.");
+  }
+
+  if (facts.length < 2) {
+    facts.push(`Kickoff: ${formatGameDate(game.startsAt)} at ${formatGameTime(game.startsAt, game.startTimeTbd)}.`);
+  }
+
+  return facts.slice(0, 3);
+}
+
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [challenge, setChallenge] =
@@ -458,6 +555,9 @@ export default function Home() {
     useState<Record<string, PickChoice | null>>({});
 
   const [savedPickGameIds, setSavedPickGameIds] =
+    useState<string[]>([]);
+
+  const [expandedGameIds, setExpandedGameIds] =
     useState<string[]>([]);
 
   const [challengePickStatus, setChallengePickStatus] =
@@ -1024,6 +1124,14 @@ export default function Home() {
     }
   }
 
+  function toggleGameDetails(gameId: string) {
+    setExpandedGameIds((current) =>
+      current.includes(gameId)
+        ? current.filter((id) => id !== gameId)
+        : [...current, gameId],
+    );
+  }
+
   function openPicks() {
     if (!signedInPlayer || !challenge) {
       return;
@@ -1355,89 +1463,175 @@ export default function Home() {
           </section>
         )}
 
-        <section className="overflow-hidden rounded-[2rem] bg-white shadow-sm">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white">
-            <div className="text-[10px] font-black uppercase tracking-widest text-blue-100">
-              🎯 FamBam Challenge
+        {signedInPlayer && (
+          <section className="mb-5">
+            <p className="text-sm font-black text-blue-600">FAMBAM SPORTS</p>
+            <div className="mt-1 flex items-end justify-between gap-3">
+              <div>
+                <h2 className="text-3xl font-black tracking-tight">
+                  Game on, {signedInPlayer.display_name}!
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Here&apos;s what matters to you right now.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className="overflow-hidden rounded-[2rem] border border-blue-100 bg-white shadow-sm">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white sm:p-7">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="inline-flex rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider">
+                  🎯 FamBam Challenge
+                </div>
+                <h2 className="mt-3 text-2xl font-black sm:text-3xl">
+                  {challenge?.name ?? "No Challenge Open"}
+                </h2>
+              </div>
+              {signedInPlayer?.is_admin && (
+                <div className="rounded-full bg-amber-300 px-3 py-1.5 text-[10px] font-black text-amber-950">
+                  👑 ADMIN
+                </div>
+              )}
             </div>
 
-            <h2 className="mt-2 text-2xl font-black">
-              {challenge?.name ??
-                "No Challenge Open"}
-            </h2>
-
-            <p className="mt-1 text-sm text-blue-100">
-              {signedInPlayer
-  ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved`
-  : `${challengeGames.length} games this week`}
-            </p>
-
-            {signedInPlayer && (
+            {signedInPlayer ? (
               <div className="mt-5 rounded-2xl bg-white/10 p-4">
-                <div className="text-sm font-bold text-blue-100">
-                  {signedInPlayer.display_name}
-                  &apos;s Picks
-                </div>
-
-                <div className="mt-1 flex items-center justify-between gap-3">
+                <div className="flex items-center justify-between gap-4">
                   <div>
-                    <div className="text-2xl font-black">
-                      {currentPlayerReady
-                        ? "Locked In! 🔒"
-                        : "Who Ya Got?"}
+                    <div className="text-sm font-bold text-blue-100">
+                      {challengeGamesWithSavedPick === 0
+                        ? `${challengeGames.length} games waiting`
+                        : currentPlayerReady
+                          ? `${challengeGames.length}/${challengeGames.length} complete ✅`
+                          : `${challengeGames.length - challengeGamesWithSavedPick} picks left!`}
                     </div>
+                    <div className="mt-1 text-2xl font-black">
+                      {currentPlayerReady
+                        ? "You’re locked in! 🔒"
+                        : `${challengeGamesWithSavedPick} of ${challengeGames.length} complete`}
+                    </div>
+                    <p className="mt-1 text-xs font-semibold text-blue-100">
+                      Your picks stay secret until each game begins.
+                    </p>
                   </div>
 
                   <button
                     onClick={openPicks}
-                    className="rounded-xl bg-white px-4 py-3 text-sm font-black text-blue-700"
+                    className="shrink-0 rounded-xl bg-white px-4 py-3 text-sm font-black text-blue-700 shadow-sm"
                   >
-                    {currentPlayerReady
-                      ? "View / Edit →"
-                      : "Make My Picks →"}
+                    {currentPlayerReady ? "View Picks →" : "Make Picks →"}
                   </button>
                 </div>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl bg-white/10 p-4 text-sm font-bold text-blue-50">
+                Sign in above to make your predictions.
               </div>
             )}
           </div>
 
-          <div className="p-5">
-            <h3 className="font-black">
-              Challenge Games
-            </h3>
-
-            <div className="mt-4 grid gap-3">
-              {challengeGames.map((game) => (
-                <div
-                  key={game.id}
-                  className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4"
-                >
-                  <div className="text-[9px] font-black uppercase text-blue-600">
-                    {game.competition}
+          <div className="grid gap-0 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+            <div className="p-5">
+              <div className="text-[10px] font-black uppercase tracking-widest text-blue-600">
+                ⏱ Up Next
+              </div>
+              {challengeGames
+                .filter((game) => !gameIsLocked(game, currentTime))
+                .sort((a, b) =>
+                  (a.startsAt ? new Date(a.startsAt).getTime() : Number.MAX_SAFE_INTEGER) -
+                  (b.startsAt ? new Date(b.startsAt).getTime() : Number.MAX_SAFE_INTEGER)
+                )
+                .slice(0, 1)
+                .map((game) => (
+                  <div key={game.id} className="mt-2">
+                    <div className="text-lg font-black">
+                      {game.sport === "College Football"
+                        ? rankedTeamLabel(game.away, collegeFootballRankings)
+                        : game.away}
+                      {" at "}
+                      {game.sport === "College Football"
+                        ? rankedTeamLabel(game.home, collegeFootballRankings)
+                        : game.home}
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-slate-500">
+                      {formatGameDate(game.startsAt)} ·{" "}
+                      {formatGameTime(game.startsAt, game.startTimeTbd)}
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-slate-600">
+                      {getGameContext(game, collegeFootballRankings)}
+                    </p>
                   </div>
+                ))}
+            </div>
 
-                  <div className="mt-1 font-black">
-                    {game.away} at {game.home}
+            <div className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-blue-600">
+                    🔒 Who&apos;s Ready?
                   </div>
-
-                  <div className="mt-1 text-xs font-semibold text-slate-500">
-                    {formatGameDate(
-                      game.startsAt,
-                    )}
-                    {" · "}
-                    {formatGameTime(
-                      game.startsAt,
-                      game.startTimeTbd,
-                    )}
-                  </div>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">
+                    Progress only — picks stay private.
+                  </p>
                 </div>
-              ))}
+              </div>
+
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                {players.map((player) => {
+                  const count = challengePickStatus[player.id] ?? 0;
+                  const ready =
+                    challengeGames.length > 0 &&
+                    count === challengeGames.length;
+
+                  return (
+                    <div
+                      key={player.id}
+                      className="min-w-[76px] rounded-2xl bg-slate-50 p-3 text-center"
+                    >
+                      <div className="relative mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white text-[10px] font-black text-slate-700 shadow-sm">
+                        {player.initials ?? "?"}
+                        <span
+                          className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[9px] ${
+                            ready
+                              ? "bg-emerald-500 text-white"
+                              : "bg-slate-200 text-slate-500"
+                          }`}
+                        >
+                          {ready ? "✓" : count}
+                        </span>
+                      </div>
+                      <div className="mt-2 truncate text-xs font-black">
+                        {player.display_name}
+                      </div>
+                      <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                        {ready ? "Ready" : `${count}/${challengeGames.length}`}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </section>
 
-        {challenge && (
-          <section className="mt-8">
+        {signedInPlayer && challengeGames.length > 0 && (
+          <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-[10px] font-black uppercase tracking-widest text-amber-600">
+              ✨ This Week
+            </div>
+            <div className="mt-1 font-black">
+              One pick at a time.
+            </div>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              You can save a few picks now and come back later. Each game locks at kickoff.
+            </p>
+          </section>
+        )}
+
+        <section className="mt-8">
             <div className="mb-4">
               <div className="text-[10px] font-black uppercase tracking-widest text-blue-600">
                 Bragging Rights
@@ -1495,7 +1689,6 @@ export default function Home() {
               ))}
             </div>
           </section>
-        )}
 
         <section className="mt-8">
           <div className="flex items-end justify-between gap-3">
@@ -1836,85 +2029,151 @@ export default function Home() {
                               </div>
                             ) : (
                               <>
-                                <div className="mt-4 text-center text-xs font-black uppercase tracking-widest text-slate-400">
-                                  Who Ya Got?
+                                <div className="mt-3 text-lg font-black text-slate-950">
+                                  {game.sport === "College Football"
+                                    ? rankedTeamLabel(
+                                        game.away,
+                                        collegeFootballRankings,
+                                      )
+                                    : game.away}
+                                  {" at "}
+                                  {game.sport === "College Football"
+                                    ? rankedTeamLabel(
+                                        game.home,
+                                        collegeFootballRankings,
+                                      )
+                                    : game.home}
                                 </div>
 
+                                <p className="mt-1 text-sm font-semibold leading-snug text-slate-600">
+                                  {getGameContext(
+                                    game,
+                                    collegeFootballRankings,
+                                  )}
+                                </p>
+
+                                <button
+                                  onClick={() =>
+                                    toggleGameDetails(game.id)
+                                  }
+                                  className="mt-2 text-xs font-black text-blue-600"
+                                >
+                                  {expandedGameIds.includes(game.id)
+                                    ? "Show Less ↑"
+                                    : "Tell Me More →"}
+                                </button>
+
+                                {expandedGameIds.includes(game.id) && (
+                                  <div className="mt-2 rounded-xl bg-slate-50 p-3">
+                                    <ul className="space-y-1.5 text-xs font-semibold text-slate-600">
+                                      {getGameFacts(
+                                        game,
+                                        collegeFootballRankings,
+                                      ).map((fact) => (
+                                        <li key={fact}>• {fact}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
                                 <div
-                                  className={`mt-3 grid gap-2 ${
-                                    game.sport ===
-                                    "Soccer"
+                                  className={`mt-4 grid gap-2 ${
+                                    game.sport === "Soccer"
                                       ? "grid-cols-3"
                                       : "grid-cols-2"
                                   }`}
                                 >
                                   <button
                                     onClick={() =>
-                                      selectPick(
-                                        game.id,
-                                        "away",
-                                      )
+                                      selectPick(game.id, "away")
                                     }
-                                    className={`rounded-2xl border-2 p-3 text-center transition ${
-                                      choice ===
-                                      "away"
-                                        ? "border-blue-600 bg-blue-50 text-blue-800"
-                                        : "border-slate-200 bg-white"
+                                    className={`rounded-2xl border-2 p-3 text-center transition active:scale-[0.98] ${
+                                      choice === "away"
+                                        ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                                        : "border-slate-200 bg-white text-slate-900"
                                     }`}
                                   >
-                                    <div className="text-[10px] font-bold uppercase text-slate-400">
+                                    <div className={`text-[9px] font-black uppercase ${
+                                      choice === "away"
+                                        ? "text-blue-100"
+                                        : "text-slate-400"
+                                    }`}>
                                       Away
                                     </div>
                                     <div className="mt-1 text-sm font-black">
-                                      {game.away}
+                                      {game.sport === "College Football"
+                                        ? rankedTeamLabel(
+                                            game.away,
+                                            collegeFootballRankings,
+                                          )
+                                        : game.away}
                                     </div>
+                                    {choice === "away" && (
+                                      <div className="mt-1 text-[10px] font-black">
+                                        ✓ YOUR PICK
+                                      </div>
+                                    )}
                                   </button>
 
-                                  {game.sport ===
-                                    "Soccer" && (
+                                  {game.sport === "Soccer" && (
                                     <button
                                       onClick={() =>
-                                        selectPick(
-                                          game.id,
-                                          "draw",
-                                        )
+                                        selectPick(game.id, "draw")
                                       }
-                                      className={`rounded-2xl border-2 p-3 text-center transition ${
-                                        choice ===
-                                        "draw"
-                                          ? "border-violet-600 bg-violet-50 text-violet-800"
-                                          : "border-slate-200 bg-white"
+                                      className={`rounded-2xl border-2 p-3 text-center transition active:scale-[0.98] ${
+                                        choice === "draw"
+  ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                                          : "border-slate-200 bg-white text-slate-900"
                                       }`}
                                     >
-                                      <div className="text-[10px] font-bold uppercase text-slate-400">
+                                      <div className={`text-[9px] font-black uppercase ${
+                                        choice === "draw"
+  ? "text-blue-100"
+                                          : "text-slate-400"
+                                      }`}>
                                         Result
                                       </div>
                                       <div className="mt-1 text-sm font-black">
                                         Draw
                                       </div>
+                                      {choice === "draw" && (
+                                        <div className="mt-1 text-[10px] font-black">
+                                          ✓ YOUR PICK
+                                        </div>
+                                      )}
                                     </button>
                                   )}
 
                                   <button
                                     onClick={() =>
-                                      selectPick(
-                                        game.id,
-                                        "home",
-                                      )
+                                      selectPick(game.id, "home")
                                     }
-                                    className={`rounded-2xl border-2 p-3 text-center transition ${
-                                      choice ===
-                                      "home"
-                                        ? "border-blue-600 bg-blue-50 text-blue-800"
-                                        : "border-slate-200 bg-white"
+                                    className={`rounded-2xl border-2 p-3 text-center transition active:scale-[0.98] ${
+                                      choice === "home"
+                                        ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                                        : "border-slate-200 bg-white text-slate-900"
                                     }`}
                                   >
-                                    <div className="text-[10px] font-bold uppercase text-slate-400">
+                                    <div className={`text-[9px] font-black uppercase ${
+                                      choice === "home"
+                                        ? "text-blue-100"
+                                        : "text-slate-400"
+                                    }`}>
                                       Home
                                     </div>
                                     <div className="mt-1 text-sm font-black">
-                                      {game.home}
+                                      {game.sport === "College Football"
+                                        ? rankedTeamLabel(
+                                            game.home,
+                                            collegeFootballRankings,
+                                          )
+                                        : game.home}
                                     </div>
+                                    {choice === "home" && (
+                                      <div className="mt-1 text-[10px] font-black">
+                                        ✓ YOUR PICK
+                                      </div>
+                                    )}
                                   </button>
                                 </div>
                               </>
@@ -1960,6 +2219,28 @@ export default function Home() {
             </div>
           </div>
         )}
+
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-4px_20px_rgba(15,23,42,0.08)]">
+        <div className="mx-auto grid max-w-lg grid-cols-5">
+          {[
+            ["🏠", "Home"],
+            ["🏆", "Challenge"],
+            ["📅", "Games"],
+            ["🧢", "Locker Room"],
+            ["🏅", "Trophy Room"],
+          ].map(([icon, label], index) => (
+            <button
+              key={label}
+              className={`flex flex-col items-center gap-1 py-1 text-[9px] font-black ${
+                index === 0 ? "text-blue-600" : "text-slate-400"
+              }`}
+            >
+              <span className="text-lg">{icon}</span>
+              <span className="whitespace-nowrap">{label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {selectedPlayer && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 px-4">

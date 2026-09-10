@@ -1399,39 +1399,49 @@ export default function Home() {
       challengeGames.length;
 
   return (
-    <main className="min-h-screen bg-[#f6f8fc] pb-24 text-slate-900">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-600 text-xl">
-              🏆
-            </div>
+    <main className="min-h-screen bg-[#eef1f4] pb-24 text-[#10254a]">
+      {/* DARK APP HEADER */}
+      <header className="bg-[#06284a] text-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <img
+              src="/icon-512.png"
+              alt="FamBam Sports"
+              className="h-12 w-12 shrink-0 rounded-xl object-cover"
+            />
 
-            <div>
-              <h1 className="text-lg font-black">
-                FamBam Sports
-              </h1>
-              <p className="text-xs font-semibold text-slate-400">
-                Who ya got?
-              </p>
+            <div className="min-w-0">
+              <div className="truncate text-xl font-black tracking-tight">
+                FamBam
+              </div>
+              <div className="text-[8px] font-black uppercase tracking-[0.28em] text-[#f3c64f]">
+                Family · Sports · Fun
+              </div>
             </div>
           </div>
 
           {signedInPlayer ? (
             <button
               onClick={switchPlayer}
-              className="rounded-full bg-blue-50 px-4 py-2 text-xs font-black text-blue-700"
+              className="flex shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 text-left"
             >
-              {signedInPlayer.display_name}
-              {signedInPlayer.is_admin
-                ? " 👑"
-                : ""}{" "}
-              · Switch
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/70 bg-[#f3c64f] text-[10px] font-black text-[#06284a]">
+                {signedInPlayer.initials}
+              </div>
+
+              <div>
+                <div className="text-sm font-black">
+                  Hi {signedInPlayer.display_name}!
+                </div>
+                <div className="text-[9px] font-bold text-blue-100">
+                  Tap to switch
+                </div>
+              </div>
             </button>
           ) : (
             <a
               href="#signin"
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white"
+              className="rounded-xl bg-[#f3c64f] px-4 py-2 text-xs font-black text-[#06284a]"
             >
               Sign In
             </a>
@@ -1439,39 +1449,37 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-4 py-5">
+      <div className="mx-auto max-w-5xl px-3 py-3">
+        {/* SIGN IN */}
         {!signedInPlayer && (
           <section
             id="signin"
-            className="mb-5 rounded-[2rem] bg-gradient-to-br from-blue-700 to-indigo-600 p-5 text-white"
+            className="overflow-hidden rounded-2xl bg-[#06284a] p-5 text-white shadow-sm"
           >
             <div className="text-center">
-              <div className="text-3xl">
-                👋
-              </div>
+              <div className="text-3xl">🏆</div>
               <h2 className="mt-2 text-2xl font-black">
                 Who&apos;s playing?
               </h2>
+              <p className="mt-1 text-xs font-semibold text-blue-100">
+                Pick your profile to jump in.
+              </p>
             </div>
 
             {loading ? (
-              <p className="mt-5 text-center">
-                Loading...
-              </p>
+              <p className="mt-5 text-center">Loading...</p>
             ) : (
-              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <div className="mt-5 grid grid-cols-5 gap-2">
                 {players.map((player) => (
                   <button
                     key={player.id}
-                    onClick={() =>
-                      choosePlayer(player)
-                    }
-                    className="rounded-2xl bg-white/10 p-3"
+                    onClick={() => choosePlayer(player)}
+                    className="min-w-0 rounded-xl bg-white/10 px-1 py-3 active:scale-95"
                   >
-                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-white text-xs font-black text-blue-700">
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#06284a]">
                       {player.initials}
                     </div>
-                    <div className="mt-2 text-sm font-black">
+                    <div className="mt-2 truncate text-[9px] font-black">
                       {player.display_name}
                     </div>
                   </button>
@@ -1482,387 +1490,351 @@ export default function Home() {
         )}
 
         {signedInPlayer && (
-          <section className="mb-5">
-            <p className="text-sm font-black text-blue-600">FAMBAM SPORTS</p>
-            <div className="mt-1 flex items-end justify-between gap-3">
-              <div>
-                <h2 className="text-3xl font-black tracking-tight">
-                  Game on, {signedInPlayer.display_name}!
-                </h2>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Here&apos;s what matters to you right now.
-                </p>
+          <>
+            {/* PERSONALIZED HERO */}
+            <section className="relative mb-2.5 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-r from-[#082f57] via-[#0b3d6a] to-[#082f57] px-4 py-4 text-white shadow-sm">
+              <div className="absolute -right-8 -top-12 h-32 w-32 rounded-full border-[18px] border-white/5" />
+              <div className="absolute -bottom-16 left-1/3 h-36 w-36 rounded-full border-[20px] border-[#f3c64f]/10" />
+
+              <div className="relative flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xl font-black italic">
+                    Same teams.
+                  </div>
+                  <div className="font-serif text-3xl italic text-[#f3c64f]">
+                    More fun.
+                  </div>
+                </div>
+
+                <div className="max-w-[48%] text-right">
+                  <div className="text-sm font-black">
+                    It&apos;s a good week
+                  </div>
+                  <div className="text-sm font-black">
+                    for {signedInPlayer.display_name}.
+                  </div>
+                  <div className="mt-2 ml-auto h-0.5 w-16 rotate-[-8deg] rounded bg-[#f3c64f]" />
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+
+            {/* CHALLENGE STRIP */}
+            <section className="mb-2.5 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
+              <div className="flex min-h-[92px] items-stretch">
+                <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
+                  <div className="text-4xl">🏆</div>
+
+                  <div className="min-w-0">
+                    <div className="text-sm font-black uppercase text-[#10254a]">
+                      This Week&apos;s Challenge
+                    </div>
+                    <div className="mt-0.5 text-sm font-black text-[#10254a]">
+                      {currentPlayerReady
+                        ? "Your picks are in!"
+                        : "This week’s picks are open!"}
+                    </div>
+                    <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
+                      Every game locks at kickoff.
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={openPicks}
+                  className="flex w-[42%] max-w-[180px] shrink-0 flex-col items-center justify-center bg-[#06284a] px-2 text-center text-white active:bg-[#0a365f]"
+                >
+                  {currentPlayerReady ? (
+                    <>
+                      <div className="text-[10px] font-bold text-blue-100">
+                        You&apos;re all set
+                      </div>
+                      <div className="text-2xl font-black text-[#f3c64f]">
+                        {challengeGamesWithSavedPick}/{challengeGames.length}
+                      </div>
+                      <div className="text-[10px] font-black">
+                        picks complete ✓
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-[10px] font-bold text-blue-100">
+                        You have
+                      </div>
+                      <div className="text-xl font-black text-[#f3c64f]">
+                        {challengeGames.length - challengeGamesWithSavedPick} picks left
+                      </div>
+                      <div className="mt-0.5 text-[10px] font-black">
+                        Finish My Picks ›
+                      </div>
+                    </>
+                  )}
+                </button>
+              </div>
+            </section>
+          </>
         )}
 
-        <section className="overflow-hidden rounded-[2rem] border border-blue-100 bg-white shadow-sm">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white sm:p-7">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="inline-flex rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider">
-                  🎯 FamBam Challenge
-                </div>
-                <h2 className="mt-3 text-2xl font-black sm:text-3xl">
-                  {challenge?.name ?? "No Challenge Open"}
-                </h2>
-              </div>
-              {signedInPlayer?.is_admin && (
-                <div className="rounded-full bg-amber-300 px-3 py-1.5 text-[10px] font-black text-amber-950">
-                  👑 ADMIN
-                </div>
-              )}
+        {/* TODAY'S GAMES */}
+        <section className="mb-2.5 overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🗓️</span>
+              <h2 className="text-base font-black uppercase">
+                Today&apos;s Games
+              </h2>
             </div>
-
-            {signedInPlayer ? (
-              <div className="mt-5 rounded-2xl bg-white/10 p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-sm font-bold text-blue-100">
-                      {challengeGamesWithSavedPick === 0
-                        ? `${challengeGames.length} games waiting`
-                        : currentPlayerReady
-                          ? `${challengeGames.length}/${challengeGames.length} complete ✅`
-                          : `${challengeGames.length - challengeGamesWithSavedPick} picks left!`}
-                    </div>
-                    <div className="mt-1 text-2xl font-black">
-                      {currentPlayerReady
-                        ? "You’re locked in! 🔒"
-                        : `${challengeGamesWithSavedPick} of ${challengeGames.length} complete`}
-                    </div>
-                    <p className="mt-1 text-xs font-semibold text-blue-100">
-                      Your picks stay secret until each game begins.
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={openPicks}
-                    className="shrink-0 rounded-xl bg-white px-4 py-3 text-sm font-black text-blue-700 shadow-sm"
-                  >
-                    {currentPlayerReady ? "View Picks →" : "Make Picks →"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-5 rounded-2xl bg-white/10 p-4 text-sm font-bold text-blue-50">
-                Sign in above to make your predictions.
-              </div>
-            )}
+            <div className="text-[10px] font-black uppercase text-[#10254a]">
+              Today
+            </div>
           </div>
 
-          <div className="grid gap-0 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-            <div className="p-5">
-              <div className="text-[10px] font-black uppercase tracking-widest text-blue-600">
-                ⏱ Up Next
-              </div>
-              {challengeGames
-                .filter((game) => !gameIsLocked(game, currentTime))
-                .sort((a, b) =>
-                  (a.startsAt ? new Date(a.startsAt).getTime() : Number.MAX_SAFE_INTEGER) -
-                  (b.startsAt ? new Date(b.startsAt).getTime() : Number.MAX_SAFE_INTEGER)
-                )
-                .slice(0, 1)
-                .map((game) => (
-                  <div key={game.id} className="mt-2">
-                    <div className="text-lg font-black">
+          <div className="divide-y divide-slate-200 px-3">
+            {filteredGames.slice(0, 2).map((game) => (
+              <article
+                key={game.id}
+                className="py-3"
+              >
+                <div className="flex gap-3">
+                  <div className="flex w-12 shrink-0 flex-col items-center justify-center text-center">
+                    <div className="text-2xl">{game.icon}</div>
+                    <div className="mt-1 text-[7px] font-black uppercase leading-tight text-[#10254a]">
+                      {game.competition}
+                    </div>
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[15px] font-black leading-tight text-[#10254a]">
                       {game.sport === "College Football"
                         ? rankedTeamLabel(game.away, collegeFootballRankings)
                         : game.away}
-                      {" at "}
+                      {" vs "}
                       {game.sport === "College Football"
                         ? rankedTeamLabel(game.home, collegeFootballRankings)
                         : game.home}
                     </div>
-                    <div className="mt-1 text-xs font-semibold text-slate-500">
-                      {formatGameDate(game.startsAt)} ·{" "}
+
+                    <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
                       {formatGameTime(game.startsAt, game.startTimeTbd)}
                     </div>
-                    <p className="mt-2 text-sm font-semibold text-slate-600">
+
+                    <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
                       {getGameContext(game, collegeFootballRankings)}
-                    </p>
-                  </div>
-                ))}
-            </div>
-
-            <div className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-blue-600">
-                    🔒 Who&apos;s Ready?
-                  </div>
-                  <p className="mt-1 text-xs font-semibold text-slate-400">
-                    Progress only — picks stay private.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                {players.map((player) => {
-                  const count = challengePickStatus[player.id] ?? 0;
-                  const ready =
-                    challengeGames.length > 0 &&
-                    count === challengeGames.length;
-
-                  return (
-                    <div
-                      key={player.id}
-                      className="min-w-[76px] rounded-2xl bg-slate-50 p-3 text-center"
-                    >
-                      <div className="relative mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white text-[10px] font-black text-slate-700 shadow-sm">
-                        {player.initials ?? "?"}
-                        <span
-                          className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[9px] ${
-                            ready
-                              ? "bg-emerald-500 text-white"
-                              : "bg-slate-200 text-slate-500"
-                          }`}
-                        >
-                          {ready ? "✓" : count}
-                        </span>
-                      </div>
-                      <div className="mt-2 truncate text-xs font-black">
-                        {player.display_name}
-                      </div>
-                      <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">
-                        {ready ? "Ready" : `${count}/${challengeGames.length}`}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {signedInPlayer && challengeGames.length > 0 && (
-          <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="text-[10px] font-black uppercase tracking-widest text-amber-600">
-              ✨ This Week
-            </div>
-            <div className="mt-1 font-black">
-              One pick at a time.
-            </div>
-            <p className="mt-1 text-sm font-semibold text-slate-500">
-              You can save a few picks now and come back later. Each game locks at kickoff.
-            </p>
-          </section>
-        )}
-
-        <section className="mt-8">
-            <div className="mb-4">
-              <div className="text-[10px] font-black uppercase tracking-widest text-blue-600">
-                Bragging Rights
-              </div>
-              <h2 className="text-2xl font-black">
-                🏆 Challenge Leaderboard
-              </h2>
-              <p className="mt-1 text-sm font-semibold text-slate-500">
-                1 point per correct completed pick.
-              </p>
-            </div>
-
-            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-              {leaderboard.map((row, index) => (
-                <div
-                  key={row.player_id}
-                  className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 last:border-b-0"
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-700">
-                    {index === 0 && row.points > 0
-                      ? "🏆"
-                      : index + 1}
-                  </div>
-
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-xs font-black text-blue-700">
-                    {row.initials}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="font-black text-slate-950">
-                      {row.display_name}
-                    </div>
-                    <div className="text-xs font-semibold text-slate-500">
-                      {row.completed_picks > 0
-                        ? `${row.correct}/${row.completed_picks} correct · ${Number(
-                            row.accuracy,
-                          ).toFixed(1)}%`
-                        : row.total_picks > 0
-                          ? `${row.total_picks} pick${
-                              row.total_picks === 1 ? "" : "s"
-                            } waiting for results`
-                          : "No picks yet"}
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-2xl font-black text-slate-950">
-                      {row.points}
-                    </div>
-                    <div className="text-[10px] font-black uppercase tracking-wide text-slate-400">
-                      pts
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-        <section className="mt-8">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                👀 This Week
-              </div>
-              <h2 className="text-2xl font-black">
-                Games to Watch
-              </h2>
-              <p className="mt-1 text-sm font-semibold text-slate-500">
-                Every Top-10 game, ranked-vs-ranked matchup, FamBam game and major rivalry worth watching this week.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 flex gap-2 overflow-x-auto">
-            {sportButtons.map((sport) => (
-              <button
-                key={sport}
-                onClick={() =>
-                  setActiveSport(sport)
-                }
-                className={`rounded-full px-4 py-2 text-xs font-black ${
-                  activeSport === sport
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-slate-500"
-                }`}
-              >
-                {sport}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            {filteredGames.map((game) => {
-              const inChallenge =
-                challengeGameIds.includes(
-                  game.id,
-                );
-
-              const watchInfo =
-                getWatchInfo(game, collegeFootballRankings);
-
-              const locked =
-                gameIsLocked(
-                  game,
-                  currentTime,
-                );
-
-              return (
-                <article
-                  key={game.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="text-xl">
-                      {game.icon}
                     </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="text-[9px] font-black uppercase text-slate-400">
-                          {game.competition}
-                        </div>
-
-                        <div
-                          className={`rounded-full px-2 py-1 text-[9px] font-black ${
-                            watchInfo.label.includes(
-                              "Must Watch",
-                            )
-                              ? "bg-orange-100 text-orange-700"
-                              : watchInfo.label.includes(
-                                    "Big Game",
-                                  )
-                                ? "bg-blue-100 text-blue-700"
-                                : watchInfo.label.includes(
-                                      "FamBam",
-                                    )
-                                  ? "bg-rose-100 text-rose-700"
-                                  : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {watchInfo.label}
-                        </div>
-                      </div>
-
-                      <div className="mt-1 font-black">
-                        {game.sport === "College Football"
-                          ? rankedTeamLabel(
-                              game.away,
-                              collegeFootballRankings,
-                            )
-                          : game.away}{" "}
-                        at{" "}
-                        {game.sport === "College Football"
-                          ? rankedTeamLabel(
-                              game.home,
-                              collegeFootballRankings,
-                            )
-                          : game.home}
-                      </div>
-
-                      <div className="text-xs text-slate-500">
-                        {game.liveData
-                          ? `${formatGameDate(
-                              game.startsAt,
-                            )} · ${formatGameTime(
-                              game.startsAt,
-                              game.startTimeTbd,
-                            )}`
-                          : "Sample"}
-                      </div>
-
-                      <div className="mt-1 text-[11px] font-bold text-slate-500">
-                        {watchInfo.reasons.join(
-                          " • ",
-                        )}
-                      </div>
-                    </div>
-
-                    {signedInPlayer?.is_admin && (
-                      <button
-                        onClick={() =>
-                          openAdminAdd(game)
-                        }
-                        disabled={
-                          inChallenge ||
-                          !game.liveData ||
-                          locked ||
-                          challengeGameIds.length >= 10
-                        }
-                        className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 transition active:scale-95 disabled:bg-slate-100 disabled:text-slate-400"
-                      >
-                        {inChallenge
-                          ? "✓ In Challenge"
-                          : locked
-                            ? "Started"
-                            : challengeGameIds.length >= 10
-                              ? "10/10 Full"
-                              : "+ Challenge"}
+                    <div className="mt-2 flex justify-end">
+                      <button className="rounded-lg bg-[#edf5ff] px-3 py-1.5 text-[10px] font-black text-[#164d9b]">
+                        Tell Me More →
                       </button>
-                    )}
+                    </div>
                   </div>
-                </article>
-              );
-            })}
+                </div>
+              </article>
+            ))}
 
             {!gamesLoading && filteredGames.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-bold text-slate-500 lg:col-span-2">
-                No FamBam, ranked, or major games found for this filter this week.
+              <div className="py-5 text-center text-xs font-bold text-slate-500">
+                No games on your radar today.
               </div>
             )}
           </div>
         </section>
+
+        {/* UP NEXT */}
+        <section className="mb-2.5 overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">◷</span>
+              <h2 className="text-base font-black uppercase">
+                Up Next
+              </h2>
+            </div>
+
+            <div className="text-[10px] font-black uppercase">
+              This Week
+            </div>
+          </div>
+
+          <div className="divide-y divide-slate-200 px-3">
+            {challengeGames
+              .filter((game) => !gameIsLocked(game, currentTime))
+              .sort(
+                (a, b) =>
+                  (a.startsAt
+                    ? new Date(a.startsAt).getTime()
+                    : Number.MAX_SAFE_INTEGER) -
+                  (b.startsAt
+                    ? new Date(b.startsAt).getTime()
+                    : Number.MAX_SAFE_INTEGER),
+              )
+              .slice(0, 2)
+              .map((game) => (
+                <article key={game.id} className="py-3">
+                  <div className="flex gap-3">
+                    <div className="flex w-12 shrink-0 flex-col items-center justify-center text-center">
+                      <div className="text-2xl">{game.icon}</div>
+                      <div className="mt-1 text-[7px] font-black uppercase leading-tight">
+                        {game.competition}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[15px] font-black leading-tight">
+                        {game.sport === "College Football"
+                          ? rankedTeamLabel(game.away, collegeFootballRankings)
+                          : game.away}
+                        {" vs "}
+                        {game.sport === "College Football"
+                          ? rankedTeamLabel(game.home, collegeFootballRankings)
+                          : game.home}
+                      </div>
+
+                      <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                        {formatGameDate(game.startsAt)}
+                        {" · "}
+                        {formatGameTime(game.startsAt, game.startTimeTbd)}
+                      </div>
+
+                      <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
+                        {getGameContext(game, collegeFootballRankings)}
+                      </div>
+
+                      <div className="mt-2 flex justify-end">
+                        <button className="rounded-lg bg-[#edf5ff] px-3 py-1.5 text-[10px] font-black text-[#164d9b]">
+                          Tell Me More →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+          </div>
+        </section>
+
+        {/* BOTTOM DASHBOARD ROW */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* WHO'S READY */}
+          <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span>👥</span>
+              <h2 className="text-[12px] font-black uppercase">
+                Who&apos;s Ready?
+              </h2>
+            </div>
+
+            <div className="mt-3 grid grid-cols-5 gap-1">
+              {players.map((player) => {
+                const count = challengePickStatus[player.id] ?? 0;
+                const ready =
+                  challengeGames.length > 0 &&
+                  count === challengeGames.length;
+
+                return (
+                  <div
+                    key={player.id}
+                    className="min-w-0 text-center"
+                  >
+                    <div
+                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[8px] font-black ${
+                        signedInPlayer?.id === player.id
+                          ? "bg-[#06284a] text-white"
+                          : "bg-slate-200 text-[#10254a]"
+                      }`}
+                    >
+                      {player.initials ?? "?"}
+                    </div>
+
+                    <div className="mt-1 truncate text-[7px] font-black">
+                      {player.display_name}
+                    </div>
+
+                    <div
+                      className={`mt-0.5 whitespace-nowrap text-[6px] font-black ${
+                        ready ? "text-green-600" : "text-red-500"
+                      }`}
+                    >
+                      {ready
+                        ? "All set! ✓"
+                        : `${Math.max(
+                            0,
+                            challengeGames.length - count,
+                          )} left`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* WHAT MATTERS TODAY */}
+          <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span>🔥</span>
+              <h2 className="text-[12px] font-black uppercase">
+                What Matters Today
+              </h2>
+            </div>
+
+            <div className="mt-2 space-y-1.5">
+              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
+                <span>🔵</span>
+                <span>
+                  Your sports are front and center.
+                </span>
+              </div>
+
+              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
+                <span>🏈</span>
+                <span>
+                  Big college football games are coming.
+                </span>
+              </div>
+
+              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
+                <span>⭐</span>
+                <span>
+                  {currentPlayerReady
+                    ? "Your Challenge picks are complete."
+                    : `${challengeGames.length - challengeGamesWithSavedPick} Challenge picks left.`}
+                </span>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
+
+      {/* APP NAV */}
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]">
+        <div className="mx-auto grid max-w-5xl grid-cols-5">
+          {[
+            ["🏠", "Home"],
+            ["🏆", "Challenge"],
+            ["⚽", "Games"],
+            ["👥", "Locker Room"],
+            ["▥", "Trophy Room"],
+          ].map(([icon, label], index) => (
+            <button
+              key={label}
+              onClick={() => {
+                if (label === "Challenge") openPicks();
+              }}
+              className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${
+                index === 0 ? "text-[#f3c64f]" : "text-white"
+              }`}
+            >
+              <span className="text-xl leading-none">
+                {icon}
+              </span>
+              <span className="mt-1 truncate text-[9px] font-bold">
+                {label}
+              </span>
+
+              {index === 0 && (
+                <span className="absolute bottom-0 h-0.5 w-10 rounded-full bg-[#f3c64f]" />
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {picksOpen &&
         signedInPlayer &&

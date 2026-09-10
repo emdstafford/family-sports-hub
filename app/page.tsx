@@ -58,6 +58,16 @@ type BrowserGame = {
   liveData: boolean;
 };
 
+type GameRoomMessage = {
+  id: string;
+  game_id: string;
+  player_id: string;
+  player_name: string;
+  player_initials: string;
+  message: string;
+  created_at: string;
+};
+
 type PickChoice = "home" | "away" | "draw";
 
 type SavedPick = {
@@ -647,6 +657,153 @@ export default function Home() {
 
   const [expandedGameIds, setExpandedGameIds] =
     useState<string[]>([]);
+
+  const [gameRoomGame, setGameRoomGame] =
+    useState<BrowserGame | null>(null);
+
+  const [gameRoomMessages, setGameRoomMessages] =
+    useState<GameRoomMessage[]>([]);
+
+  const [gameRoomMessage, setGameRoomMessage] =
+    useState("");
+
+  const [gameRoomLoading, setGameRoomLoading] =
+    useState(false);
+
+  const [gameRoomSending, setGameRoomSending] =
+    useState(false);
+
+  const [gameRoomError, setGameRoomError] =
+    useState<string | null>(null);
+
+  async function loadGameRoomMessages(game: BrowserGame) {
+    if (!signedInPlayer) return;
+
+    const sessionToken =
+      window.localStorage.getItem("fambam_session_token");
+
+    if (!sessionToken) {
+      setGameRoomError("Your FamBam session has expired. Please switch players and sign in again.");
+      return;
+    }
+
+    setGameRoomLoading(true);
+    setGameRoomError(null);
+
+    try {
+      const response = await fetch(
+        `/api/game-room?playerId=${encodeURIComponent(
+          signedInPlayer.id,
+        )}&gameId=${encodeURIComponent(game.id)}`,
+        {
+          cache: "no-store",
+          headers: {
+            "x-fambam-session": sessionToken,
+          },
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ?? "Unable to load the Game Room.",
+        );
+      }
+
+      setGameRoomMessages(data.messages ?? []);
+    } catch (error) {
+      setGameRoomError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load the Game Room.",
+      );
+    } finally {
+      setGameRoomLoading(false);
+    }
+  }
+
+  async function openGameRoom(game: BrowserGame) {
+    if (!signedInPlayer) {
+      setLoadError("Choose your player before entering a Game Room.");
+      return;
+    }
+
+    setGameRoomGame(game);
+    setGameRoomMessages([]);
+    setGameRoomMessage("");
+    setGameRoomError(null);
+
+    await loadGameRoomMessages(game);
+  }
+
+  function closeGameRoom() {
+    setGameRoomGame(null);
+    setGameRoomMessages([]);
+    setGameRoomMessage("");
+    setGameRoomError(null);
+  }
+
+  async function sendGameRoomMessage(messageOverride?: string) {
+    if (
+      !signedInPlayer ||
+      !gameRoomGame ||
+      gameRoomSending
+    ) {
+      return;
+    }
+
+    const outgoingMessage = (
+      messageOverride ?? gameRoomMessage
+    ).trim();
+
+    if (!outgoingMessage) return;
+
+    const sessionToken =
+      window.localStorage.getItem("fambam_session_token");
+
+    if (!sessionToken) {
+      setGameRoomError("Your FamBam session has expired. Please sign in again.");
+      return;
+    }
+
+    setGameRoomSending(true);
+    setGameRoomError(null);
+
+    try {
+      const response = await fetch("/api/game-room", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-fambam-session": sessionToken,
+        },
+        body: JSON.stringify({
+          playerId: signedInPlayer.id,
+          gameId: gameRoomGame.id,
+          message: outgoingMessage,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ?? "Unable to send your message.",
+        );
+      }
+
+      setGameRoomMessage("");
+      await loadGameRoomMessages(gameRoomGame);
+    } catch (error) {
+      setGameRoomError(
+        error instanceof Error
+          ? error.message
+          : "Unable to send your message.",
+      );
+    } finally {
+      setGameRoomSending(false);
+    }
+  }
 
   const [challengePickStatus, setChallengePickStatus] =
     useState<ChallengePickStatus>({});
@@ -1720,6 +1877,13 @@ export default function Home() {
                           : "Tell Me More →"}
                       </button>
 
+                      <button
+                        onClick={() => openGameRoom(game)}
+                        className="ml-2 rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
+                      >
+                        Game Room 💬
+                      </button>
+
                       {expandedGameIds.includes(game.id) && (
                         <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
                           <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
@@ -1805,9 +1969,19 @@ export default function Home() {
                         {getGameContext(game, collegeFootballRankings)}
                       </div>
 
-                      <div className="mt-2 flex justify-end">
-                        <button className="rounded-lg bg-[#edf5ff] px-3 py-1.5 text-[10px] font-black text-[#164d9b]">
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button
+                          onClick={() => toggleGameDetails(game.id)}
+                          className="rounded-lg bg-[#edf5ff] px-3 py-1.5 text-[10px] font-black text-[#164d9b]"
+                        >
                           Tell Me More →
+                        </button>
+
+                        <button
+                          onClick={() => openGameRoom(game)}
+                          className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
+                        >
+                          Game Room 💬
                         </button>
                       </div>
                     </div>
@@ -1948,6 +2122,189 @@ export default function Home() {
           ))}
         </div>
       </nav>
+
+      {gameRoomGame && signedInPlayer && (
+        <div className="fixed inset-0 z-[130] flex items-end justify-center bg-slate-950/60 backdrop-blur-sm sm:items-center sm:p-4">
+          <div
+            className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.75rem] bg-[#f7f4ec] shadow-2xl sm:rounded-[1.75rem]"
+            style={{
+              paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            }}
+          >
+            <div className="shrink-0 bg-[#06284a] px-4 pb-4 pt-4 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
+                    {gameRoomGame.icon} Game Room
+                  </div>
+
+                  <h2 className="mt-1 text-xl font-black leading-tight">
+                    {gameRoomGame.away} vs {gameRoomGame.home}
+                  </h2>
+
+                  <div className="mt-1 text-xs font-semibold text-slate-200">
+                    {gameRoomGame.competition}
+                    {" · "}
+                    {formatGameDate(gameRoomGame.startsAt)}
+                    {" · "}
+                    {formatGameTime(
+                      gameRoomGame.startsAt,
+                      gameRoomGame.startTimeTbd,
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={closeGameRoom}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-lg font-black"
+                  aria-label="Close Game Room"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <div className="mb-4 rounded-2xl bg-[#edf5ff] p-3 text-xs font-semibold text-[#284d7e]">
+                {getGameContext(
+                  gameRoomGame,
+                  collegeFootballRankings,
+                )}
+              </div>
+
+              {gameRoomLoading && (
+                <div className="py-10 text-center text-sm font-bold text-slate-500">
+                  Opening the Game Room…
+                </div>
+              )}
+
+              {!gameRoomLoading &&
+                gameRoomMessages.length === 0 && (
+                  <div className="py-10 text-center">
+                    <div className="text-3xl">🛋️</div>
+                    <div className="mt-2 text-sm font-black text-[#06284a]">
+                      The couch is empty!
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-slate-500">
+                      Be the first to say something about this game.
+                    </div>
+                  </div>
+                )}
+
+              <div className="space-y-3">
+                {gameRoomMessages.map((message) => {
+                  const mine =
+                    message.player_id === signedInPlayer.id;
+
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${
+                        mine
+                          ? "justify-end"
+                          : "justify-start"
+                      }`}
+                    >
+                      <div
+                        className={`max-w-[82%] ${
+                          mine ? "text-right" : "text-left"
+                        }`}
+                      >
+                        <div
+                          className={`mb-1 flex items-center gap-1.5 ${
+                            mine
+                              ? "justify-end"
+                              : "justify-start"
+                          }`}
+                        >
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f3c64f] text-[9px] font-black text-[#06284a]">
+                            {message.player_initials}
+                          </div>
+
+                          <span className="text-[10px] font-black text-slate-500">
+                            {message.player_name}
+                          </span>
+                        </div>
+
+                        <div
+                          className={`inline-block rounded-2xl px-3 py-2 text-sm font-semibold ${
+                            mine
+                              ? "rounded-br-md bg-[#06284a] text-white"
+                              : "rounded-bl-md bg-white text-slate-800 shadow-sm"
+                          }`}
+                        >
+                          {message.message}
+                        </div>
+
+                        <div className="mt-1 text-[9px] font-semibold text-slate-400">
+                          {new Date(
+                            message.created_at,
+                          ).toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {gameRoomError && (
+                <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">
+                  {gameRoomError}
+                </div>
+              )}
+            </div>
+
+            <div className="shrink-0 border-t border-slate-200 bg-white px-3 pb-3 pt-2">
+              <div className="mb-2 flex justify-center gap-2">
+                {["😱", "🔥", "👀", "🙌", "😂"].map(
+                  (reaction) => (
+                    <button
+                      key={reaction}
+                      onClick={() =>
+                        sendGameRoomMessage(reaction)
+                      }
+                      disabled={gameRoomSending}
+                      className="flex h-9 w-11 items-center justify-center rounded-full bg-[#f7f4ec] text-lg active:scale-95 disabled:opacity-50"
+                    >
+                      {reaction}
+                    </button>
+                  ),
+                )}
+              </div>
+
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={gameRoomMessage}
+                  onChange={(event) =>
+                    setGameRoomMessage(
+                      event.target.value.slice(0, 500),
+                    )
+                  }
+                  placeholder={`Message the FamBam…`}
+                  rows={1}
+                  className="min-h-11 max-h-28 flex-1 resize-none rounded-2xl border border-slate-200 bg-[#f7f4ec] px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-[#f3c64f]"
+                />
+
+                <button
+                  onClick={() =>
+                    sendGameRoomMessage()
+                  }
+                  disabled={
+                    gameRoomSending ||
+                    !gameRoomMessage.trim()
+                  }
+                  className="h-11 rounded-2xl bg-[#f3c64f] px-4 text-xs font-black text-[#06284a] disabled:opacity-40"
+                >
+                  {gameRoomSending ? "…" : "Send"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {picksOpen &&
         signedInPlayer &&

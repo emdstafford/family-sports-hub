@@ -445,31 +445,120 @@ function getGameFacts(
     const awayRank = getTeamRank(game.away, rankings);
     const homeRank = getTeamRank(game.home, rankings);
 
-    if (awayRank) facts.push(`${game.away} is ranked #${awayRank} in the latest AP Top 25.`);
-    if (homeRank) facts.push(`${game.home} is ranked #${homeRank} in the latest AP Top 25.`);
+    if (awayRank && homeRank) {
+      facts.push(
+        `This is a ranked-vs-ranked matchup: #${awayRank} ${game.away} visits #${homeRank} ${game.home}.`,
+      );
+    } else if (awayRank) {
+      facts.push(
+        `#${awayRank} ${game.away} comes into this one ranked, while ${game.home} gets the game at home.`,
+      );
+    } else if (homeRank) {
+      facts.push(
+        `${game.away} gets a road shot at #${homeRank} ${game.home}.`,
+      );
+    } else {
+      facts.push(
+        `${game.away} goes on the road to face ${game.home}.`,
+      );
+    }
 
     if (hasTeam(game, "Kentucky")) {
-      facts.push("Kentucky is one of the FamBam must-in teams for the weekly Challenge.");
+      const opponent =
+        game.home.toLowerCase().includes("kentucky")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `Kentucky's matchup with ${opponent} is one the family will especially want to keep an eye on.`,
+      );
     } else if (hasTeam(game, "Georgia")) {
-      facts.push("Georgia is one of the FamBam must-in teams for the weekly Challenge.");
+      const opponent =
+        game.home.toLowerCase().includes("georgia")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `Georgia faces ${opponent} in a game that will be especially relevant for the Georgia fans in the family.`,
+      );
+    }
+
+    if (awayRank && !homeRank) {
+      facts.push(
+        `${game.home} has the home-field opportunity to knock off a ranked opponent.`,
+      );
+    } else if (homeRank && !awayRank) {
+      facts.push(
+        `${game.away} would have to beat a ranked opponent on the road to pull this one out.`,
+      );
+    } else if (awayRank && homeRank) {
+      facts.push(
+        `With both teams ranked, this is one of the stronger matchups on the Challenge slate.`,
+      );
     }
   }
 
   if (game.sport === "Soccer") {
-    facts.push(`This match is in the ${game.competition}.`);
-    if (
-      hasTeam(game, "Arsenal") ||
-      hasTeam(game, "Liverpool") ||
-      hasTeam(game, "Aston Villa") ||
-      hasTeam(game, "AFC Wimbledon")
-    ) {
-      facts.push("A FamBam-supported club is playing.");
+    facts.push(
+      `${game.away} travels to ${game.home} for this ${game.competition} matchup.`,
+    );
+
+    if (hasTeam(game, "Arsenal")) {
+      const opponent =
+        game.home.toLowerCase().includes("arsenal")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `Arsenal faces ${opponent}, making this especially relevant for the Arsenal supporters in the family.`,
+      );
+    } else if (hasTeam(game, "Liverpool")) {
+      const opponent =
+        game.home.toLowerCase().includes("liverpool")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `Liverpool faces ${opponent}, so this one belongs on Kayla's radar.`,
+      );
+    } else if (hasTeam(game, "Aston Villa")) {
+      const opponent =
+        game.home.toLowerCase().includes("aston villa")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `Aston Villa faces ${opponent}, making this one especially relevant for the Villa supporters in the family.`,
+      );
+    } else if (hasTeam(game, "AFC Wimbledon")) {
+      const opponent =
+        game.home.toLowerCase().includes("afc wimbledon")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `AFC Wimbledon faces ${opponent}, so this is one of Emily's clubs to follow.`,
+      );
     }
-    facts.push("Soccer picks can be home win, draw, or away win.");
+
+    facts.push(
+      `Because this is ${game.competition}, the result counts toward that competition rather than a separate league or cup.`,
+    );
   }
 
   if (facts.length < 2) {
-    facts.push(`Kickoff: ${formatGameDate(game.startsAt)} at ${formatGameTime(game.startsAt, game.startTimeTbd)}.`);
+    facts.push(
+      `${game.away} visits ${game.home} in the ${game.competition}.`,
+    );
+  }
+
+  if (facts.length < 3) {
+    facts.push(
+      `Kickoff: ${formatGameDate(game.startsAt)} at ${formatGameTime(
+        game.startsAt,
+        game.startTimeTbd,
+      )}.`,
+    );
   }
 
   return facts.slice(0, 3);
@@ -1822,7 +1911,13 @@ export default function Home() {
 
       {/* APP NAV */}
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]">
-        <div className="mx-auto grid max-w-5xl grid-cols-5">
+        <div
+          className="mx-auto grid max-w-5xl grid-cols-5"
+          style={{
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+            paddingTop: "6px",
+          }}
+        >
           {[
             ["🏠", "Home"],
             ["🏆", "Challenge"],

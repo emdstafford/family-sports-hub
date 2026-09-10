@@ -676,8 +676,17 @@ export default function Home() {
   const [gameRoomError, setGameRoomError] =
     useState<string | null>(null);
 
+  const [gameRoomTypingName, setGameRoomTypingName] =
+    useState<string | null>(null);
+
   const gameRoomBottomRef =
     useRef<HTMLDivElement | null>(null);
+
+  const gameRoomTypingTimeoutRef =
+    useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const lastTypingSignalAtRef =
+    useRef(0);
 
   async function loadGameRoomMessages(game: BrowserGame) {
     if (!signedInPlayer) return;
@@ -768,22 +777,87 @@ export default function Home() {
           table: "game_room_events",
           filter: `game_id=eq.${gameRoomGame.id}`,
         },
-        async () => {
-          await loadGameRoomMessages(gameRoomGame);
+        async (payload) => {
+          const event = payload.new as {
+            event_type?: string;
+            player_id?: string | null;
+          };
+
+          if (event.event_type === "typing") {
+            if (
+              event.player_id &&
+              event.player_id !== signedInPlayer.id
+            ) {
+              const typingPlayer =
+                players.find(
+                  (player) => player.id === event.player_id,
+                );
+
+              setGameRoomTypingName(
+                typingPlayer?.display_name ?? "Someone",
+              );
+
+              if (gameRoomTypingTimeoutRef.current) {
+                clearTimeout(
+                  gameRoomTypingTimeoutRef.current,
+                );
+              }
+
+              gameRoomTypingTimeoutRef.current =
+                setTimeout(() => {
+                  setGameRoomTypingName(null);
+                }, 2500);
+            }
+
+            return;
+          }
+
+          if (event.event_type === "message") {
+            setGameRoomTypingName(null);
+            await loadGameRoomMessages(gameRoomGame);
+          }
         },
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+
+      if (gameRoomTypingTimeoutRef.current) {
+        clearTimeout(gameRoomTypingTimeoutRef.current);
+      }
+
+      setGameRoomTypingName(null);
     };
-  }, [gameRoomGame?.id, signedInPlayer?.id]);
+  }, [gameRoomGame?.id, signedInPlayer?.id, players]);
 
   function closeGameRoom() {
     setGameRoomGame(null);
     setGameRoomMessages([]);
     setGameRoomMessage("");
     setGameRoomError(null);
+  }
+
+  async function signalGameRoomTyping() {
+    if (!signedInPlayer || !gameRoomGame) return;
+
+    const now = Date.now();
+
+    if (now - lastTypingSignalAtRef.current < 1200) {
+      return;
+    }
+
+    lastTypingSignalAtRef.current = now;
+
+    const supabase = createClient();
+
+    await supabase
+      .from("game_room_events")
+      .insert({
+        game_id: gameRoomGame.id,
+        event_type: "typing",
+        player_id: signedInPlayer.id,
+      });
   }
 
   async function sendGameRoomMessage(messageOverride?: string) {
@@ -2290,6 +2364,19 @@ export default function Home() {
                     </div>
                   );
                 })}
+                {gameRoomTypingName && (
+                  <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <span>
+                      {gameRoomTypingName} is typing
+                    </span>
+                    <span className="inline-flex gap-0.5">
+                      <span className="animate-pulse">•</span>
+                      <span className="animate-pulse">•</span>
+                      <span className="animate-pulse">•</span>
+                    </span>
+                  </div>
+                )}
+
                 <div ref={gameRoomBottomRef} />
               </div>
 
@@ -2327,11 +2414,16 @@ export default function Home() {
               <div className="flex items-end gap-2">
                 <textarea
                   value={gameRoomMessage}
-                  onChange={(event) =>
-                    setGameRoomMessage(
-                      event.target.value.slice(0, 500),
-                    )
-                  }
+                  onChange={(event) => {
+                    const value =
+                      event.target.value.slice(0, 500);
+
+                    setGameRoomMessage(value);
+
+                    if (value.trim()) {
+                      void signalGameRoomTyping();
+                    }
+                  }}
                   placeholder={`Message the FamBam…`}
                   rows={1}
                   className="min-h-11 max-h-28 flex-1 resize-none rounded-2xl border border-slate-200 bg-[#f7f4ec] px-3 py-3 text-base font-semibold text-slate-900 outline-none focus:border-[#f3c64f]"

@@ -23,6 +23,14 @@ export async function GET(request: NextRequest) {
     const gameId = request.nextUrl.searchParams.get("gameId");
     const sessionToken = request.headers.get("x-fambam-session");
 
+    console.log("GAME ROOM DEBUG", {
+      playerId,
+      gameId,
+      hasSessionToken: Boolean(sessionToken),
+      playerIdLength: playerId?.length ?? null,
+      gameIdLength: gameId?.length ?? null,
+    });
+
     if (!playerId || !gameId || !sessionToken) {
       return NextResponse.json(
         { error: "Missing Game Room session information" },

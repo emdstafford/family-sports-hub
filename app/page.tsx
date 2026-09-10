@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Player = {
@@ -676,6 +676,9 @@ export default function Home() {
   const [gameRoomError, setGameRoomError] =
     useState<string | null>(null);
 
+  const gameRoomBottomRef =
+    useRef<HTMLDivElement | null>(null);
+
   async function loadGameRoomMessages(game: BrowserGame) {
     if (!signedInPlayer) return;
 
@@ -724,6 +727,17 @@ export default function Home() {
       setGameRoomLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!gameRoomGame) return;
+
+    requestAnimationFrame(() => {
+      gameRoomBottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    });
+  }, [gameRoomGame?.id, gameRoomMessages.length]);
 
   async function openGameRoom(game: BrowserGame) {
     if (!signedInPlayer) {
@@ -2276,6 +2290,7 @@ export default function Home() {
                     </div>
                   );
                 })}
+                <div ref={gameRoomBottomRef} />
               </div>
 
               {gameRoomError && (

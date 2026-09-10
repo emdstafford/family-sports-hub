@@ -1622,9 +1622,27 @@ export default function Home() {
                     </div>
 
                     <div className="mt-2 flex justify-end">
-                      <button className="rounded-lg bg-[#edf5ff] px-3 py-1.5 text-[10px] font-black text-[#164d9b]">
-                        Tell Me More →
+                      <button
+                        onClick={() => toggleGameDetails(game.id)}
+                        className="rounded-lg bg-[#eef2f6] px-3 py-1.5 text-[10px] font-black text-[#06284a]"
+                      >
+                        {expandedGameIds.includes(game.id)
+                          ? "Show Less ↑"
+                          : "Tell Me More →"}
                       </button>
+
+                      {expandedGameIds.includes(game.id) && (
+                        <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
+                          <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
+                            {getGameFacts(
+                              game,
+                              collegeFootballRankings,
+                            ).map((fact) => (
+                              <li key={fact}>• {fact}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1840,14 +1858,14 @@ export default function Home() {
         signedInPlayer &&
         challenge && (
           <div className="fixed inset-0 z-[120] overflow-y-auto bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
-            <div className="mx-auto max-w-lg overflow-hidden rounded-[2rem] bg-white shadow-2xl">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white">
+            <div className="mx-auto max-w-lg overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-2xl">
+              <div className="bg-[#06284a] p-5 text-white">
                 <div className="flex justify-between">
                   <div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-blue-200">
-                      🎯 Who Ya Got?
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
+                      This Week&apos;s Challenge
                     </div>
-                    <h2 className="mt-1 text-2xl font-black">
+                    <h2 className="mt-1 text-2xl font-black tracking-tight">
                       {
                         signedInPlayer.display_name
                       }
@@ -1895,7 +1913,7 @@ export default function Home() {
 
                       <button
                         onClick={closePicks}
-                        className="mt-5 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-black text-white"
+                        className="mt-5 rounded-xl bg-[#06284a] px-6 py-3 text-sm font-black text-white"
                       >
                         Close
                       </button>
@@ -1920,11 +1938,11 @@ export default function Home() {
                         return (
                           <div
                             key={game.id}
-                            className="rounded-2xl border border-slate-200 p-4"
+                            className="rounded-2xl border border-[#e3dccd] bg-white p-4 shadow-sm"
                           >
                             <div className="flex items-start justify-between">
                               <div>
-                                <div className="text-[9px] font-black uppercase text-blue-600">
+                                <div className="text-[9px] font-black uppercase tracking-wide text-[#b28a2e]">
                                   {
                                     game.competition
                                   }
@@ -1988,7 +2006,7 @@ export default function Home() {
                                   onClick={() =>
                                     toggleGameDetails(game.id)
                                   }
-                                  className="mt-2 text-xs font-black text-blue-600"
+                                  className="mt-2 text-xs font-black text-[#164d75]"
                                 >
                                   {expandedGameIds.includes(game.id)
                                     ? "Show Less ↑"
@@ -1996,7 +2014,7 @@ export default function Home() {
                                 </button>
 
                                 {expandedGameIds.includes(game.id) && (
-                                  <div className="mt-2 rounded-xl bg-slate-50 p-3">
+                                  <div className="mt-2 rounded-xl bg-[#f8f6ef] p-3">
                                     <ul className="space-y-1.5 text-xs font-semibold text-slate-600">
                                       {getGameFacts(
                                         game,
@@ -2021,13 +2039,13 @@ export default function Home() {
                                     }
                                     className={`rounded-2xl border-2 p-3 text-center transition active:scale-[0.98] ${
                                       choice === "away"
-                                        ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                                        ? "border-[#f3c64f] bg-[#06284a] text-white shadow-sm"
                                         : "border-slate-200 bg-white text-slate-900"
                                     }`}
                                   >
                                     <div className={`text-[9px] font-black uppercase ${
                                       choice === "away"
-                                        ? "text-blue-100"
+                                        ? "text-[#f3d879]"
                                         : "text-slate-400"
                                     }`}>
                                       Away
@@ -2054,13 +2072,13 @@ export default function Home() {
                                       }
                                       className={`rounded-2xl border-2 p-3 text-center transition active:scale-[0.98] ${
                                         choice === "draw"
-  ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+  ? "border-[#f3c64f] bg-[#06284a] text-white shadow-sm"
                                           : "border-slate-200 bg-white text-slate-900"
                                       }`}
                                     >
                                       <div className={`text-[9px] font-black uppercase ${
                                         choice === "draw"
-  ? "text-blue-100"
+  ? "text-[#f3d879]"
                                           : "text-slate-400"
                                       }`}>
                                         Result
@@ -2082,13 +2100,13 @@ export default function Home() {
                                     }
                                     className={`rounded-2xl border-2 p-3 text-center transition active:scale-[0.98] ${
                                       choice === "home"
-                                        ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                                        ? "border-[#f3c64f] bg-[#06284a] text-white shadow-sm"
                                         : "border-slate-200 bg-white text-slate-900"
                                     }`}
                                   >
                                     <div className={`text-[9px] font-black uppercase ${
                                       choice === "home"
-                                        ? "text-blue-100"
+                                        ? "text-[#f3d879]"
                                         : "text-slate-400"
                                     }`}>
                                       Home
@@ -2137,7 +2155,7 @@ export default function Home() {
                     <button
                       onClick={saveAllPicks}
                       disabled={savingPicks}
-                      className="mt-5 w-full rounded-2xl bg-blue-600 py-4 font-black text-white disabled:bg-slate-300"
+                      className="mt-5 w-full rounded-2xl bg-[#06284a] py-4 font-black text-white shadow-sm disabled:bg-slate-300"
                     >
                       {savingPicks
   ? "Saving..."
@@ -2152,29 +2170,7 @@ export default function Home() {
           </div>
         )}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-4px_20px_rgba(15,23,42,0.08)]">
-        <div className="mx-auto grid max-w-lg grid-cols-5">
-          {[
-            ["🏠", "Home"],
-            ["🏆", "Challenge"],
-            ["📅", "Games"],
-            ["🧢", "Locker Room"],
-            ["🏅", "Trophy Room"],
-          ].map(([icon, label], index) => (
-            <button
-              key={label}
-              className={`flex flex-col items-center gap-1 py-1 text-[9px] font-black ${
-                index === 0 ? "text-blue-600" : "text-slate-400"
-              }`}
-            >
-              <span className="text-lg">{icon}</span>
-              <span className="whitespace-nowrap">{label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {selectedPlayer && (
+            {selectedPlayer && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 px-4">
           <div className="w-full max-w-sm rounded-[2rem] bg-white p-6">
             <h2 className="text-center text-2xl font-black">

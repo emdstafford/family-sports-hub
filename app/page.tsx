@@ -751,7 +751,7 @@ export default function Home() {
         {
           event: "INSERT",
           schema: "public",
-          table: "game_messages",
+          table: "game_room_events",
           filter: `game_id=eq.${gameRoomGame.id}`,
         },
         async () => {
@@ -2285,7 +2285,13 @@ export default function Home() {
               )}
             </div>
 
-            <div className="shrink-0 border-t border-slate-200 bg-white px-3 pb-3 pt-2">
+            <div
+              className="shrink-0 border-t border-slate-200 bg-white px-3 pt-2"
+              style={{
+                paddingBottom:
+                  "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+              }}
+            >
               <div className="mb-2 flex justify-center gap-2">
                 {["😱", "🔥", "👀", "🙌", "😂"].map(
                   (reaction) => (
@@ -2313,7 +2319,7 @@ export default function Home() {
                   }
                   placeholder={`Message the FamBam…`}
                   rows={1}
-                  className="min-h-11 max-h-28 flex-1 resize-none rounded-2xl border border-slate-200 bg-[#f7f4ec] px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-[#f3c64f]"
+                  className="min-h-11 max-h-28 flex-1 resize-none rounded-2xl border border-slate-200 bg-[#f7f4ec] px-3 py-3 text-base font-semibold text-slate-900 outline-none focus:border-[#f3c64f]"
                 />
 
                 <button

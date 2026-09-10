@@ -739,6 +739,32 @@ export default function Home() {
     await loadGameRoomMessages(game);
   }
 
+  useEffect(() => {
+    if (!gameRoomGame || !signedInPlayer) return;
+
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel(`game-room-${gameRoomGame.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "game_messages",
+          filter: `game_id=eq.${gameRoomGame.id}`,
+        },
+        async () => {
+          await loadGameRoomMessages(gameRoomGame);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [gameRoomGame?.id, signedInPlayer?.id]);
+
   function closeGameRoom() {
     setGameRoomGame(null);
     setGameRoomMessages([]);

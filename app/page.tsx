@@ -507,6 +507,7 @@ export default function Home() {
   const [selectedPlayer, setSelectedPlayer] =
     useState<Player | null>(null);
 
+
   const [signedInPlayer, setSignedInPlayer] =
     useState<Player | null>(null);
 
@@ -537,15 +538,13 @@ export default function Home() {
   const [picksUnlocked, setPicksUnlocked] =
     useState(false);
 
-  const [picksPin, setPicksPin] = useState("");
-
   const [picksError, setPicksError] =
     useState<string | null>(null);
 
   const [picksSuccess, setPicksSuccess] =
     useState<string | null>(null);
 
-  const [checkingPicksPin, setCheckingPicksPin] =
+  const [loadingPicks, setLoadingPicks] =
     useState(false);
 
   const [savingPicks, setSavingPicks] =
@@ -960,36 +959,41 @@ export default function Home() {
   }
 
   async function verifyPin() {
-    if (
-      !selectedPlayer ||
-      pin.length !== 4
-    ) {
-      return;
-    }
+  if (
+    !selectedPlayer ||
+    pin.length !== 4
+  ) {
+    return;
+  }
 
-    setCheckingPin(true);
-    setPinError(null);
+  setCheckingPin(true);
+  setPinError(null);
 
-    const supabase = createClient();
-
-    const { data, error } =
-      await supabase.rpc(
-        "verify_player_pin",
-        {
-          target_player_id:
-            selectedPlayer.id,
-          attempted_pin: pin,
+  try {
+    const response = await fetch(
+      "/api/player-session",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
         },
-      );
+        body: JSON.stringify({
+          playerId:
+            selectedPlayer.id,
+          pin,
+        }),
+      },
+    );
 
-    if (error || !data) {
-      setPinError(
-        "That PIN wasn't right. Try again.",
-      );
+    const body =
+      await response.json();
 
-      setPin("");
-      setCheckingPin(false);
-      return;
+    if (!response.ok) {
+      throw new Error(
+        body.error ??
+          "That PIN wasn't right. Try again.",
+      );
     }
 
     localStorage.setItem(
@@ -997,11 +1001,29 @@ export default function Home() {
       selectedPlayer.id,
     );
 
-    setSignedInPlayer(selectedPlayer);
+    localStorage.setItem(
+      "fambam_session_token",
+      body.sessionToken,
+    );
+
+    setSignedInPlayer(
+      selectedPlayer,
+    );
+
     setSelectedPlayer(null);
     setPin("");
+  } catch (error) {
+    setPinError(
+      error instanceof Error
+        ? error.message
+        : "Could not sign in. Try again.",
+    );
+
+    setPin("");
+  } finally {
     setCheckingPin(false);
   }
+}
 
   function switchPlayer() {
     localStorage.removeItem(
@@ -1132,97 +1154,57 @@ export default function Home() {
     );
   }
 
-  function openPicks() {
+  async function openPicks() {
     if (!signedInPlayer || !challenge) {
       return;
     }
 
     setPicksOpen(true);
     setPicksUnlocked(false);
-    setPicksPin("");
     setPicksError(null);
     setPicksSuccess(null);
     setPickChoices({});
     setSavedPickGameIds([]);
-  }
-
-  function closePicks() {
-    if (savingPicks || checkingPicksPin) {
-      return;
-    }
-
-    setPicksOpen(false);
-    setPicksUnlocked(false);
-    setPicksPin("");
-    setPicksError(null);
-    setPicksSuccess(null);
-    setPickChoices({});
-    setSavedPickGameIds([]);
-  }
-
-  function enterPicksDigit(digit: string) {
-    if (
-      picksPin.length >= 4 ||
-      checkingPicksPin
-    ) {
-      return;
-    }
-
-    setPicksPin(
-      (current) => current + digit,
-    );
-
-    setPicksError(null);
-  }
-
-  function deletePicksDigit() {
-    if (checkingPicksPin) return;
-
-    setPicksPin((current) =>
-      current.slice(0, -1),
-    );
-  }
-
-  async function unlockPicks() {
-    if (
-      !signedInPlayer ||
-      !challenge ||
-      picksPin.length !== 4
-    ) {
-      return;
-    }
-
-    setCheckingPicksPin(true);
-    setPicksError(null);
+    setLoadingPicks(true);
 
     try {
-      const supabase = createClient();
-
-      const { data, error } =
-        await supabase.rpc(
-          "get_my_challenge_picks",
-          {
-            target_player_id:
-              signedInPlayer.id,
-            target_challenge_id:
-              challenge.id,
-            attempted_pin:
-              picksPin,
-          },
+      const sessionToken =
+        localStorage.getItem(
+          "fambam_session_token",
         );
 
-      if (error) {
+      if (!sessionToken) {
         throw new Error(
-          error.message
-            .toLowerCase()
-            .includes("pin")
-            ? "That PIN wasn't right. Try again."
-            : "Could not open your picks.",
+          "Your FamBam session has expired. Switch players and sign in again.",
+        );
+      }
+
+      const params = new URLSearchParams({
+        playerId: signedInPlayer.id,
+        challengeId: challenge.id,
+      });
+
+      const response = await fetch(
+        `/api/player-picks?${params.toString()}`,
+        {
+          headers: {
+            "x-fambam-session":
+              sessionToken,
+          },
+        },
+      );
+
+      const body = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          body.error ??
+            "Could not open your picks.",
         );
       }
 
       const saved =
-        (data ?? []) as SavedPick[];
+        (body.picks ?? []) as SavedPick[];
 
       const choices: Record<
         string,
@@ -1255,11 +1237,22 @@ export default function Home() {
           ? error.message
           : "Could not open your picks.",
       );
-
-      setPicksPin("");
     } finally {
-      setCheckingPicksPin(false);
+      setLoadingPicks(false);
     }
+  }
+
+  function closePicks() {
+    if (savingPicks || loadingPicks) {
+      return;
+    }
+
+    setPicksOpen(false);
+    setPicksUnlocked(false);
+    setPicksError(null);
+    setPicksSuccess(null);
+    setPickChoices({});
+    setSavedPickGameIds([]);
   }
 
   function selectPick(
@@ -1275,19 +1268,19 @@ export default function Home() {
     setPicksSuccess(null);
   }
 
-    async function saveAllPicks() {
+  async function saveAllPicks() {
     if (
       !signedInPlayer ||
       !challenge ||
-      !picksUnlocked ||
-      picksPin.length !== 4
+      !picksUnlocked
     ) {
       return;
     }
 
-    const gamesToSave = availablePickGames.filter(
-      (game) => pickChoices[game.id],
-    );
+    const gamesToSave =
+      availablePickGames.filter(
+        (game) => pickChoices[game.id],
+      );
 
     if (gamesToSave.length === 0) {
       setPicksError(
@@ -1301,60 +1294,85 @@ export default function Home() {
     setPicksSuccess(null);
 
     try {
-      const supabase = createClient();
+      const sessionToken =
+        localStorage.getItem(
+          "fambam_session_token",
+        );
+
+      if (!sessionToken) {
+        throw new Error(
+          "Your FamBam session has expired. Switch players and sign in again.",
+        );
+      }
 
       for (const game of gamesToSave) {
-        const choice = pickChoices[game.id];
+        const choice =
+          pickChoices[game.id];
 
         if (!choice) continue;
 
-        const { error } =
-          await supabase.rpc(
-            "save_player_pick",
-            {
-              target_player_id:
-                signedInPlayer.id,
-              target_game_id:
-                game.id,
-              target_challenge_id:
-                challenge.id,
-              attempted_pin:
-                picksPin,
-              target_pick_choice:
-                choice,
+        const response = await fetch(
+          "/api/player-picks",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+              "x-fambam-session":
+                sessionToken,
             },
-          );
+            body: JSON.stringify({
+              playerId:
+                signedInPlayer.id,
+              challengeId:
+                challenge.id,
+              gameId: game.id,
+              pickChoice: choice,
+            }),
+          },
+        );
 
-        if (error) {
+        const body =
+          await response.json();
+
+        if (!response.ok) {
           throw new Error(
-            `Could not save ${game.away} at ${game.home}.`,
+            body.error ??
+              `Could not save ${game.away} at ${game.home}.`,
           );
         }
       }
 
-      setSavedPickGameIds((current) => [
-        ...new Set([
-          ...current,
-          ...gamesToSave.map(
-            (game) => game.id,
-          ),
-        ]),
-      ]);
+      const newlySavedGameIds =
+        gamesToSave.map(
+          (game) => game.id,
+        );
 
       const totalSaved = new Set([
         ...savedPickGameIds,
-        ...gamesToSave.map(
-          (game) => game.id,
-        ),
+        ...newlySavedGameIds,
       ]).size;
 
-      setChallengePickStatus((current) => ({
-        ...current,
-        [signedInPlayer.id]: totalSaved,
-      }));
+      setSavedPickGameIds(
+        (current) => [
+          ...new Set([
+            ...current,
+            ...newlySavedGameIds,
+          ]),
+        ],
+      );
+
+      setChallengePickStatus(
+        (current) => ({
+          ...current,
+          [signedInPlayer.id]:
+            totalSaved,
+        }),
+      );
 
       setPicksSuccess(
-        totalSaved === challengeGames.length
+        totalSaved ===
+          challengeGames.length
           ? `You're all set! ${totalSaved}/${challengeGames.length} picks saved. ✅`
           : `${totalSaved}/${challengeGames.length} picks saved. Come back anytime to finish!`,
       );
@@ -1876,100 +1894,42 @@ export default function Home() {
 
               {!picksUnlocked ? (
                 <div className="p-6">
-                  <div className="text-center">
-                    <div className="text-3xl">
-                      🔒
+                  {loadingPicks ? (
+                    <div className="py-8 text-center">
+                      <div className="text-3xl">
+                        🏆
+                      </div>
+                      <h3 className="mt-3 text-xl font-black">
+                        Loading Your Picks...
+                      </h3>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                        Getting this week&apos;s Challenge ready.
+                      </p>
                     </div>
-                    <h3 className="mt-2 text-xl font-black">
-                      Open My Picks
-                    </h3>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Enter your PIN.
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="py-6 text-center">
+                      <div className="text-3xl">
+                        🔒
+                      </div>
+                      <h3 className="mt-3 text-xl font-black">
+                        Couldn&apos;t Open Your Picks
+                      </h3>
 
-                  <div className="mt-5 flex justify-center gap-3">
-                    {[0, 1, 2, 3].map(
-                      (position) => (
-                        <div
-                          key={position}
-                          className={`h-4 w-4 rounded-full ${
-                            picksPin.length >
-                            position
-                              ? "bg-blue-600"
-                              : "bg-slate-200"
-                          }`}
-                        />
-                      ),
-                    )}
-                  </div>
+                      {picksError && (
+                        <p className="mt-2 text-sm font-semibold text-slate-500">
+                          {picksError}
+                        </p>
+                      )}
 
-                  <div className="mt-6 grid grid-cols-3 gap-3">
-                    {[
-                      "1",
-                      "2",
-                      "3",
-                      "4",
-                      "5",
-                      "6",
-                      "7",
-                      "8",
-                      "9",
-                    ].map((digit) => (
                       <button
-                        key={digit}
-                        onClick={() =>
-                          enterPicksDigit(
-                            digit,
-                          )
-                        }
-                        className="h-14 rounded-2xl bg-slate-100 text-xl font-black transition active:scale-95 active:bg-blue-100 active:text-blue-700"
+                        onClick={closePicks}
+                        className="mt-5 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-black text-white"
                       >
-                        {digit}
+                        Close
                       </button>
-                    ))}
-
-                    <button
-                      onClick={closePicks}
-                      className="text-xs font-black text-slate-400"
-                    >
-                      CANCEL
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        enterPicksDigit("0")
-                      }
-                      className="h-14 rounded-2xl bg-slate-100 text-xl font-black transition active:scale-95 active:bg-blue-100 active:text-blue-700"
-                    >
-                      0
-                    </button>
-
-                    <button
-                      onClick={deletePicksDigit}
-                      className="text-xl font-black text-slate-500"
-                    >
-                      ⌫
-                    </button>
-                  </div>
-
-                  {picksError && (
-                    <div className="mt-4 rounded-xl bg-red-50 p-3 text-center text-sm font-bold text-red-600">
-                      {picksError}
                     </div>
                   )}
-
-                  <button
-                    onClick={unlockPicks}
-                    disabled={
-                      picksPin.length !== 4
-                    }
-                    className="mt-5 w-full rounded-2xl bg-blue-600 py-4 font-black text-white disabled:bg-slate-200"
-                  >
-                    Open My Picks →
-                  </button>
-                </div>
-              ) : (
+                </div>              ) : (
                 <div className="p-5">
                   <div className="space-y-4">
                     {challengeGames.map(
@@ -2254,16 +2214,22 @@ export default function Home() {
             </p>
 
             <div className="mt-5 flex justify-center gap-3">
-              {[0, 1, 2, 3].map((position) => (
-                <div
-                  key={position}
-                  className={`h-4 w-4 rounded-full transition ${
-                    pin.length > position
-                      ? "scale-110 bg-blue-600"
-                      : "bg-slate-200"
-                  }`}
-                />
-              ))}
+              {["🏈", "⚽", "🏀", "⚾"].map(
+                (sportBall, position) => (
+                  <div
+                    key={sportBall}
+                    className={`flex h-9 w-9 items-center justify-center rounded-full text-xl transition ${
+                      pin.length > position
+                        ? "scale-110 bg-blue-50"
+                        : "bg-slate-200"
+                    }`}
+                  >
+                    {pin.length > position
+                      ? sportBall
+                      : ""}
+                  </div>
+                ),
+              )}
             </div>
 
             <div className="mt-5 grid grid-cols-3 gap-3">

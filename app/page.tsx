@@ -691,12 +691,14 @@ export default function Home() {
     setGameRoomError(null);
 
     try {
+      const params = new URLSearchParams({
+        playerId: signedInPlayer.id,
+        gameId: game.id,
+      });
+
       const response = await fetch(
-        `/api/game-room?playerId=${encodeURIComponent(
-          signedInPlayer.id,
-        )}&gameId=${encodeURIComponent(game.id)}`,
+        `/api/game-room?${params.toString()}`,
         {
-          cache: "no-store",
           headers: {
             "x-fambam-session": sessionToken,
           },

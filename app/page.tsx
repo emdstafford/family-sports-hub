@@ -849,15 +849,30 @@ export default function Home() {
 
     lastTypingSignalAtRef.current = now;
 
-    const supabase = createClient();
+    const sessionToken =
+      window.localStorage.getItem(
+        "fambam_session_token",
+      );
 
-    await supabase
-      .from("game_room_events")
-      .insert({
-        game_id: gameRoomGame.id,
-        event_type: "typing",
-        player_id: signedInPlayer.id,
+    if (!sessionToken) return;
+
+    try {
+      await fetch("/api/game-room", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-fambam-session": sessionToken,
+        },
+        body: JSON.stringify({
+          action: "typing",
+          playerId: signedInPlayer.id,
+          gameId: gameRoomGame.id,
+        }),
       });
+    } catch {
+      // Typing indicators are optional UI.
+      // Do not interrupt chat if the signal fails.
+    }
   }
 
   async function sendGameRoomMessage(messageOverride?: string) {

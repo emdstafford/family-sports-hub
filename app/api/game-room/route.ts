@@ -84,16 +84,78 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    const playerId = body?.playerId;
-    const gameId = body?.gameId;
-    const message = body?.message;
+    const playerId =
+      typeof body?.playerId === "string"
+        ? body.playerId
+        : "";
 
-    if (!playerId || !gameId || typeof message !== "string") {
+    const gameId =
+      typeof body?.gameId === "string"
+        ? body.gameId
+        : "";
+
+    const action =
+      typeof body?.action === "string"
+        ? body.action
+        : "message";
+
+    if (!playerId || !gameId) {
       return NextResponse.json(
-        { error: "Missing Game Room message information" },
+        { error: "Missing Game Room information" },
         { status: 400 },
       );
     }
+
+    const supabase = getAdminClient();
+
+    if (action === "typing") {
+      const { data: sessionValid, error: sessionError } =
+        await supabase.rpc(
+          "verify_player_session",
+          {
+            target_player_id: playerId,
+            attempted_token: sessionToken,
+          },
+        );
+
+      if (sessionError || !sessionValid) {
+        return NextResponse.json(
+          { error: "Your FamBam session has expired" },
+          { status: 401 },
+        );
+      }
+
+      const { error: typingError } =
+        await supabase
+          .from("game_room_events")
+          .insert({
+            game_id: gameId,
+            event_type: "typing",
+            player_id: playerId,
+          });
+
+      if (typingError) {
+        console.error(
+          "Game Room typing signal error:",
+          typingError,
+        );
+
+        return NextResponse.json(
+          { error: "Unable to send typing signal" },
+          { status: 500 },
+        );
+      }
+
+      return NextResponse.json({
+        ok: true,
+        action: "typing",
+      });
+    }
+
+    const message =
+      typeof body?.message === "string"
+        ? body.message
+        : "";
 
     const cleanedMessage = message.trim();
 
@@ -110,8 +172,6 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-
-    const supabase = getAdminClient();
 
     const { data, error } = await supabase.rpc(
       "send_game_message_session",
@@ -134,14 +194,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
+      action: "message",
       messageId: data,
     });
   } catch (error) {
     console.error("Game Room POST exception:", error);
 
     return NextResponse.json(
-      { error: "Unable to send Game Room message" },
+      { error: "Unable to send Game Room action" },
       { status: 500 },
     );
   }
 }
+

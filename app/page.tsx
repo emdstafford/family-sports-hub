@@ -857,7 +857,7 @@ export default function Home() {
     if (!sessionToken) return;
 
     try {
-      await fetch("/api/game-room", {
+      const response = await fetch("/api/game-room", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -869,9 +869,21 @@ export default function Home() {
           gameId: gameRoomGame.id,
         }),
       });
-    } catch {
-      // Typing indicators are optional UI.
-      // Do not interrupt chat if the signal fails.
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+
+        console.error(
+          "Game Room typing failed:",
+          response.status,
+          body,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Game Room typing request failed:",
+        error,
+      );
     }
   }
 

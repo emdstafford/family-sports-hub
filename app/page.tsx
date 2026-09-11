@@ -688,7 +688,7 @@ export default function Home() {
     useState(false);
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Games" | "Locker Room" | "Trophy Room">("Home");
+    useState<"Home" | "Challenge" | "Games" | "Locker Room" | "Trophy Room">("Home");
 
   const [adminGame, setAdminGame] =
     useState<BrowserGame | null>(null);
@@ -1903,7 +1903,7 @@ export default function Home() {
       return;
     }
 
-    setPicksOpen(true);
+    setActiveSection("Challenge");
     setPicksUnlocked(false);
     setPicksError(null);
     setPicksSuccess(null);
@@ -3493,31 +3493,19 @@ export default function Home() {
         </div>
       )}
 
-      {picksOpen &&
+      {activeSection === "Challenge" &&
         signedInPlayer &&
         challenge && (
-          <div className="fixed inset-0 z-[120] overflow-y-auto bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
-            <div className="mx-auto max-w-lg overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-2xl">
+          <section className="mx-auto max-w-5xl px-3 py-4">
+            <div className="mx-auto max-w-lg overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-lg">
               <div className="bg-[#06284a] p-5 text-white">
-                <div className="flex justify-between">
-                  <div>
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
-                      This Week&apos;s Challenge
-                    </div>
-                    <h2 className="mt-1 text-2xl font-black tracking-tight">
-                      {
-                        signedInPlayer.display_name
-                      }
-                      &apos;s Picks
-                    </h2>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
+                    This Week&apos;s Challenge
                   </div>
-
-                  <button
-                    onClick={closePicks}
-                    className="h-9 w-9 rounded-full bg-white/15 text-xl"
-                  >
-                    ×
-                  </button>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight">
+                    {signedInPlayer.display_name}&apos;s Picks
+                  </h2>
                 </div>
               </div>
 
@@ -3551,10 +3539,10 @@ export default function Home() {
                       )}
 
                       <button
-                        onClick={closePicks}
+                        onClick={() => setActiveSection("Home")}
                         className="mt-5 rounded-xl bg-[#06284a] px-6 py-3 text-sm font-black text-white"
                       >
-                        Close
+                        Back to Home
                       </button>
                     </div>
                   )}
@@ -3806,10 +3794,10 @@ export default function Home() {
                 </div>
               )}
             </div>
-          </div>
+          </section>
         )}
 
-            {selectedPlayer && (
+      {selectedPlayer && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 px-4">
           <div className="w-full max-w-sm rounded-[2rem] bg-white p-6">
             <h2 className="text-center text-2xl font-black">

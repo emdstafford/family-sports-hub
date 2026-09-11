@@ -688,7 +688,7 @@ export default function Home() {
     useState(false);
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Games">("Home");
+    useState<"Home" | "Games" | "Locker Room" | "Trophy Room">("Home");
 
   const [adminGame, setAdminGame] =
     useState<BrowserGame | null>(null);

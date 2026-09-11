@@ -2319,6 +2319,93 @@ export default function Home() {
           </>
         )}
 
+        {/* BOTTOM DASHBOARD ROW */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* WHO'S READY */}
+          <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span>👥</span>
+              <h2 className="text-[12px] font-black uppercase">
+                Who&apos;s Ready?
+              </h2>
+            </div>
+
+            <div className="mt-3 grid grid-cols-5 gap-1">
+              {players.map((player) => {
+                const count = challengePickStatus[player.id] ?? 0;
+                const ready =
+                  challengeGames.length > 0 &&
+                  count === challengeGames.length;
+
+                return (
+                  <div
+                    key={player.id}
+                    className="min-w-0 text-center"
+                  >
+                    <div
+                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[8px] font-black ${
+                        signedInPlayer?.id === player.id
+                          ? "bg-[#06284a] text-white"
+                          : "bg-slate-200 text-[#10254a]"
+                      }`}
+                    >
+                      {player.initials ?? "?"}
+                    </div>
+
+                    <div
+                      className={`mt-0.5 whitespace-nowrap text-[6px] font-black ${
+                        ready ? "text-green-600" : "text-red-500"
+                      }`}
+                    >
+                      {ready
+                        ? "All set! ✓"
+                        : `${Math.max(
+                            0,
+                            challengeGames.length - count,
+                          )} left`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* WHAT MATTERS TODAY */}
+          <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span>🔥</span>
+              <h2 className="text-[12px] font-black uppercase">
+                What Matters Today
+              </h2>
+            </div>
+
+            <div className="mt-2 space-y-1.5">
+              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
+                <span>🔵</span>
+                <span>
+                  Your sports are front and center.
+                </span>
+              </div>
+
+              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
+                <span>🏈</span>
+                <span>
+                  Big college football games are coming.
+                </span>
+              </div>
+
+              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
+                <span>⭐</span>
+                <span>
+                  {currentPlayerReady
+                    ? "Your Challenge picks are complete."
+                    : `${challengeGames.length - challengeGamesWithSavedPick} Challenge picks left.`}
+                </span>
+              </div>
+            </div>
+          </section>
+        </div>
+
         {/* TODAY'S GAMES */}
         <section className="mb-2.5 overflow-hidden rounded-2xl bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
@@ -2490,96 +2577,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* BOTTOM DASHBOARD ROW */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {/* WHO'S READY */}
-          <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
-            <div className="flex items-center gap-1.5">
-              <span>👥</span>
-              <h2 className="text-[12px] font-black uppercase">
-                Who&apos;s Ready?
-              </h2>
-            </div>
 
-            <div className="mt-3 grid grid-cols-5 gap-1">
-              {players.map((player) => {
-                const count = challengePickStatus[player.id] ?? 0;
-                const ready =
-                  challengeGames.length > 0 &&
-                  count === challengeGames.length;
-
-                return (
-                  <div
-                    key={player.id}
-                    className="min-w-0 text-center"
-                  >
-                    <div
-                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[8px] font-black ${
-                        signedInPlayer?.id === player.id
-                          ? "bg-[#06284a] text-white"
-                          : "bg-slate-200 text-[#10254a]"
-                      }`}
-                    >
-                      {player.initials ?? "?"}
-                    </div>
-
-                    <div className="mt-1 truncate text-[7px] font-black">
-                      {player.display_name}
-                    </div>
-
-                    <div
-                      className={`mt-0.5 whitespace-nowrap text-[6px] font-black ${
-                        ready ? "text-green-600" : "text-red-500"
-                      }`}
-                    >
-                      {ready
-                        ? "All set! ✓"
-                        : `${Math.max(
-                            0,
-                            challengeGames.length - count,
-                          )} left`}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* WHAT MATTERS TODAY */}
-          <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
-            <div className="flex items-center gap-1.5">
-              <span>🔥</span>
-              <h2 className="text-[12px] font-black uppercase">
-                What Matters Today
-              </h2>
-            </div>
-
-            <div className="mt-2 space-y-1.5">
-              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
-                <span>🔵</span>
-                <span>
-                  Your sports are front and center.
-                </span>
-              </div>
-
-              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
-                <span>🏈</span>
-                <span>
-                  Big college football games are coming.
-                </span>
-              </div>
-
-              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
-                <span>⭐</span>
-                <span>
-                  {currentPlayerReady
-                    ? "Your Challenge picks are complete."
-                    : `${challengeGames.length - challengeGamesWithSavedPick} Challenge picks left.`}
-                </span>
-              </div>
-            </div>
-          </section>
-        </div>
       </div>
 
       )}

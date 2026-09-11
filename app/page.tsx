@@ -2236,31 +2236,6 @@ export default function Home() {
 
         {signedInPlayer && (
           <>
-            {/* PERSONALIZED HERO */}
-            <section className="relative mb-2.5 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-r from-[#082f57] via-[#0b3d6a] to-[#082f57] px-4 py-4 text-white shadow-sm">
-              <div className="absolute -right-8 -top-12 h-32 w-32 rounded-full border-[18px] border-white/5" />
-              <div className="absolute -bottom-16 left-1/3 h-36 w-36 rounded-full border-[20px] border-[#f3c64f]/10" />
-
-              <div className="relative flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-xl font-black italic">
-                  </div>
-                  <div className="font-serif text-3xl italic text-[#f3c64f]">
-                  </div>
-                </div>
-
-                <div className="max-w-[48%] text-right">
-                  <div className="text-sm font-black">
-                    It&apos;s a good week
-                  </div>
-                  <div className="text-sm font-black">
-                    for {signedInPlayer.display_name}.
-                  </div>
-                  <div className="mt-2 ml-auto h-0.5 w-16 rotate-[-8deg] rounded bg-[#f3c64f]" />
-                </div>
-              </div>
-            </section>
-
             {/* CHALLENGE STRIP */}
             <section className="mb-2.5 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
               <div className="flex min-h-[92px] items-stretch">
@@ -2378,28 +2353,89 @@ export default function Home() {
             </div>
 
             <div className="mt-2 space-y-1.5">
-              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
-                <span>🔵</span>
-                <span>
-                  Your sports are front and center.
-                </span>
-              </div>
-
-              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
-                <span>🏈</span>
-                <span>
-                  Big college football games are coming.
-                </span>
-              </div>
-
-              <div className="flex gap-1.5 text-[8px] font-semibold leading-tight">
-                <span>⭐</span>
+              {/* Challenge status always gets the first spot */}
+              <button
+                onClick={openPicks}
+                className="flex w-full gap-1.5 text-left text-[8px] font-semibold leading-tight"
+              >
+                <span>{currentPlayerReady ? "✅" : "🏆"}</span>
                 <span>
                   {currentPlayerReady
                     ? "Your Challenge picks are complete."
-                    : `${challengeGames.length - challengeGamesWithSavedPick} Challenge picks left.`}
+                    : `${Math.max(
+                        0,
+                        challengeGames.length -
+                          challengeGamesWithSavedPick,
+                      )} Challenge picks left.`}
                 </span>
-              </div>
+              </button>
+
+              {/* Best upcoming games based on FamBam watch scoring */}
+              {filteredGames
+                .filter((game) => {
+                  if (!game.startsAt) return false;
+
+                  return (
+                    new Date(game.startsAt).getTime() >
+                    (currentTime ?? Date.now())
+                  );
+                })
+                .sort((a, b) => {
+                  const scoreDifference =
+                    getWatchInfo(
+                      b,
+                      collegeFootballRankings,
+                    ).score -
+                    getWatchInfo(
+                      a,
+                      collegeFootballRankings,
+                    ).score;
+
+                  if (scoreDifference !== 0) {
+                    return scoreDifference;
+                  }
+
+                  return (
+                    new Date(a.startsAt!).getTime() -
+                    new Date(b.startsAt!).getTime()
+                  );
+                })
+                .slice(0, 4)
+                .map((game) => {
+                  const watchInfo = getWatchInfo(
+                    game,
+                    collegeFootballRankings,
+                  );
+
+                  return (
+                    <div
+                      key={game.id}
+                      className="flex gap-1.5 text-[8px] font-semibold leading-tight"
+                    >
+                      <span>{game.icon}</span>
+
+                      <span className="min-w-0">
+                        <span className="font-black">
+                          {watchInfo.label}
+                        </span>
+                        {" · "}
+                        {game.sport === "College Football"
+                          ? rankedTeamLabel(
+                              game.away,
+                              collegeFootballRankings,
+                            )
+                          : game.away}
+                        {" vs "}
+                        {game.sport === "College Football"
+                          ? rankedTeamLabel(
+                              game.home,
+                              collegeFootballRankings,
+                            )
+                          : game.home}
+                      </span>
+                    </div>
+                  );
+                })}
             </div>
           </section>
         </div>

@@ -623,6 +623,9 @@ export default function Home() {
   const [trophyRoomOpen, setTrophyRoomOpen] =
     useState(false);
 
+  const [lockerRoomOpen, setLockerRoomOpen] =
+    useState(false);
+
   const [activeSection, setActiveSection] =
     useState<"Home" | "Games">("Home");
 
@@ -2408,6 +2411,57 @@ export default function Home() {
         </section>
       )}
 
+      {lockerRoomOpen && (
+        <div className="fixed inset-0 z-[120] overflow-y-auto bg-[#f7f4ec]">
+          <div className="sticky top-0 z-10 border-b border-white/10 bg-[#06284a] text-white shadow-sm">
+            <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+              <div>
+                <div className="text-lg font-black">
+                  Locker Room
+                </div>
+                <div className="text-[10px] font-bold text-blue-100">
+                  {signedInPlayer?.display_name
+                    ? `${signedInPlayer.display_name}'s sports`
+                    : "Your sports"}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setLockerRoomOpen(false)}
+                className="rounded-xl bg-white/10 px-4 py-2 text-xs font-black active:bg-white/20"
+              >
+                Close ✕
+              </button>
+            </div>
+          </div>
+
+          <main
+            className="mx-auto max-w-5xl px-3 py-4"
+            style={{
+              paddingBottom:
+                "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            }}
+          >
+            <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
+              <img
+                src="/locker-room-preview.png"
+                alt="FamBam Locker Room preview"
+                className="h-auto w-full"
+              />
+            </div>
+
+            <div className="mx-auto mt-3 max-w-md rounded-xl bg-[#fffaf0] px-4 py-3 text-center">
+              <div className="text-xs font-black text-[#06284a]">
+                👥 Your Locker Room is coming!
+              </div>
+              <div className="mt-1 text-[10px] font-semibold text-slate-500">
+                Your teams, sports and personal FamBam setup will live here.
+              </div>
+            </div>
+          </main>
+        </div>
+      )}
+
       {trophyRoomOpen && (
         <div className="fixed inset-0 z-[120] overflow-y-auto bg-[#f7f4ec]">
           <div className="sticky top-0 z-10 border-b border-white/10 bg-[#06284a] text-white shadow-sm">
@@ -2491,6 +2545,10 @@ export default function Home() {
                 if (label === "Games") {
                   setActiveSection("Games");
                   setActiveSport("All");
+                }
+
+                if (label === "Locker Room") {
+                  setLockerRoomOpen(true);
                 }
 
                 if (label === "Trophy Room") {

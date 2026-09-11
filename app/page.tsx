@@ -684,6 +684,9 @@ export default function Home() {
   const [profileTeamSearch, setProfileTeamSearch] =
     useState("");
 
+  const [profileAddingTeam, setProfileAddingTeam] =
+    useState(false);
+
   const [activeSection, setActiveSection] =
     useState<"Home" | "Games">("Home");
 
@@ -1027,17 +1030,18 @@ export default function Home() {
         "fambam_session_token",
       );
 
-    if (!sessionToken) {
-      setLoadError(
-        "Your FamBam session has expired. Please switch players and sign in again.",
-      );
-      return;
-    }
-
     setProfileOpen(true);
     setProfileLoading(true);
     setProfileError(null);
     setProfileTeamSearch("");
+
+    if (!sessionToken) {
+      setProfileLoading(false);
+      setProfileError(
+        "Your FamBam session needs to be refreshed. Switch players and sign in again.",
+      );
+      return;
+    }
 
     try {
       const params = new URLSearchParams({
@@ -2789,7 +2793,7 @@ export default function Home() {
           >
             {profileLoading ? (
               <div className="rounded-2xl bg-white p-8 text-center text-sm font-bold text-slate-500 shadow-sm">
-                Opening your Locker…
+                Opening your profile…
               </div>
             ) : (
               <>
@@ -2904,43 +2908,6 @@ export default function Home() {
                               </div>
                             </div>
 
-                            {choice && (
-                              <div className="mt-2 flex gap-2">
-                                <button
-                                  onClick={() =>
-                                    setProfileSport(
-                                      sport.id,
-                                      "follow",
-                                    )
-                                  }
-                                  className={`flex-1 rounded-lg px-2 py-2 text-[10px] font-black ${
-                                    choice.interestType ===
-                                    "follow"
-                                      ? "bg-[#06284a] text-white"
-                                      : "bg-slate-100 text-slate-600"
-                                  }`}
-                                >
-                                  👀 Follow
-                                </button>
-
-                                <button
-                                  onClick={() =>
-                                    setProfileSport(
-                                      sport.id,
-                                      "play_follow",
-                                    )
-                                  }
-                                  className={`flex-1 rounded-lg px-2 py-2 text-[10px] font-black ${
-                                    choice.interestType ===
-                                    "play_follow"
-                                      ? "bg-[#06284a] text-white"
-                                      : "bg-slate-100 text-slate-600"
-                                  }`}
-                                >
-                                  🏃 Play + Follow
-                                </button>
-                              </div>
-                            )}
                           </div>
                         );
                       },
@@ -2953,140 +2920,215 @@ export default function Home() {
                     ⭐ Favorite Teams
                   </div>
                   <h2 className="mt-1 text-xl font-black text-[#10254a]">
-                    Who are your teams?
+                    Your teams
                   </h2>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Pick as many as you want. Then choose one as your #1.
+                    Keep your favorites here and choose one as your #1.
                   </p>
 
-                  <input
-                    value={profileTeamSearch}
-                    onChange={(event) =>
-                      setProfileTeamSearch(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Search teams…"
-                    className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-base font-semibold text-[#10254a] outline-none focus:border-[#06284a]"
-                  />
+                  <div className="mt-3 space-y-2">
+                    {profileFavoriteTeamIds.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center">
+                        <div className="text-sm font-black text-[#10254a]">
+                          No favorite teams yet
+                        </div>
+                        <div className="mt-1 text-xs font-semibold text-slate-500">
+                          Add the teams you want FamBam to follow for you.
+                        </div>
+                      </div>
+                    ) : (
+                      profileFavoriteTeamIds
+                        .map((teamId) =>
+                          profileTeams.find(
+                            (team) => team.id === teamId,
+                          ),
+                        )
+                        .filter(
+                          (team): team is ProfileTeam =>
+                            Boolean(team),
+                        )
+                        .map((team) => {
+                          const primary =
+                            profilePrimaryTeamId === team.id;
 
-                  <div className="mt-3 max-h-[45vh] space-y-2 overflow-y-auto pr-1">
-                    {profileTeams
-                      .filter((team) => {
-                        const followedSportIds =
-                          profileSportChoices.map(
-                            (item) =>
-                              item.sportId,
-                          );
-
-                        const sportMatches =
-                          followedSportIds.length ===
-                            0 ||
-                          followedSportIds.includes(
-                            team.sport_id,
-                          );
-
-                        const query =
-                          profileTeamSearch
-                            .trim()
-                            .toLowerCase();
-
-                        const searchMatches =
-                          !query ||
-                          team.name
-                            .toLowerCase()
-                            .includes(query) ||
-                          (
-                            team.short_name ??
-                            ""
-                          )
-                            .toLowerCase()
-                            .includes(query) ||
-                          (
-                            team.abbreviation ??
-                            ""
-                          )
-                            .toLowerCase()
-                            .includes(query);
-
-                        return (
-                          sportMatches &&
-                          searchMatches
-                        );
-                      })
-                      .map((team) => {
-                        const favorite =
-                          profileFavoriteTeamIds.includes(
-                            team.id,
-                          );
-
-                        const primary =
-                          profilePrimaryTeamId ===
-                          team.id;
-
-                        return (
-                          <div
-                            key={team.id}
-                            className={`rounded-xl border p-3 ${
-                              favorite
-                                ? "border-[#f3c64f] bg-[#fffaf0]"
-                                : "border-slate-200"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <button
-                                onClick={() =>
-                                  toggleFavoriteTeam(
-                                    team.id,
-                                  )
-                                }
-                                className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                              >
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg">
-                                  {favorite
-                                    ? "❤️"
-                                    : "☆"}
-                                </div>
-
-                                <div className="min-w-0">
-                                  <div className="truncate text-sm font-black text-[#10254a]">
-                                    {team.name}
+                          return (
+                            <div
+                              key={team.id}
+                              className="rounded-xl border border-[#f3c64f] bg-[#fffaf0] p-3"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-3">
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-lg">
+                                    ❤️
                                   </div>
-                                  {team.abbreviation && (
-                                    <div className="text-[9px] font-bold text-slate-400">
-                                      {
-                                        team.abbreviation
-                                      }
-                                    </div>
-                                  )}
-                                </div>
-                              </button>
 
-                              {favorite && (
-                                <button
-                                  onClick={() =>
-                                    setProfilePrimaryTeamId(
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-black text-[#10254a]">
+                                      {team.name}
+                                    </div>
+                                    {team.abbreviation && (
+                                      <div className="text-[9px] font-bold text-slate-400">
+                                        {team.abbreviation}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex shrink-0 items-center gap-2">
+                                  <button
+                                    onClick={() =>
+                                      setProfilePrimaryTeamId(
+                                        primary
+                                          ? null
+                                          : team.id,
+                                      )
+                                    }
+                                    className={`rounded-lg px-3 py-2 text-[10px] font-black ${
                                       primary
-                                        ? null
-                                        : team.id,
-                                    )
-                                  }
-                                  className={`shrink-0 rounded-lg px-3 py-2 text-[10px] font-black ${
-                                    primary
-                                      ? "bg-[#f3c64f] text-[#06284a]"
-                                      : "bg-slate-100 text-slate-500"
-                                  }`}
-                                >
-                                  {primary
-                                    ? "⭐ #1"
-                                    : "Make #1"}
-                                </button>
-                              )}
+                                        ? "bg-[#f3c64f] text-[#06284a]"
+                                        : "bg-white text-slate-500"
+                                    }`}
+                                  >
+                                    {primary
+                                      ? "⭐ #1"
+                                      : "Make #1"}
+                                  </button>
+
+                                  <button
+                                    onClick={() =>
+                                      toggleFavoriteTeam(team.id)
+                                    }
+                                    className="rounded-lg bg-white px-3 py-2 text-[10px] font-black text-slate-400"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })
+                    )}
                   </div>
+
+                  {!profileAddingTeam ? (
+                    <button
+                      onClick={() => {
+                        setProfileAddingTeam(true);
+                        setProfileTeamSearch("");
+                      }}
+                      className="mt-3 w-full rounded-xl border-2 border-dashed border-[#f3c64f] bg-[#fffaf0] px-4 py-3 text-sm font-black text-[#06284a]"
+                    >
+                      + Add Favorite Team
+                    </button>
+                  ) : (
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-black text-[#10254a]">
+                          Add a team
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setProfileAddingTeam(false);
+                            setProfileTeamSearch("");
+                          }}
+                          className="rounded-lg bg-white px-3 py-2 text-[10px] font-black text-slate-500"
+                        >
+                          Done
+                        </button>
+                      </div>
+
+                      <input
+                        value={profileTeamSearch}
+                        onChange={(event) =>
+                          setProfileTeamSearch(
+                            event.target.value,
+                          )
+                        }
+                        placeholder="Search teams…"
+                        className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-base font-semibold text-[#10254a] outline-none focus:border-[#06284a]"
+                      />
+
+                      <div className="mt-3 max-h-[40vh] space-y-2 overflow-y-auto pr-1">
+                        {profileTeams
+                          .filter((team) => {
+                            if (
+                              profileFavoriteTeamIds.includes(
+                                team.id,
+                              )
+                            ) {
+                              return false;
+                            }
+
+                            const followedSportIds =
+                              profileSportChoices.map(
+                                (item) => item.sportId,
+                              );
+
+                            const sportMatches =
+                              followedSportIds.length === 0 ||
+                              followedSportIds.includes(
+                                team.sport_id,
+                              );
+
+                            const query =
+                              profileTeamSearch
+                                .trim()
+                                .toLowerCase();
+
+                            const searchMatches =
+                              !query ||
+                              team.name
+                                .toLowerCase()
+                                .includes(query) ||
+                              (team.short_name ?? "")
+                                .toLowerCase()
+                                .includes(query) ||
+                              (team.abbreviation ?? "")
+                                .toLowerCase()
+                                .includes(query);
+
+                            return (
+                              sportMatches &&
+                              searchMatches
+                            );
+                          })
+                          .map((team) => (
+                            <button
+                              key={team.id}
+                              onClick={() => {
+                                toggleFavoriteTeam(team.id);
+
+                                if (
+                                  !profilePrimaryTeamId &&
+                                  profileFavoriteTeamIds.length === 0
+                                ) {
+                                  setProfilePrimaryTeamId(
+                                    team.id,
+                                  );
+                                }
+                              }}
+                              className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left"
+                            >
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg">
+                                ☆
+                              </div>
+
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-black text-[#10254a]">
+                                  {team.name}
+                                </div>
+                                {team.abbreviation && (
+                                  <div className="text-[9px] font-bold text-slate-400">
+                                    {team.abbreviation}
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 </section>
 
                 <button

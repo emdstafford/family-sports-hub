@@ -2421,7 +2421,24 @@ export default function Home() {
           </div>
 
           <div className="divide-y divide-slate-200 px-3">
-            {filteredGames.slice(0, 2).map((game) => (
+            {filteredGames
+              .filter((game) => {
+                if (!game.startsAt) return false;
+
+                const gameDate = new Date(game.startsAt);
+
+                const gameDay = gameDate.toLocaleDateString("en-CA", {
+                  timeZone: "America/New_York",
+                });
+
+                const todayDay = new Date(currentTime ?? Date.now()).toLocaleDateString("en-CA", {
+                  timeZone: "America/New_York",
+                });
+
+                return gameDay === todayDay;
+              })
+              .slice(0, 2)
+              .map((game) => (
               <article
                 key={game.id}
                 className="py-3"
@@ -2488,7 +2505,20 @@ export default function Home() {
               </article>
             ))}
 
-            {!gamesLoading && filteredGames.length === 0 && (
+            {!gamesLoading &&
+              filteredGames.filter((game) => {
+                if (!game.startsAt) return false;
+
+                const gameDay = new Date(game.startsAt).toLocaleDateString("en-CA", {
+                  timeZone: "America/New_York",
+                });
+
+                const todayDay = new Date(currentTime ?? Date.now()).toLocaleDateString("en-CA", {
+                  timeZone: "America/New_York",
+                });
+
+                return gameDay === todayDay;
+              }).length === 0 && (
               <div className="py-5 text-center text-xs font-bold text-slate-500">
                 No games on your radar today.
               </div>

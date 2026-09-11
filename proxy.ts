@@ -7,6 +7,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/(?:college-football|soccer|games|challenge-games|challenge|player-session|player-picks|game-room)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/(?:college-football|soccer|games|challenge-games|challenge|player-session|player-picks|game-room|player-profile)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

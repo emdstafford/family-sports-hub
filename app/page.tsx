@@ -3156,107 +3156,69 @@ export default function Home() {
         </div>
       )}
 
-      {lockerRoomOpen && (
-        <div className="fixed inset-0 z-[120] overflow-y-auto bg-[#f7f4ec]">
-          <div className="sticky top-0 z-10 border-b border-white/10 bg-[#06284a] text-white shadow-sm">
-            <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-              <div>
-                <div className="text-lg font-black">
-                  Locker Room
-                </div>
-                <div className="text-[10px] font-bold text-blue-100">
-                  {signedInPlayer?.display_name
-                    ? `${signedInPlayer.display_name}'s sports`
-                    : "Your sports"}
-                </div>
-              </div>
-
-              <button
-                onClick={() => setLockerRoomOpen(false)}
-                className="rounded-xl bg-white/10 px-4 py-2 text-xs font-black active:bg-white/20"
-              >
-                Close ✕
-              </button>
+      {activeSection === "Locker Room" && (
+        <section className="mx-auto max-w-5xl px-3 py-4">
+          <div className="mb-3">
+            <div className="text-lg font-black text-[#06284a]">
+              Locker Room
+            </div>
+            <div className="text-[10px] font-bold text-slate-500">
+              {signedInPlayer?.display_name
+                ? `${signedInPlayer.display_name}'s sports`
+                : "Your sports"}
             </div>
           </div>
 
-          <main
-            className="mx-auto max-w-5xl px-3 py-4"
-            style={{
-              paddingBottom:
-                "calc(env(safe-area-inset-bottom, 0px) + 24px)",
-            }}
-          >
-            <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
-              <img
-                src="/locker-room-preview.png"
-                alt="FamBam Locker Room preview"
-                className="h-auto w-full"
-              />
-            </div>
+          <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
+            <img
+              src="/locker-room-preview.png"
+              alt="FamBam Locker Room preview"
+              className="h-auto w-full"
+            />
+          </div>
 
-            <div className="mx-auto mt-3 max-w-md rounded-xl bg-[#fffaf0] px-4 py-3 text-center">
-              <div className="text-xs font-black text-[#06284a]">
-                👥 Your Locker Room is coming!
-              </div>
-              <div className="mt-1 text-[10px] font-semibold text-slate-500">
-                Your teams, sports and personal FamBam setup will live here.
-              </div>
+          <div className="mx-auto mt-3 max-w-md rounded-xl bg-[#fffaf0] px-4 py-3 text-center">
+            <div className="text-xs font-black text-[#06284a]">
+              👥 Your Locker Room is coming!
             </div>
-          </main>
-        </div>
+            <div className="mt-1 text-[10px] font-semibold text-slate-500">
+              Your teams, sports and personal FamBam setup will live here.
+            </div>
+          </div>
+        </section>
       )}
 
-      {trophyRoomOpen && (
-        <div className="fixed inset-0 z-[120] overflow-y-auto bg-[#f7f4ec]">
-          <div className="sticky top-0 z-10 border-b border-white/10 bg-[#06284a] text-white shadow-sm">
-            <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-              <div>
-                <div className="text-lg font-black">
-                  Trophy Room
-                </div>
-                <div className="text-[10px] font-bold text-blue-100">
-                  {signedInPlayer?.display_name
-                    ? `${signedInPlayer.display_name}'s achievements`
-                    : "FamBam achievements"}
-                </div>
-              </div>
-
-              <button
-                onClick={() => setTrophyRoomOpen(false)}
-                className="rounded-xl bg-white/10 px-4 py-2 text-xs font-black active:bg-white/20"
-              >
-                Close ✕
-              </button>
+      {activeSection === "Trophy Room" && (
+        <section className="mx-auto max-w-5xl px-3 py-4">
+          <div className="mb-3">
+            <div className="text-lg font-black text-[#06284a]">
+              Trophy Room
+            </div>
+            <div className="text-[10px] font-bold text-slate-500">
+              {signedInPlayer?.display_name
+                ? `${signedInPlayer.display_name}'s achievements`
+                : "FamBam achievements"}
             </div>
           </div>
 
-          <main
-            className="mx-auto max-w-5xl px-3 py-4"
-            style={{
-              paddingBottom:
-                "calc(env(safe-area-inset-bottom, 0px) + 24px)",
-            }}
-          >
-            <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
-              <img
-                src="/trophy-room-preview.png"
-                alt="FamBam Trophy Room preview"
-                className="h-auto w-full"
-              />
-            </div>
+          <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
+            <img
+              src="/trophy-room-preview.png"
+              alt="FamBam Trophy Room preview"
+              className="h-auto w-full"
+            />
+          </div>
 
-            <div className="mx-auto mt-3 max-w-md rounded-xl bg-[#fffaf0] px-4 py-3 text-center">
-              <div className="text-xs font-black text-[#06284a]">
-                🏆 Trophy Room is coming to life!
-              </div>
-              <div className="mt-1 text-[10px] font-semibold text-slate-500">
-                Your real trophies, records, streaks and Sports Passport
-                will live here.
-              </div>
+          <div className="mx-auto mt-3 max-w-md rounded-xl bg-[#fffaf0] px-4 py-3 text-center">
+            <div className="text-xs font-black text-[#06284a]">
+              🏆 Trophy Room is coming to life!
             </div>
-          </main>
-        </div>
+            <div className="mt-1 text-[10px] font-semibold text-slate-500">
+              Your real trophies, records, streaks and Sports Passport
+              will live here.
+            </div>
+          </div>
+        </section>
       )}
 
       {/* APP NAV */}
@@ -3293,16 +3255,15 @@ export default function Home() {
                 }
 
                 if (label === "Locker Room") {
-                  setLockerRoomOpen(true);
+                  setActiveSection("Locker Room");
                 }
 
                 if (label === "Trophy Room") {
-                  setTrophyRoomOpen(true);
+                  setActiveSection("Trophy Room");
                 }
               }}
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${
-                (label === "Home" && activeSection === "Home") ||
-                (label === "Games" && activeSection === "Games")
+                activeSection === label
                   ? "text-[#f3c64f]"
                   : "text-white"
               }`}
@@ -3315,8 +3276,7 @@ export default function Home() {
               </span>
 
               {(
-                (label === "Home" && activeSection === "Home") ||
-                (label === "Games" && activeSection === "Games")
+                activeSection === label
               ) && (
                 <span className="absolute bottom-0 h-0.5 w-10 rounded-full bg-[#f3c64f]" />
               )}

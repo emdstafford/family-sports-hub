@@ -623,6 +623,9 @@ export default function Home() {
   const [trophyRoomOpen, setTrophyRoomOpen] =
     useState(false);
 
+  const [activeSection, setActiveSection] =
+    useState<"Home" | "Games">("Home");
+
   const [adminGame, setAdminGame] =
     useState<BrowserGame | null>(null);
 
@@ -1845,6 +1848,7 @@ export default function Home() {
         </div>
       </header>
 
+      {activeSection === "Home" && (
       <div className="mx-auto max-w-5xl px-3 py-3">
         {/* SIGN IN */}
         {!signedInPlayer && (
@@ -2233,6 +2237,177 @@ export default function Home() {
         </div>
       </div>
 
+      )}
+
+      {activeSection === "Games" && signedInPlayer && (
+        <section
+          className="mx-auto max-w-5xl px-3 py-4"
+          style={{
+            paddingBottom:
+              "calc(env(safe-area-inset-bottom, 0px) + 90px)",
+          }}
+        >
+          <div className="mb-3">
+            <div className="text-xs font-black uppercase tracking-[0.18em] text-[#b28a2e]">
+              FamBam Radar
+            </div>
+            <h1 className="mt-1 text-2xl font-black text-[#10254a]">
+              Games to Watch 👀
+            </h1>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Big games, FamBam teams, rivalries and matchups worth your time.
+            </p>
+          </div>
+
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+            {[
+              "All",
+              "Soccer",
+              "College Football",
+              "College Basketball",
+            ].map((sport) => (
+              <button
+                key={sport}
+                onClick={() => setActiveSport(sport as Sport)}
+                className={`shrink-0 rounded-full px-4 py-2 text-[10px] font-black ${
+                  activeSport === sport
+                    ? "bg-[#06284a] text-white"
+                    : "bg-white text-[#10254a] shadow-sm"
+                }`}
+              >
+                {sport}
+              </button>
+            ))}
+          </div>
+
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+            <div className="divide-y divide-slate-200 px-3">
+              {filteredGames.map((game) => {
+                const watchInfo =
+                  getWatchInfo(game, collegeFootballRankings);
+
+                let label = "Games to Watch";
+
+                if (watchInfo.score >= 95) {
+                  label = "Must Watch";
+                } else if (watchInfo.score >= 90) {
+                  label = "Big Game";
+                } else if (
+                  hasTeam(game, "Georgia") ||
+                  hasTeam(game, "Kentucky") ||
+                  hasTeam(game, "Arsenal") ||
+                  hasTeam(game, "Liverpool") ||
+                  hasTeam(game, "Aston Villa") ||
+                  hasTeam(game, "AFC Wimbledon")
+                ) {
+                  label = "FamBam Game";
+                }
+
+                return (
+                  <article key={game.id} className="py-4">
+                    <div className="flex gap-3">
+                      <div className="flex w-12 shrink-0 flex-col items-center justify-start text-center">
+                        <div className="text-2xl">{game.icon}</div>
+                        <div className="mt-1 text-[7px] font-black uppercase leading-tight text-[#10254a]">
+                          {game.competition}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                          <span className="rounded-full bg-[#fff3c4] px-2 py-1 text-[8px] font-black uppercase text-[#8a6618]">
+                            {label}
+                          </span>
+
+                          <span className="text-[9px] font-bold text-slate-400">
+                            {formatGameDate(game.startsAt)}
+                          </span>
+                        </div>
+
+                        <div className="text-[15px] font-black leading-tight text-[#10254a]">
+                          {game.sport === "College Football"
+                            ? rankedTeamLabel(
+                                game.away,
+                                collegeFootballRankings,
+                              )
+                            : game.away}
+                          {" vs "}
+                          {game.sport === "College Football"
+                            ? rankedTeamLabel(
+                                game.home,
+                                collegeFootballRankings,
+                              )
+                            : game.home}
+                        </div>
+
+                        <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                          {formatGameTime(
+                            game.startsAt,
+                            game.startTimeTbd,
+                          )}
+                        </div>
+
+                        <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
+                          {getGameContext(
+                            game,
+                            collegeFootballRankings,
+                          )}
+                        </div>
+
+                        <div className="mt-2 flex justify-end gap-2">
+                          <button
+                            onClick={() =>
+                              toggleGameDetails(game.id)
+                            }
+                            className="rounded-lg bg-[#eef2f6] px-3 py-1.5 text-[10px] font-black text-[#06284a]"
+                          >
+                            {expandedGameIds.includes(game.id)
+                              ? "Show Less ↑"
+                              : "Tell Me More →"}
+                          </button>
+
+                          <button
+                            onClick={() => openGameRoom(game)}
+                            className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
+                          >
+                            Game Room 💬
+                          </button>
+                        </div>
+
+                        {expandedGameIds.includes(game.id) && (
+                          <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
+                            <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
+                              {getGameFacts(
+                                game,
+                                collegeFootballRankings,
+                              ).map((fact) => (
+                                <li key={fact}>• {fact}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+
+              {!gamesLoading && filteredGames.length === 0 && (
+                <div className="py-8 text-center">
+                  <div className="text-2xl">👀</div>
+                  <div className="mt-2 text-sm font-black text-[#10254a]">
+                    Nothing major on the radar.
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-slate-500">
+                    Try another sport.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {trophyRoomOpen && (
         <div className="fixed inset-0 z-[120] overflow-y-auto bg-[#f7f4ec]">
           <div className="sticky top-0 z-10 border-b border-white/10 bg-[#06284a] text-white shadow-sm">
@@ -2304,11 +2479,29 @@ export default function Home() {
             <button
               key={label}
               onClick={() => {
-                if (label === "Challenge") openPicks();
-                if (label === "Trophy Room") setTrophyRoomOpen(true);
+                if (label === "Home") {
+                  setActiveSection("Home");
+                  setActiveSport("All");
+                }
+
+                if (label === "Challenge") {
+                  openPicks();
+                }
+
+                if (label === "Games") {
+                  setActiveSection("Games");
+                  setActiveSport("All");
+                }
+
+                if (label === "Trophy Room") {
+                  setTrophyRoomOpen(true);
+                }
               }}
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${
-                index === 0 ? "text-[#f3c64f]" : "text-white"
+                (label === "Home" && activeSection === "Home") ||
+                (label === "Games" && activeSection === "Games")
+                  ? "text-[#f3c64f]"
+                  : "text-white"
               }`}
             >
               <span className="text-xl leading-none">
@@ -2318,7 +2511,10 @@ export default function Home() {
                 {label}
               </span>
 
-              {index === 0 && (
+              {(
+                (label === "Home" && activeSection === "Home") ||
+                (label === "Games" && activeSection === "Games")
+              ) && (
                 <span className="absolute bottom-0 h-0.5 w-10 rounded-full bg-[#f3c64f]" />
               )}
             </button>

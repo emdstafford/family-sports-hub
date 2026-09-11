@@ -746,7 +746,11 @@ export default function Home() {
         block: "end",
       });
     });
-  }, [gameRoomGame?.id, gameRoomMessages.length]);
+  }, [
+    gameRoomGame?.id,
+    gameRoomMessages.length,
+    gameRoomTypingName,
+  ]);
 
   async function openGameRoom(game: BrowserGame) {
     if (!signedInPlayer) {

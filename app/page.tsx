@@ -2244,10 +2244,8 @@ export default function Home() {
               <div className="relative flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xl font-black italic">
-                    Same teams.
                   </div>
                   <div className="font-serif text-3xl italic text-[#f3c64f]">
-                    More fun.
                   </div>
                 </div>
 
@@ -2370,12 +2368,12 @@ export default function Home() {
             </div>
           </section>
 
-          {/* WHAT MATTERS TODAY */}
+          {/* ON YOUR RADAR */}
           <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
             <div className="flex items-center gap-1.5">
               <span>🔥</span>
               <h2 className="text-[12px] font-black uppercase">
-                What Matters Today
+                On Your Radar
               </h2>
             </div>
 

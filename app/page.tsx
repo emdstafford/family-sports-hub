@@ -26,6 +26,28 @@ type Sport =
   | "College Football"
   | "College Basketball";
 
+type ProfileSport = {
+  id: string;
+  slug: string;
+  name: string;
+  emoji: string | null;
+  active: boolean;
+};
+
+type ProfileTeam = {
+  id: string;
+  sport_id: string;
+  name: string;
+  short_name: string | null;
+  abbreviation: string | null;
+  logo_url: string | null;
+};
+
+type ProfileSportChoice = {
+  sportId: string;
+  interestType: "follow" | "play_follow";
+};
+
 type ApiGame = {
   id: string;
   sport: string;
@@ -626,6 +648,42 @@ export default function Home() {
   const [lockerRoomOpen, setLockerRoomOpen] =
     useState(false);
 
+  const [profileOpen, setProfileOpen] =
+    useState(false);
+
+  const [profileLoading, setProfileLoading] =
+    useState(false);
+
+  const [profileSaving, setProfileSaving] =
+    useState(false);
+
+  const [profileError, setProfileError] =
+    useState<string | null>(null);
+
+  const [profileDisplayName, setProfileDisplayName] =
+    useState("");
+
+  const [profileInitials, setProfileInitials] =
+    useState("");
+
+  const [profileSports, setProfileSports] =
+    useState<ProfileSport[]>([]);
+
+  const [profileTeams, setProfileTeams] =
+    useState<ProfileTeam[]>([]);
+
+  const [profileSportChoices, setProfileSportChoices] =
+    useState<ProfileSportChoice[]>([]);
+
+  const [profileFavoriteTeamIds, setProfileFavoriteTeamIds] =
+    useState<string[]>([]);
+
+  const [profilePrimaryTeamId, setProfilePrimaryTeamId] =
+    useState<string | null>(null);
+
+  const [profileTeamSearch, setProfileTeamSearch] =
+    useState("");
+
   const [activeSection, setActiveSection] =
     useState<"Home" | "Games">("Home");
 
@@ -958,6 +1016,286 @@ export default function Home() {
       );
     } finally {
       setGameRoomSending(false);
+    }
+  }
+
+  async function openProfile() {
+    if (!signedInPlayer) return;
+
+    const sessionToken =
+      window.localStorage.getItem(
+        "fambam_session_token",
+      );
+
+    if (!sessionToken) {
+      setLoadError(
+        "Your FamBam session has expired. Please switch players and sign in again.",
+      );
+      return;
+    }
+
+    setProfileOpen(true);
+    setProfileLoading(true);
+    setProfileError(null);
+    setProfileTeamSearch("");
+
+    try {
+      const params = new URLSearchParams({
+        playerId: signedInPlayer.id,
+      });
+
+      const response = await fetch(
+        `/api/player-profile?${params.toString()}`,
+        {
+          cache: "no-store",
+          headers: {
+            "x-fambam-session": sessionToken,
+          },
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ??
+            "Could not load your profile.",
+        );
+      }
+
+      setProfileDisplayName(
+        data.player?.display_name ??
+          signedInPlayer.display_name,
+      );
+
+      setProfileInitials(
+        data.player?.initials ??
+          signedInPlayer.initials ??
+          "",
+      );
+
+      setProfileSports(
+        data.sports ?? [],
+      );
+
+      setProfileTeams(
+        data.teams ?? [],
+      );
+
+      setProfileSportChoices(
+        (data.playerSports ?? []).map(
+          (row: {
+            sport_id: string;
+            interest_type: string;
+          }) => ({
+            sportId: row.sport_id,
+            interestType:
+              row.interest_type ===
+              "play_follow"
+                ? "play_follow"
+                : "follow",
+          }),
+        ),
+      );
+
+      const favorites =
+        (data.favoriteTeams ?? []).map(
+          (row: {
+            team_id: string;
+          }) => row.team_id,
+        );
+
+      setProfileFavoriteTeamIds(
+        favorites,
+      );
+
+      const primary =
+        (
+          data.favoriteTeams ?? []
+        ).find(
+          (row: {
+            team_id: string;
+            is_primary: boolean;
+          }) => row.is_primary,
+        );
+
+      setProfilePrimaryTeamId(
+        primary?.team_id ?? null,
+      );
+    } catch (error) {
+      setProfileError(
+        error instanceof Error
+          ? error.message
+          : "Could not load your profile.",
+      );
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
+  function setProfileSport(
+    sportId: string,
+    interestType:
+      | "follow"
+      | "play_follow"
+      | null,
+  ) {
+    setProfileSportChoices(
+      (current) => {
+        const withoutSport =
+          current.filter(
+            (item) =>
+              item.sportId !== sportId,
+          );
+
+        if (!interestType) {
+          return withoutSport;
+        }
+
+        return [
+          ...withoutSport,
+          {
+            sportId,
+            interestType,
+          },
+        ];
+      },
+    );
+  }
+
+  function toggleFavoriteTeam(
+    teamId: string,
+  ) {
+    setProfileFavoriteTeamIds(
+      (current) => {
+        if (current.includes(teamId)) {
+          const next =
+            current.filter(
+              (id) => id !== teamId,
+            );
+
+          if (
+            profilePrimaryTeamId ===
+            teamId
+          ) {
+            setProfilePrimaryTeamId(
+              null,
+            );
+          }
+
+          return next;
+        }
+
+        return [...current, teamId];
+      },
+    );
+  }
+
+  async function saveProfile() {
+    if (!signedInPlayer) return;
+
+    const sessionToken =
+      window.localStorage.getItem(
+        "fambam_session_token",
+      );
+
+    if (!sessionToken) {
+      setProfileError(
+        "Your FamBam session has expired. Please switch players and sign in again.",
+      );
+      return;
+    }
+
+    if (
+      !profileDisplayName.trim()
+    ) {
+      setProfileError(
+        "Your display name cannot be blank.",
+      );
+      return;
+    }
+
+    setProfileSaving(true);
+    setProfileError(null);
+
+    try {
+      const response = await fetch(
+        "/api/player-profile",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+            "x-fambam-session":
+              sessionToken,
+          },
+          body: JSON.stringify({
+            playerId:
+              signedInPlayer.id,
+            displayName:
+              profileDisplayName,
+            initials:
+              profileInitials,
+            playerSports:
+              profileSportChoices,
+            favoriteTeamIds:
+              profileFavoriteTeamIds,
+            primaryTeamId:
+              profilePrimaryTeamId,
+          }),
+        },
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ??
+            "Could not save your profile.",
+        );
+      }
+
+      setPlayers(
+        (current) =>
+          current.map((player) =>
+            player.id ===
+            signedInPlayer.id
+              ? {
+                  ...player,
+                  display_name:
+                    profileDisplayName.trim(),
+                  initials:
+                    profileInitials.trim() ||
+                    null,
+                }
+              : player,
+          ),
+      );
+
+      setSignedInPlayer(
+        (current) =>
+          current
+            ? {
+                ...current,
+                display_name:
+                  profileDisplayName.trim(),
+                initials:
+                  profileInitials.trim() ||
+                  null,
+              }
+            : current,
+      );
+
+      setProfileOpen(false);
+    } catch (error) {
+      setProfileError(
+        error instanceof Error
+          ? error.message
+          : "Could not save your profile.",
+      );
+    } finally {
+      setProfileSaving(false);
     }
   }
 
@@ -1824,7 +2162,7 @@ export default function Home() {
 
           {signedInPlayer ? (
             <button
-              onClick={switchPlayer}
+              onClick={() => void openProfile()}
               className="flex shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 text-left"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/70 bg-[#f3c64f] text-[10px] font-black text-[#06284a]">
@@ -1836,7 +2174,7 @@ export default function Home() {
                   Hi {signedInPlayer.display_name}!
                 </div>
                 <div className="text-[9px] font-bold text-blue-100">
-                  Tap to switch
+                  Tap for profile
                 </div>
               </div>
             </button>
@@ -2409,6 +2747,373 @@ export default function Home() {
             </div>
           </div>
         </section>
+      )}
+
+      {profileOpen && signedInPlayer && (
+        <div className="fixed inset-0 z-[140] overflow-y-auto bg-[#eef1f4]">
+          <div className="sticky top-0 z-20 border-b border-white/10 bg-[#06284a] text-white shadow-sm">
+            <div
+              className="mx-auto flex max-w-5xl items-center justify-between px-4 pb-3"
+              style={{
+                paddingTop:
+                  "calc(env(safe-area-inset-top, 0px) + 12px)",
+              }}
+            >
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
+                  FamBam Profile
+                </div>
+                <div className="text-xl font-black">
+                  {profileDisplayName ||
+                    signedInPlayer.display_name}
+                </div>
+              </div>
+
+              <button
+                onClick={() =>
+                  setProfileOpen(false)
+                }
+                className="rounded-xl bg-white/10 px-4 py-2 text-xs font-black active:bg-white/20"
+              >
+                Close ✕
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="mx-auto max-w-2xl px-3 py-4"
+            style={{
+              paddingBottom:
+                "calc(env(safe-area-inset-bottom, 0px) + 30px)",
+            }}
+          >
+            {profileLoading ? (
+              <div className="rounded-2xl bg-white p-8 text-center text-sm font-bold text-slate-500 shadow-sm">
+                Opening your Locker…
+              </div>
+            ) : (
+              <>
+                {profileError && (
+                  <div className="mb-3 rounded-xl bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900">
+                    {profileError}
+                  </div>
+                )}
+
+                <section className="rounded-2xl bg-[#06284a] p-4 text-white shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-white/70 bg-[#f3c64f] text-sm font-black text-[#06284a]">
+                      {profileInitials ||
+                        signedInPlayer.initials ||
+                        "FB"}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <label className="text-[9px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
+                        Display Name
+                      </label>
+                      <input
+                        value={
+                          profileDisplayName
+                        }
+                        onChange={(event) =>
+                          setProfileDisplayName(
+                            event.target.value,
+                          )
+                        }
+                        className="mt-1 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-base font-black text-white outline-none"
+                      />
+                    </div>
+
+                    <div className="w-20">
+                      <label className="text-[9px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
+                        Initials
+                      </label>
+                      <input
+                        value={
+                          profileInitials
+                        }
+                        maxLength={4}
+                        onChange={(event) =>
+                          setProfileInitials(
+                            event.target.value.toUpperCase(),
+                          )
+                        }
+                        className="mt-1 w-full rounded-xl border border-white/15 bg-white/10 px-2 py-2 text-center text-base font-black uppercase text-white outline-none"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+                  <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b68718]">
+                    ❤️ My Sports
+                  </div>
+                  <h2 className="mt-1 text-xl font-black text-[#10254a]">
+                    What do you care about?
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    This helps FamBam show you the games and teams you actually want to see.
+                  </p>
+
+                  <div className="mt-4 space-y-2">
+                    {profileSports.map(
+                      (sport) => {
+                        const choice =
+                          profileSportChoices.find(
+                            (item) =>
+                              item.sportId ===
+                              sport.id,
+                          );
+
+                        return (
+                          <div
+                            key={sport.id}
+                            className="rounded-xl border border-slate-200 p-3"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span className="text-xl">
+                                  {sport.emoji ||
+                                    "🏅"}
+                                </span>
+                                <span className="truncate text-sm font-black text-[#10254a]">
+                                  {sport.name}
+                                </span>
+                              </div>
+
+                              <div className="flex shrink-0 gap-1">
+                                <button
+                                  onClick={() =>
+                                    setProfileSport(
+                                      sport.id,
+                                      choice
+                                        ? null
+                                        : "follow",
+                                    )
+                                  }
+                                  className={`rounded-lg px-2.5 py-2 text-[10px] font-black ${
+                                    !choice
+                                      ? "bg-slate-100 text-slate-500"
+                                      : "bg-[#e8f0fb] text-[#06284a]"
+                                  }`}
+                                >
+                                  {!choice
+                                    ? "Not Following"
+                                    : "Following ✓"}
+                                </button>
+                              </div>
+                            </div>
+
+                            {choice && (
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  onClick={() =>
+                                    setProfileSport(
+                                      sport.id,
+                                      "follow",
+                                    )
+                                  }
+                                  className={`flex-1 rounded-lg px-2 py-2 text-[10px] font-black ${
+                                    choice.interestType ===
+                                    "follow"
+                                      ? "bg-[#06284a] text-white"
+                                      : "bg-slate-100 text-slate-600"
+                                  }`}
+                                >
+                                  👀 Follow
+                                </button>
+
+                                <button
+                                  onClick={() =>
+                                    setProfileSport(
+                                      sport.id,
+                                      "play_follow",
+                                    )
+                                  }
+                                  className={`flex-1 rounded-lg px-2 py-2 text-[10px] font-black ${
+                                    choice.interestType ===
+                                    "play_follow"
+                                      ? "bg-[#06284a] text-white"
+                                      : "bg-slate-100 text-slate-600"
+                                  }`}
+                                >
+                                  🏃 Play + Follow
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
+                </section>
+
+                <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+                  <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b68718]">
+                    ⭐ Favorite Teams
+                  </div>
+                  <h2 className="mt-1 text-xl font-black text-[#10254a]">
+                    Who are your teams?
+                  </h2>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    Pick as many as you want. Then choose one as your #1.
+                  </p>
+
+                  <input
+                    value={profileTeamSearch}
+                    onChange={(event) =>
+                      setProfileTeamSearch(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Search teams…"
+                    className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-base font-semibold text-[#10254a] outline-none focus:border-[#06284a]"
+                  />
+
+                  <div className="mt-3 max-h-[45vh] space-y-2 overflow-y-auto pr-1">
+                    {profileTeams
+                      .filter((team) => {
+                        const followedSportIds =
+                          profileSportChoices.map(
+                            (item) =>
+                              item.sportId,
+                          );
+
+                        const sportMatches =
+                          followedSportIds.length ===
+                            0 ||
+                          followedSportIds.includes(
+                            team.sport_id,
+                          );
+
+                        const query =
+                          profileTeamSearch
+                            .trim()
+                            .toLowerCase();
+
+                        const searchMatches =
+                          !query ||
+                          team.name
+                            .toLowerCase()
+                            .includes(query) ||
+                          (
+                            team.short_name ??
+                            ""
+                          )
+                            .toLowerCase()
+                            .includes(query) ||
+                          (
+                            team.abbreviation ??
+                            ""
+                          )
+                            .toLowerCase()
+                            .includes(query);
+
+                        return (
+                          sportMatches &&
+                          searchMatches
+                        );
+                      })
+                      .map((team) => {
+                        const favorite =
+                          profileFavoriteTeamIds.includes(
+                            team.id,
+                          );
+
+                        const primary =
+                          profilePrimaryTeamId ===
+                          team.id;
+
+                        return (
+                          <div
+                            key={team.id}
+                            className={`rounded-xl border p-3 ${
+                              favorite
+                                ? "border-[#f3c64f] bg-[#fffaf0]"
+                                : "border-slate-200"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <button
+                                onClick={() =>
+                                  toggleFavoriteTeam(
+                                    team.id,
+                                  )
+                                }
+                                className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                              >
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg">
+                                  {favorite
+                                    ? "❤️"
+                                    : "☆"}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <div className="truncate text-sm font-black text-[#10254a]">
+                                    {team.name}
+                                  </div>
+                                  {team.abbreviation && (
+                                    <div className="text-[9px] font-bold text-slate-400">
+                                      {
+                                        team.abbreviation
+                                      }
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+
+                              {favorite && (
+                                <button
+                                  onClick={() =>
+                                    setProfilePrimaryTeamId(
+                                      primary
+                                        ? null
+                                        : team.id,
+                                    )
+                                  }
+                                  className={`shrink-0 rounded-lg px-3 py-2 text-[10px] font-black ${
+                                    primary
+                                      ? "bg-[#f3c64f] text-[#06284a]"
+                                      : "bg-slate-100 text-slate-500"
+                                  }`}
+                                >
+                                  {primary
+                                    ? "⭐ #1"
+                                    : "Make #1"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </section>
+
+                <button
+                  onClick={() =>
+                    void saveProfile()
+                  }
+                  disabled={profileSaving}
+                  className="mt-4 w-full rounded-2xl bg-[#f3c64f] px-4 py-4 text-sm font-black text-[#06284a] shadow-sm disabled:opacity-60"
+                >
+                  {profileSaving
+                    ? "Saving…"
+                    : "Save My Profile ✓"}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setProfileOpen(false);
+                    switchPlayer();
+                  }}
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-xs font-black text-[#10254a]"
+                >
+                  👥 Switch Player
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {lockerRoomOpen && (

@@ -2320,7 +2320,7 @@ export default function Home() {
         )}
 
         {/* BOTTOM DASHBOARD ROW */}
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="mb-3 grid grid-cols-2 gap-2.5">
           {/* WHO'S READY */}
           <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
             <div className="flex items-center gap-1.5">

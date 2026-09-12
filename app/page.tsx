@@ -24,7 +24,9 @@ type Sport =
   | "All"
   | "Soccer"
   | "College Football"
-  | "College Basketball";
+  | "College Basketball"
+  | "Hockey"
+  | "Baseball";
 
 type ProfileSport = {
   id: string;
@@ -143,6 +145,8 @@ const sportButtons: Sport[] = [
   "Soccer",
   "College Football",
   "College Basketball",
+  "Hockey",
+  "Baseball",
 ];
 
 function formatGameDate(startsAt: string | null) {
@@ -714,6 +718,8 @@ export default function Home() {
     useState<Player | null>(null);
 
   const [pin, setPin] = useState("");
+  const [pinEmojis, setPinEmojis] =
+    useState(["🏈", "⚽", "🏀", "⚾"]);
   const [pinError, setPinError] =
     useState<string | null>(null);
 
@@ -1159,9 +1165,12 @@ export default function Home() {
 
     async function refreshGameRoomGame() {
       try {
-        const response = await fetch("/api/games", {
-          cache: "no-store",
-        });
+        const response = await fetch(
+          `/api/games?gameId=${encodeURIComponent(gameRoomGameId)}`,
+          {
+            cache: "no-store",
+          },
+        );
 
         if (!response.ok) return;
 
@@ -1285,6 +1294,23 @@ export default function Home() {
               ) {
                 scoringMessage =
                   `🏀 Score update — ${scoreText}`;
+              } else if (
+                sport.includes("hockey") &&
+                scoringTeam
+              ) {
+                scoringMessage =
+                  `🏒 GOAL! ${scoringTeam} — ${scoreText}`;
+              } else if (
+                sport.includes("baseball") &&
+                scoringTeam
+              ) {
+                scoringMessage =
+                  `⚾ ${scoringTeam} scored! — ${scoreText}`;
+              } else if (
+                sport.includes("baseball")
+              ) {
+                scoringMessage =
+                  `⚾ Run update — ${scoreText}`;
               } else {
                 scoringMessage =
                   `📣 Score update — ${scoreText}`;
@@ -1974,7 +2000,10 @@ export default function Home() {
           .filter(
             (game) =>
               game.sport === "College Football" ||
-              game.sport === "Soccer",
+              game.sport === "Soccer" ||
+              game.sport === "College Basketball" ||
+              game.sport === "Hockey" ||
+              game.sport === "Baseball",
           )
           .map((game) => ({
             id: game.id,
@@ -1993,7 +2022,13 @@ export default function Home() {
             icon:
               game.sport === "Soccer"
                 ? "⚽"
-                : "🏈",
+                : game.sport === "College Football"
+                  ? "🏈"
+                  : game.sport === "College Basketball"
+                    ? "🏀"
+                    : game.sport === "Hockey"
+                      ? "🏒"
+                      : "⚾",
             liveData: true,
           }));
 
@@ -2153,7 +2188,12 @@ export default function Home() {
     );
 
   function choosePlayer(player: Player) {
+    const shuffledSports = ["🏈", "⚽", "🏀", "⚾", "🏒"]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 4);
+
     setSelectedPlayer(player);
+    setPinEmojis(shuffledSports);
     setPin("");
     setPinError(null);
   }
@@ -3158,6 +3198,8 @@ export default function Home() {
               "Soccer",
               "College Football",
               "College Basketball",
+              "Hockey",
+              "Baseball",
             ].map((sport) => (
               <button
                 key={sport}
@@ -4587,8 +4629,7 @@ export default function Home() {
             </p>
 
             <div className="mt-5 flex justify-center gap-3">
-              {["🏈", "⚽", "🏀", "⚾"].map(
-                (sportBall, position) => (
+              {pinEmojis.map((sportBall, position) => (
                   <div
                     key={sportBall}
                     className={`flex h-9 w-9 items-center justify-center rounded-full text-xl transition ${

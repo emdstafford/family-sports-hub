@@ -9,6 +9,10 @@ type CompetitionRow = {
   name: string;
 };
 
+type SportRow = {
+  name: string;
+};
+
 type GameRow = {
   id: string;
   starts_at: string | null;
@@ -22,10 +26,18 @@ type GameRow = {
   home_team: TeamRow | TeamRow[] | null;
   away_team: TeamRow | TeamRow[] | null;
   competition: CompetitionRow | CompetitionRow[] | null;
+  sport: SportRow | SportRow[] | null;
 };
 
 function getName(
-  value: TeamRow | CompetitionRow | TeamRow[] | CompetitionRow[] | null,
+  value:
+    | TeamRow
+    | CompetitionRow
+    | SportRow
+    | TeamRow[]
+    | CompetitionRow[]
+    | SportRow[]
+    | null,
 ) {
   if (!value) return null;
 
@@ -35,6 +47,22 @@ function getName(
 
   return value.name;
 }
+
+const SELECT_FIELDS = `
+  id,
+  starts_at,
+  start_time_tbd,
+  source_notes,
+  home_score,
+  away_score,
+  status,
+  external_provider,
+  external_id,
+  home_team:teams!games_home_team_id_fkey(name),
+  away_team:teams!games_away_team_id_fkey(name),
+  competition:competitions!games_competition_id_fkey(name),
+  sport:sports!games_sport_id_fkey(name)
+`;
 
 export async function GET(request: Request) {
   try {
@@ -51,88 +79,123 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
 
     const sport = searchParams.get("sport");
+    const gameId = searchParams.get("gameId");
 
-    const supabase = createClient(supabaseUrl, supabaseSecretKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
-
-    let query = supabase
-      .from("games")
-      .select(`
-        id,
-        starts_at,
-        start_time_tbd,
-        source_notes,
-        home_score,
-        away_score,
-        status,
-        external_provider,
-        external_id,
-        home_team:teams!games_home_team_id_fkey(name),
-        away_team:teams!games_away_team_id_fkey(name),
-        competition:competitions!games_competition_id_fkey(name),
-        sport:sports!games_sport_id_fkey(name)
-      `)
-      .order("starts_at", { ascending: true });
-
-    if (sport) {
-      query = query.eq("sport.name", sport);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Games API error:", error);
-
-      return NextResponse.json(
-        {
-          error: "Could not load games.",
-          details: error.message,
+    const supabase = createClient(
+      supabaseUrl,
+      supabaseSecretKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
         },
-        { status: 500 },
-      );
+      },
+    );
+
+    const rows: GameRow[] = [];
+
+    // When a specific Game Room asks for one game,
+    // avoid loading the entire sports database.
+    if (gameId) {
+      let query = supabase
+        .from("games")
+        .select(SELECT_FIELDS)
+        .eq("id", gameId);
+
+      if (sport) {
+        query = query.eq("sport.name", sport);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Games API error:", error);
+
+        return NextResponse.json(
+          {
+            error: "Could not load games.",
+            details: error.message,
+          },
+          { status: 500 },
+        );
+      }
+
+      rows.push(...((data ?? []) as unknown as GameRow[]));
+    } else {
+      // Supabase/PostgREST limits a response to 1,000 rows.
+      // Page through all games so later-season sports such as
+      // NHL and MLB are not silently cut off.
+      const PAGE_SIZE = 1000;
+      let from = 0;
+
+      while (true) {
+        let query = supabase
+          .from("games")
+          .select(SELECT_FIELDS)
+          .order("starts_at", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (sport) {
+          query = query.eq("sport.name", sport);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error("Games API error:", error);
+
+          return NextResponse.json(
+            {
+              error: "Could not load games.",
+              details: error.message,
+            },
+            { status: 500 },
+          );
+        }
+
+        const page =
+          (data ?? []) as unknown as GameRow[];
+
+        rows.push(...page);
+
+        if (page.length < PAGE_SIZE) {
+          break;
+        }
+
+        from += PAGE_SIZE;
+      }
     }
 
-    const games = (data ?? []).map((game) => {
-      const row = game as unknown as GameRow & {
-        sport:
-          | {
-              name: string;
-            }
-          | {
-              name: string;
-            }[]
-          | null;
-      };
-
-      return {
-        id: row.id,
-        sport: getName(row.sport) ?? "Sports",
-        competition: getName(row.competition) ?? "Game",
-        home: getName(row.home_team) ?? "TBD",
-        away: getName(row.away_team) ?? "TBD",
-        startsAt: row.starts_at,
-        startTimeTbd: row.start_time_tbd,
-        sourceNotes: row.source_notes,
-        homeScore: row.home_score,
-        awayScore: row.away_score,
-        status: row.status,
-        externalProvider: row.external_provider,
-        externalId: row.external_id,
-      };
-    });
+    const games = rows.map((row) => ({
+      id: row.id,
+      sport: getName(row.sport) ?? "Sports",
+      competition:
+        getName(row.competition) ?? "Game",
+      home: getName(row.home_team) ?? "TBD",
+      away: getName(row.away_team) ?? "TBD",
+      startsAt: row.starts_at,
+      startTimeTbd: row.start_time_tbd,
+      sourceNotes: row.source_notes,
+      homeScore: row.home_score,
+      awayScore: row.away_score,
+      status: row.status,
+      externalProvider: row.external_provider,
+      externalId: row.external_id,
+    }));
 
     return NextResponse.json({
       games,
     });
   } catch (error) {
-    console.error("Games API unexpected error:", error);
+    console.error(
+      "Games API unexpected error:",
+      error,
+    );
 
     return NextResponse.json(
-      { error: "Unexpected error loading games." },
+      {
+        error: "Unexpected error loading games.",
+      },
       { status: 500 },
     );
   }

@@ -1259,6 +1259,34 @@ export default function Home() {
 
     async function refreshGameRoomGame() {
       try {
+        // First refresh this exact game from its live data provider.
+        // This updates Supabase before the Game Room reads the score.
+        try {
+          const liveResponse = await fetch(
+            `/api/game-room/live?gameId=${encodeURIComponent(gameRoomGameId)}`,
+            {
+              cache: "no-store",
+            },
+          );
+
+          if (!liveResponse.ok) {
+            const liveBody = await liveResponse
+              .json()
+              .catch(() => null);
+
+            console.error(
+              "Game Room provider refresh failed:",
+              liveResponse.status,
+              liveBody,
+            );
+          }
+        } catch (liveError) {
+          console.error(
+            "Game Room provider refresh request failed:",
+            liveError,
+          );
+        }
+
         const response = await fetch(
           `/api/games?gameId=${encodeURIComponent(gameRoomGameId)}`,
           {
@@ -1473,6 +1501,41 @@ export default function Home() {
     }
 
     void refreshGameRoomGame();
+
+    const finalStatuses = [
+      "final",
+      "finished",
+      "complete",
+      "completed",
+      "closed",
+    ];
+
+    const status =
+      String(gameRoomGame.status ?? "").toLowerCase();
+
+    const alreadyFinal = finalStatuses.some(
+      (value) => status.includes(value),
+    );
+
+    const startsAtMs = gameRoomGame.startsAt
+      ? new Date(gameRoomGame.startsAt).getTime()
+      : null;
+
+    const nowMs = Date.now();
+
+    // Keep live polling focused around the actual game window.
+    // Start 10 minutes before kickoff and allow a generous
+    // six-hour window for long football games / delays.
+    const inLiveWindow =
+      startsAtMs !== null &&
+      nowMs >= startsAtMs - 10 * 60_000 &&
+      nowMs <= startsAtMs + 6 * 60 * 60_000;
+
+    if (alreadyFinal || !inLiveWindow) {
+      return () => {
+        cancelled = true;
+      };
+    }
 
     const interval = window.setInterval(
       refreshGameRoomGame,

@@ -3175,7 +3175,7 @@ export default function Home() {
                       {getGameContext(game, collegeFootballRankings)}
                     </div>
 
-                    <div className="mt-2 flex justify-end">
+                    <div className="mt-2 flex justify-end gap-2">
                       <button
                         onClick={() => toggleGameDetails(game.id)}
                         className="rounded-lg bg-[#eef2f6] px-3 py-1.5 text-[10px] font-black text-[#06284a]"
@@ -3187,24 +3187,24 @@ export default function Home() {
 
                       <button
                         onClick={() => openGameRoom(game)}
-                        className="ml-2 rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
+                        className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
                       >
                         Game Room 💬
                       </button>
-
-                      {expandedGameIds.includes(game.id) && (
-                        <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
-                          <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
-                            {getGameFacts(
-                              game,
-                              collegeFootballRankings,
-                            ).map((fact) => (
-                              <li key={fact}>• {fact}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
                     </div>
+
+                    {expandedGameIds.includes(game.id) && (
+                      <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
+                        <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
+                          {getGameFacts(
+                            game,
+                            collegeFootballRankings,
+                          ).map((fact) => (
+                            <li key={fact}>• {fact}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               </article>
@@ -3248,7 +3248,23 @@ export default function Home() {
 
           <div className="divide-y divide-slate-200 px-3">
             {challengeGames
-              .filter((game) => !gameIsLocked(game, currentTime))
+              .filter((game) => {
+                if (gameIsLocked(game, currentTime)) return false;
+                if (!game.startsAt) return true;
+
+                const gameDay = new Date(game.startsAt).toLocaleDateString(
+                  "en-CA",
+                  { timeZone: "America/New_York" },
+                );
+
+                const todayDay = new Date(
+                  currentTime ?? Date.now(),
+                ).toLocaleDateString("en-CA", {
+                  timeZone: "America/New_York",
+                });
+
+                return gameDay > todayDay;
+              })
               .sort(
                 (a, b) =>
                   (a.startsAt
@@ -3295,7 +3311,9 @@ export default function Home() {
                           onClick={() => toggleGameDetails(game.id)}
                           className="rounded-lg bg-[#edf5ff] px-3 py-1.5 text-[10px] font-black text-[#164d9b]"
                         >
-                          Tell Me More →
+                          {expandedGameIds.includes(game.id)
+                            ? "Show Less ↑"
+                            : "Tell Me More →"}
                         </button>
 
                         <button
@@ -3305,6 +3323,19 @@ export default function Home() {
                           Game Room 💬
                         </button>
                       </div>
+
+                      {expandedGameIds.includes(game.id) && (
+                        <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
+                          <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
+                            {getGameFacts(
+                              game,
+                              collegeFootballRankings,
+                            ).map((fact) => (
+                              <li key={fact}>• {fact}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </article>

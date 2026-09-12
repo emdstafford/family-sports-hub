@@ -3130,19 +3130,42 @@ export default function Home() {
               .filter((game) => {
                 if (!game.startsAt) return false;
 
-                const gameDate = new Date(game.startsAt);
+                const status = (game.status ?? "").toLowerCase();
+                const finalStatuses = [
+                  "final",
+                  "finished",
+                  "complete",
+                  "completed",
+                  "closed",
+                ];
 
-                const gameDay = gameDate.toLocaleDateString("en-CA", {
-                  timeZone: "America/New_York",
-                });
+                if (
+                  finalStatuses.some((finalStatus) =>
+                    status.includes(finalStatus),
+                  )
+                ) {
+                  return false;
+                }
 
-                const todayDay = new Date(currentTime ?? Date.now()).toLocaleDateString("en-CA", {
+                const gameDay = new Date(game.startsAt).toLocaleDateString(
+                  "en-CA",
+                  { timeZone: "America/New_York" },
+                );
+
+                const todayDay = new Date(
+                  currentTime ?? Date.now(),
+                ).toLocaleDateString("en-CA", {
                   timeZone: "America/New_York",
                 });
 
                 return gameDay === todayDay;
               })
-              .slice(0, 2)
+              .sort(
+                (a, b) =>
+                  new Date(a.startsAt!).getTime() -
+                  new Date(b.startsAt!).getTime(),
+              )
+              .slice(0, 4)
               .map((game) => (
               <article
                 key={game.id}
@@ -3214,11 +3237,75 @@ export default function Home() {
               filteredGames.filter((game) => {
                 if (!game.startsAt) return false;
 
-                const gameDay = new Date(game.startsAt).toLocaleDateString("en-CA", {
+                const status = (game.status ?? "").toLowerCase();
+                const finalStatuses = [
+                  "final",
+                  "finished",
+                  "complete",
+                  "completed",
+                  "closed",
+                ];
+
+                if (
+                  finalStatuses.some((finalStatus) =>
+                    status.includes(finalStatus),
+                  )
+                ) {
+                  return false;
+                }
+
+                const gameDay = new Date(game.startsAt).toLocaleDateString(
+                  "en-CA",
+                  { timeZone: "America/New_York" },
+                );
+
+                const todayDay = new Date(
+                  currentTime ?? Date.now(),
+                ).toLocaleDateString("en-CA", {
                   timeZone: "America/New_York",
                 });
 
-                const todayDay = new Date(currentTime ?? Date.now()).toLocaleDateString("en-CA", {
+                return gameDay === todayDay;
+              }).length > 0 && (
+                <div className="py-2 text-center">
+                  <button
+                    onClick={() => setActiveSection("Games")}
+                    className="text-[11px] font-black text-[#164d9b]"
+                  >
+                    See All Today →
+                  </button>
+                </div>
+              )}
+
+            {!gamesLoading &&
+              filteredGames.filter((game) => {
+                if (!game.startsAt) return false;
+
+                const status = (game.status ?? "").toLowerCase();
+                const finalStatuses = [
+                  "final",
+                  "finished",
+                  "complete",
+                  "completed",
+                  "closed",
+                ];
+
+                if (
+                  finalStatuses.some((finalStatus) =>
+                    status.includes(finalStatus),
+                  )
+                ) {
+                  return false;
+                }
+
+                const gameDay = new Date(game.startsAt).toLocaleDateString(
+                  "en-CA",
+                  { timeZone: "America/New_York" },
+                );
+
+                const todayDay = new Date(
+                  currentTime ?? Date.now(),
+                ).toLocaleDateString("en-CA", {
                   timeZone: "America/New_York",
                 });
 

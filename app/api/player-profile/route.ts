@@ -231,10 +231,15 @@ export async function POST(
           )
         : [];
 
-    const primaryTeamId =
-      typeof body.primaryTeamId === "string"
-        ? body.primaryTeamId
-        : null;
+    const primaryTeamIds =
+      Array.isArray(body.primaryTeamIds)
+        ? body.primaryTeamIds.filter(
+            (value: unknown) =>
+              typeof value === "string",
+          )
+        : typeof body.primaryTeamId === "string"
+          ? [body.primaryTeamId]
+          : [];
 
     const sessionToken =
       request.headers.get(
@@ -380,7 +385,9 @@ export async function POST(
               player_id: playerId,
               team_id: teamId,
               is_primary:
-                primaryTeamId === teamId,
+                primaryTeamIds.includes(
+                  teamId,
+                ),
             }),
           ),
         );

@@ -25,6 +25,7 @@ type Sport =
   | "Soccer"
   | "College Football"
   | "College Basketball"
+  | "Volleyball"
   | "Hockey"
   | "Baseball";
 
@@ -145,6 +146,7 @@ const sportButtons: Sport[] = [
   "Soccer",
   "College Football",
   "College Basketball",
+  "Volleyball",
   "Hockey",
   "Baseball",
 ];
@@ -765,8 +767,10 @@ export default function Home() {
   const [profileFavoriteTeamIds, setProfileFavoriteTeamIds] =
     useState<string[]>([]);
 
-  const [profilePrimaryTeamId, setProfilePrimaryTeamId] =
-    useState<string | null>(null);
+  const [
+    profilePrimaryTeamIdsBySport,
+    setProfilePrimaryTeamIdsBySport,
+  ] = useState<Record<string, string>>({});
 
   const [profileTeamSearch, setProfileTeamSearch] =
     useState("");
@@ -1625,18 +1629,24 @@ export default function Home() {
         favorites,
       );
 
-      const primary =
-        (
-          data.favoriteTeams ?? []
-        ).find(
-          (row: {
-            team_id: string;
-            is_primary: boolean;
-          }) => row.is_primary,
+      const primaryBySport: Record<string, string> = {};
+
+      for (const row of data.favoriteTeams ?? []) {
+        if (!row.is_primary) continue;
+
+        const team = (data.teams ?? []).find(
+          (candidate: ProfileTeam) =>
+            candidate.id === row.team_id,
         );
 
-      setProfilePrimaryTeamId(
-        primary?.team_id ?? null,
+        if (team) {
+          primaryBySport[team.sport_id] =
+            row.team_id;
+        }
+      }
+
+      setProfilePrimaryTeamIdsBySport(
+        primaryBySport,
       );
     } catch (error) {
       setProfileError(
@@ -1690,12 +1700,32 @@ export default function Home() {
               (id) => id !== teamId,
             );
 
-          if (
-            profilePrimaryTeamId ===
-            teamId
-          ) {
-            setProfilePrimaryTeamId(
-              null,
+          const removedTeam =
+            profileTeams.find(
+              (team) => team.id === teamId,
+            );
+
+          if (removedTeam) {
+            setProfilePrimaryTeamIdsBySport(
+              (currentPrimary) => {
+                if (
+                  currentPrimary[
+                    removedTeam.sport_id
+                  ] !== teamId
+                ) {
+                  return currentPrimary;
+                }
+
+                const next = {
+                  ...currentPrimary,
+                };
+
+                delete next[
+                  removedTeam.sport_id
+                ];
+
+                return next;
+              },
             );
           }
 
@@ -1756,8 +1786,10 @@ export default function Home() {
               profileSportChoices,
             favoriteTeamIds:
               profileFavoriteTeamIds,
-            primaryTeamId:
-              profilePrimaryTeamId,
+            primaryTeamIds:
+              Object.values(
+                profilePrimaryTeamIdsBySport,
+              ),
           }),
         },
       );
@@ -2002,6 +2034,7 @@ export default function Home() {
               game.sport === "College Football" ||
               game.sport === "Soccer" ||
               game.sport === "College Basketball" ||
+              game.sport === "Volleyball" ||
               game.sport === "Hockey" ||
               game.sport === "Baseball",
           )
@@ -2026,9 +2059,11 @@ export default function Home() {
                   ? "🏈"
                   : game.sport === "College Basketball"
                     ? "🏀"
-                    : game.sport === "Hockey"
-                      ? "🏒"
-                      : "⚾",
+                    : game.sport === "Volleyball"
+                      ? "🏐"
+                      : game.sport === "Hockey"
+                        ? "🏒"
+                        : "⚾",
             liveData: true,
           }));
 
@@ -2137,7 +2172,31 @@ export default function Home() {
    * Exact team matching prevents Georgia State and Georgia Tech
    * from being treated as the University of Georgia.
    */
+  const favoriteProfileTeams = profileFavoriteTeamIds
+    .map((teamId) =>
+      profileTeams.find((team) => team.id === teamId),
+    )
+    .filter(
+      (team): team is ProfileTeam => Boolean(team),
+    );
+
+  const personalTeamSports = new Set([
+    "Hockey",
+    "Baseball",
+    "Volleyball",
+  ]);
+
   const watchGames = thisWeekGames.filter((game) => {
+    if (personalTeamSports.has(game.sport)) {
+      return favoriteProfileTeams.some(
+        (team) =>
+          team.name.trim().toLowerCase() ===
+            game.home.trim().toLowerCase() ||
+          team.name.trim().toLowerCase() ===
+            game.away.trim().toLowerCase(),
+      );
+    }
+
     const watchInfo =
       getWatchInfo(game, collegeFootballRankings);
 
@@ -2188,7 +2247,7 @@ export default function Home() {
     );
 
   function choosePlayer(player: Player) {
-    const shuffledSports = ["🏈", "⚽", "🏀", "⚾", "🏒"]
+    const shuffledSports = ["🏈", "⚽", "🏀", "🏐", "⚾", "🏒"]
       .sort(() => Math.random() - 0.5)
       .slice(0, 4);
 
@@ -3198,6 +3257,7 @@ export default function Home() {
               "Soccer",
               "College Football",
               "College Basketball",
+              "Volleyball",
               "Hockey",
               "Baseball",
             ].map((sport) => (
@@ -3513,7 +3573,7 @@ export default function Home() {
                     Your teams
                   </h2>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Keep your favorites here and choose one as your #1.
+                    Keep your teams here and choose one favorite for each sport.
                   </p>
 
                   <div className="mt-3 space-y-2">
@@ -3539,7 +3599,9 @@ export default function Home() {
                         )
                         .map((team) => {
                           const primary =
-                            profilePrimaryTeamId === team.id;
+                            profilePrimaryTeamIdsBySport[
+                              team.sport_id
+                            ] === team.id;
 
                           return (
                             <div
@@ -3556,21 +3618,39 @@ export default function Home() {
                                     <div className="truncate text-sm font-black text-[#10254a]">
                                       {team.name}
                                     </div>
-                                    {team.abbreviation && (
-                                      <div className="text-[9px] font-bold text-slate-400">
-                                        {team.abbreviation}
-                                      </div>
-                                    )}
+                                    <div className="text-[9px] font-bold text-slate-400">
+                                      {profileSports.find(
+                                        (sport) =>
+                                          sport.id === team.sport_id,
+                                      )?.name ?? "Team"}
+                                      {team.abbreviation
+                                        ? ` • ${team.abbreviation}`
+                                        : ""}
+                                    </div>
                                   </div>
                                 </div>
 
                                 <div className="flex shrink-0 items-center gap-2">
                                   <button
                                     onClick={() =>
-                                      setProfilePrimaryTeamId(
-                                        primary
-                                          ? null
-                                          : team.id,
+                                      setProfilePrimaryTeamIdsBySport(
+                                        (current) => {
+                                          const next = {
+                                            ...current,
+                                          };
+
+                                          if (primary) {
+                                            delete next[
+                                              team.sport_id
+                                            ];
+                                          } else {
+                                            next[
+                                              team.sport_id
+                                            ] = team.id;
+                                          }
+
+                                          return next;
+                                        },
                                       )
                                     }
                                     className={`rounded-lg px-3 py-2 text-[10px] font-black ${
@@ -3580,8 +3660,8 @@ export default function Home() {
                                     }`}
                                   >
                                     {primary
-                                      ? "⭐ #1"
-                                      : "Make #1"}
+                                      ? "⭐ Favorite"
+                                      : "Make Favorite"}
                                   </button>
 
                                   <button
@@ -3690,11 +3770,16 @@ export default function Home() {
                                 toggleFavoriteTeam(team.id);
 
                                 if (
-                                  !profilePrimaryTeamId &&
-                                  profileFavoriteTeamIds.length === 0
+                                  !profilePrimaryTeamIdsBySport[
+                                    team.sport_id
+                                  ]
                                 ) {
-                                  setProfilePrimaryTeamId(
-                                    team.id,
+                                  setProfilePrimaryTeamIdsBySport(
+                                    (current) => ({
+                                      ...current,
+                                      [team.sport_id]:
+                                        team.id,
+                                    }),
                                   );
                                 }
                               }}

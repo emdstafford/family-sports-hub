@@ -4661,6 +4661,90 @@ export default function Home() {
                   )}
                 </div>              ) : (
                 <div className="p-5">
+                  {leaderboard.length > 0 && (
+                    <div className="mb-4 rounded-2xl border border-[#e5dcc5] bg-white p-3 shadow-sm">
+                      <div className="mb-2 flex items-center justify-between">
+                        <div>
+                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b28a2e]">
+                            Challenge Scoreboard
+                          </div>
+                          <div className="text-sm font-black text-[#06284a]">
+                            This Week 🏆
+                          </div>
+                        </div>
+
+                        <div className="text-[9px] font-black uppercase text-slate-400">
+                          Points
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {[...leaderboard]
+                          .sort((a, b) => {
+                            if (b.points !== a.points) {
+                              return b.points - a.points;
+                            }
+
+                            if (b.correct !== a.correct) {
+                              return b.correct - a.correct;
+                            }
+
+                            return b.accuracy - a.accuracy;
+                          })
+                          .map((row, index) => {
+                            const isYou =
+                              row.player_id === signedInPlayer.id;
+
+                            return (
+                              <div
+                                key={row.player_id}
+                                className={`flex items-center gap-2 rounded-xl px-2.5 py-2 ${
+                                  isYou
+                                    ? "bg-[#edf5ff] ring-1 ring-[#bdd7f4]"
+                                    : "bg-[#f8f6ef]"
+                                }`}
+                              >
+                                <div className="w-6 text-center text-sm font-black text-[#b28a2e]">
+                                  {index === 0
+                                    ? "🥇"
+                                    : index === 1
+                                      ? "🥈"
+                                      : index === 2
+                                        ? "🥉"
+                                        : `${index + 1}.`}
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate text-xs font-black text-[#06284a]">
+                                    {row.display_name}
+                                    {isYou ? " · YOU" : ""}
+                                  </div>
+
+                                  <div className="text-[9px] font-semibold text-slate-500">
+                                    {row.correct} correct
+                                    {" · "}
+                                    {row.completed_picks}/{row.total_picks} scored
+                                    {row.completed_picks > 0
+                                      ? ` · ${Math.round(row.accuracy)}%`
+                                      : ""}
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0 text-right">
+                                  <div className="text-lg font-black leading-none text-[#06284a]">
+                                    {row.points}
+                                  </div>
+                                  <div className="mt-0.5 text-[8px] font-black uppercase text-slate-400">
+                                    pts
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-4">
                     {challengeGames.map(
                       (game) => {

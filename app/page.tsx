@@ -4759,6 +4759,37 @@ export default function Home() {
                             game.id,
                           );
 
+                        const isFinal =
+                          [
+                            "final",
+                            "finished",
+                            "complete",
+                            "completed",
+                            "closed",
+                          ].includes(
+                            game.status.toLowerCase(),
+                          ) &&
+                          game.homeScore !== null &&
+                          game.awayScore !== null;
+
+                        const winningChoice =
+                          isFinal
+                            ? game.homeScore! >
+                              game.awayScore!
+                              ? "home"
+                              : game.awayScore! >
+                                  game.homeScore!
+                                ? "away"
+                                : "draw"
+                            : null;
+
+                        const winningTeam =
+                          winningChoice === "home"
+                            ? game.home
+                            : winningChoice === "away"
+                              ? game.away
+                              : null;
+
                         return (
                           <div
                             key={game.id}
@@ -4814,6 +4845,26 @@ export default function Home() {
                                       )
                                     : game.home}
                                 </div>
+
+                                {isFinal && (
+                                  <div className="mt-3 rounded-2xl border border-[#e3dccd] bg-[#f8f6ef] p-3">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">
+                                      FINAL
+                                    </div>
+
+                                    <div className="mt-1 text-base font-black text-[#06284a]">
+                                      {game.away} {game.awayScore}
+                                      {" — "}
+                                      {game.home} {game.homeScore}
+                                    </div>
+
+                                    <div className="mt-1 text-sm font-black text-slate-700">
+                                      {winningTeam
+                                        ? `🏆 ${winningTeam} wins`
+                                        : "🤝 Draw"}
+                                    </div>
+                                  </div>
+                                )}
 
                                 <p className="mt-1 text-sm font-semibold leading-snug text-slate-600">
                                   {getGameContext(
@@ -4892,6 +4943,12 @@ export default function Home() {
                                           pick.player_id ===
                                           signedInPlayer.id;
 
+                                        const pickCorrect =
+                                          isFinal &&
+                                          winningChoice !== null &&
+                                          pick.pick_choice ===
+                                            winningChoice;
+
                                         return (
                                           <div
                                             key={pick.player_id}
@@ -4917,8 +4974,25 @@ export default function Home() {
                                                     : ""}
                                                 </div>
 
-                                                <div className="mt-0.5 truncate text-xs font-black text-[#10254a]">
-                                                  {pickLabel}
+                                                <div className="mt-0.5 flex items-center gap-2">
+                                                  <div className="min-w-0 truncate text-xs font-black text-[#10254a]">
+                                                    {pickLabel}
+                                                  </div>
+
+                                                  {isFinal &&
+                                                    pick.pick_choice && (
+                                                      <div
+                                                        className={`shrink-0 text-[10px] font-black ${
+                                                          pickCorrect
+                                                            ? "text-emerald-600"
+                                                            : "text-rose-500"
+                                                        }`}
+                                                      >
+                                                        {pickCorrect
+                                                          ? "✓ +1"
+                                                          : "✗ 0"}
+                                                      </div>
+                                                    )}
                                                 </div>
                                               </div>
                                             </div>

@@ -819,6 +819,10 @@ export default function Home() {
   const [expandedGameIds, setExpandedGameIds] =
     useState<string[]>([]);
 
+  useEffect(() => {
+    setExpandedGameIds([]);
+  }, [activeSection]);
+
   const [gameRoomGame, setGameRoomGame] =
     useState<BrowserGame | null>(null);
 

@@ -843,6 +843,9 @@ export default function Home() {
   const [gameRoomPicks, setGameRoomPicks] =
     useState<GameRoomPick[]>([]);
 
+  const [challengeRevealedPicks, setChallengeRevealedPicks] =
+    useState<Record<string, GameRoomPick[]>>({});
+
   const [gameRoomPicksRevealed, setGameRoomPicksRevealed] =
     useState(false);
 
@@ -1047,6 +1050,89 @@ export default function Home() {
       }
     }
   }
+
+  useEffect(() => {
+    if (!signedInPlayer || !challenge) return;
+
+    const sessionToken =
+      window.localStorage.getItem(
+        "fambam_session_token",
+      );
+
+    if (!sessionToken) return;
+
+    const gamesToReveal = realGames.filter(
+      (game) =>
+        challengeGameIds.includes(game.id) &&
+        !game.startTimeTbd &&
+        gameIsLocked(game, currentTime) &&
+        !challengeRevealedPicks[game.id],
+    );
+
+    if (gamesToReveal.length === 0) return;
+
+    let cancelled = false;
+
+    async function loadRevealedChallengePicks(
+      game: BrowserGame,
+    ) {
+      try {
+        const params = new URLSearchParams({
+          playerId: signedInPlayer!.id,
+          gameId: game.id,
+          challengeId: challenge!.id,
+        });
+
+        const response = await fetch(
+          `/api/game-room/picks?${params.toString()}`,
+          {
+            headers: {
+              "x-fambam-session": sessionToken!,
+            },
+            cache: "no-store",
+          },
+        );
+
+        const data = await response.json();
+
+        if (
+          !response.ok ||
+          !data.revealed ||
+          cancelled
+        ) {
+          return;
+        }
+
+        setChallengeRevealedPicks((current) => ({
+          ...current,
+          [game.id]:
+            (data.picks ?? []) as GameRoomPick[],
+        }));
+      } catch (error) {
+        console.error(
+          "Challenge pick reveal failed:",
+          error,
+        );
+      }
+    }
+
+    void Promise.all(
+      gamesToReveal.map((game) =>
+        loadRevealedChallengePicks(game),
+      ),
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    signedInPlayer?.id,
+    challenge?.id,
+    challengeGameIds,
+    realGames,
+    currentTime,
+    challengeRevealedPicks,
+  ]);
 
   async function openGameRoom(game: BrowserGame) {
     if (!signedInPlayer) {
@@ -4506,9 +4592,185 @@ export default function Home() {
                                 confirmed.
                               </div>
                             ) : locked ? (
-                              <div className="mt-4 rounded-xl bg-slate-100 p-4 text-center text-sm font-black text-slate-500">
-                                🔒 Picks Locked
-                              </div>
+                              <>
+                                <div className="mt-3 text-lg font-black text-slate-950">
+                                  {game.sport === "College Football"
+                                    ? rankedTeamLabel(
+                                        game.away,
+                                        collegeFootballRankings,
+                                      )
+                                    : game.away}
+                                  {" at "}
+                                  {game.sport === "College Football"
+                                    ? rankedTeamLabel(
+                                        game.home,
+                                        collegeFootballRankings,
+                                      )
+                                    : game.home}
+                                </div>
+
+                                <p className="mt-1 text-sm font-semibold leading-snug text-slate-600">
+                                  {getGameContext(
+                                    game,
+                                    collegeFootballRankings,
+                                  )}
+                                </p>
+
+                                <button
+                                  onClick={() =>
+                                    toggleGameDetails(game.id)
+                                  }
+                                  className="mt-2 text-xs font-black text-[#164d75]"
+                                >
+                                  {expandedGameIds.includes(game.id)
+                                    ? "Show Less ↑"
+                                    : "Tell Me More →"}
+                                </button>
+
+                                {expandedGameIds.includes(game.id) && (
+                                  <div className="mt-2 rounded-xl bg-[#f8f6ef] p-3">
+                                    <ul className="space-y-1.5 text-xs font-semibold text-slate-600">
+                                      {getGameFacts(
+                                        game,
+                                        collegeFootballRankings,
+                                      ).map((fact) => (
+                                        <li key={fact}>• {fact}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                <div className="mt-4 rounded-xl bg-slate-100 p-3">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="text-xs font-black text-slate-500">
+                                      🔒 PICKS LOCKED
+                                    </div>
+
+                                    {challengeRevealedPicks[game.id] ? (
+                                      <div className="rounded-full bg-[#e8f0fb] px-2 py-1 text-[9px] font-black text-[#06284a]">
+                                        👀 REVEALED
+                                      </div>
+                                    ) : (
+                                      <div className="text-[10px] font-bold text-slate-400">
+                                        Waiting for kickoff
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="mt-3 rounded-xl bg-white p-3">
+                                    <div className="text-[9px] font-black uppercase tracking-wide text-[#b28a2e]">
+                                      Your Pick
+                                    </div>
+
+                                    <div className="mt-1 text-base font-black text-[#10254a]">
+                                      {choice === "away"
+                                        ? game.sport === "College Football"
+                                          ? rankedTeamLabel(
+                                              game.away,
+                                              collegeFootballRankings,
+                                            )
+                                          : game.away
+                                        : choice === "home"
+                                          ? game.sport === "College Football"
+                                            ? rankedTeamLabel(
+                                                game.home,
+                                                collegeFootballRankings,
+                                              )
+                                            : game.home
+                                          : choice === "draw"
+                                            ? "Draw"
+                                            : saved
+                                              ? "✓ Pick saved"
+                                              : "No pick saved"}
+                                    </div>
+
+                                    {choice && (
+                                      <div className="mt-1 text-[10px] font-black text-emerald-700">
+                                        ✓ YOUR PICK
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {challengeRevealedPicks[game.id] && (
+                                  <div className="mt-3 rounded-2xl border border-[#e3dccd] bg-[#f8f6ef] p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div>
+                                        <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">
+                                          👀 FamBam Picks
+                                        </div>
+                                        <div className="mt-0.5 text-xs font-semibold text-slate-500">
+                                          Kickoff happened — everybody's picks are out!
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                      {challengeRevealedPicks[
+                                        game.id
+                                      ].map((pick) => {
+                                        const pickLabel =
+                                          pick.pick_choice === "away"
+                                            ? game.sport ===
+                                              "College Football"
+                                              ? rankedTeamLabel(
+                                                  game.away,
+                                                  collegeFootballRankings,
+                                                )
+                                              : game.away
+                                            : pick.pick_choice === "home"
+                                              ? game.sport ===
+                                                "College Football"
+                                                ? rankedTeamLabel(
+                                                    game.home,
+                                                    collegeFootballRankings,
+                                                  )
+                                                : game.home
+                                              : pick.pick_choice === "draw"
+                                                ? "Draw"
+                                                : "No pick";
+
+                                        const mine =
+                                          pick.player_id ===
+                                          signedInPlayer.id;
+
+                                        return (
+                                          <div
+                                            key={pick.player_id}
+                                            className={`rounded-xl p-3 ${
+                                              mine
+                                                ? "border-2 border-[#f3c64f] bg-white"
+                                                : "border border-slate-200 bg-white"
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#06284a] text-[9px] font-black text-white">
+                                                {pick.initials ||
+                                                  pick.display_name
+                                                    .slice(0, 2)
+                                                    .toUpperCase()}
+                                              </div>
+
+                                              <div className="min-w-0">
+                                                <div className="truncate text-[10px] font-black text-slate-500">
+                                                  {pick.display_name}
+                                                  {mine
+                                                    ? " · YOU"
+                                                    : ""}
+                                                </div>
+
+                                                <div className="mt-0.5 truncate text-xs font-black text-[#10254a]">
+                                                  {pickLabel}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
                             ) : (
                               <>
                                 <div className="mt-3 text-lg font-black text-slate-950">

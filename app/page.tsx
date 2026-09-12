@@ -4640,68 +4640,20 @@ export default function Home() {
                                   </div>
                                 )}
 
-                                <div className="mt-4 rounded-xl bg-slate-100 p-3">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div className="text-xs font-black text-slate-500">
-                                      🔒 PICKS LOCKED
-                                    </div>
-
-                                    {challengeRevealedPicks[game.id] ? (
-                                      <div className="rounded-full bg-[#e8f0fb] px-2 py-1 text-[9px] font-black text-[#06284a]">
-                                        👀 REVEALED
-                                      </div>
-                                    ) : (
-                                      <div className="text-[10px] font-bold text-slate-400">
-                                        Waiting for kickoff
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="mt-3 rounded-xl bg-white p-3">
-                                    <div className="text-[9px] font-black uppercase tracking-wide text-[#b28a2e]">
-                                      Your Pick
-                                    </div>
-
-                                    <div className="mt-1 text-base font-black text-[#10254a]">
-                                      {choice === "away"
-                                        ? game.sport === "College Football"
-                                          ? rankedTeamLabel(
-                                              game.away,
-                                              collegeFootballRankings,
-                                            )
-                                          : game.away
-                                        : choice === "home"
-                                          ? game.sport === "College Football"
-                                            ? rankedTeamLabel(
-                                                game.home,
-                                                collegeFootballRankings,
-                                              )
-                                            : game.home
-                                          : choice === "draw"
-                                            ? "Draw"
-                                            : saved
-                                              ? "✓ Pick saved"
-                                              : "No pick saved"}
-                                    </div>
-
-                                    {choice && (
-                                      <div className="mt-1 text-[10px] font-black text-emerald-700">
-                                        ✓ YOUR PICK
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
                                 {challengeRevealedPicks[game.id] && (
                                   <div className="mt-3 rounded-2xl border border-[#e3dccd] bg-[#f8f6ef] p-3">
                                     <div className="flex items-center justify-between gap-3">
                                       <div>
                                         <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">
-                                          👀 FamBam Picks
+                                          👀 FamBam Picks Revealed
                                         </div>
                                         <div className="mt-0.5 text-xs font-semibold text-slate-500">
                                           Kickoff happened — everybody's picks are out!
                                         </div>
+                                      </div>
+
+                                      <div className="rounded-full bg-[#e8f0fb] px-2 py-1 text-[9px] font-black text-[#06284a]">
+                                        🔒 LOCKED
                                       </div>
                                     </div>
 

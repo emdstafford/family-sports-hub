@@ -90,6 +90,19 @@ type GameRoomMessage = {
   created_at: string;
 };
 
+type GameRoomPick = {
+  player_id: string;
+  display_name: string;
+  initials: string | null;
+  pick_choice: PickChoice | null;
+};
+
+type GameRoomLiveEvent = {
+  id: string;
+  message: string;
+  created_at: string;
+};
+
 type PickChoice = "home" | "away" | "draw";
 
 type SavedPick = {
@@ -162,7 +175,75 @@ function getStatusLabel(game: BrowserGame) {
   if (game.status === "final") return "FINAL";
   if (game.startTimeTbd) return "TIME TBD";
 
+  if (
+    game.homeScore !== null ||
+    game.awayScore !== null
+  ) {
+    return "LIVE";
+  }
+
   return "SCHEDULED";
+}
+
+function getEasternDateParts(value: Date | number | string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+
+  const get = (type: string) =>
+    Number(
+      parts.find((part) => part.type === type)?.value ??
+        0,
+    );
+
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+  };
+}
+
+function getEasternDateKey(
+  value: Date | number | string,
+) {
+  const { year, month, day } =
+    getEasternDateParts(value);
+
+  return [
+    year,
+    String(month).padStart(2, "0"),
+    String(day).padStart(2, "0"),
+  ].join("-");
+}
+
+function getTomorrowEasternDateKey(
+  currentTime: number,
+) {
+  const { year, month, day } =
+    getEasternDateParts(currentTime);
+
+  return new Date(
+    Date.UTC(year, month - 1, day + 1),
+  )
+    .toISOString()
+    .slice(0, 10);
+}
+
+function isTomorrowGame(
+  game: BrowserGame,
+  currentTime: number | null,
+) {
+  if (!game.startsAt) return false;
+
+  const now = currentTime ?? Date.now();
+
+  return (
+    getEasternDateKey(game.startsAt) ===
+    getTomorrowEasternDateKey(now)
+  );
 }
 
 function gameIsLocked(
@@ -749,6 +830,34 @@ export default function Home() {
   const [gameRoomTypingName, setGameRoomTypingName] =
     useState<string | null>(null);
 
+  const [gameRoomPicks, setGameRoomPicks] =
+    useState<GameRoomPick[]>([]);
+
+  const [gameRoomPicksRevealed, setGameRoomPicksRevealed] =
+    useState(false);
+
+  const [gameRoomPickedCount, setGameRoomPickedCount] =
+    useState(0);
+
+  const [gameRoomTotalPlayers, setGameRoomTotalPlayers] =
+    useState(0);
+
+  const [gameRoomPicksLoading, setGameRoomPicksLoading] =
+    useState(false);
+
+  const [gameRoomLiveEvents, setGameRoomLiveEvents] =
+    useState<GameRoomLiveEvent[]>([]);
+
+  const gameRoomScoreSnapshotRef = useRef<{
+    gameId: string;
+    homeScore: number | null;
+    awayScore: number | null;
+    status: string;
+  } | null>(null);
+
+  const gameRoomSeenLiveEventKeysRef =
+    useRef<Set<string>>(new Set());
+
   const gameRoomBottomRef =
     useRef<HTMLDivElement | null>(null);
 
@@ -819,8 +928,115 @@ export default function Home() {
   }, [
     gameRoomGame?.id,
     gameRoomMessages.length,
+    gameRoomLiveEvents.length,
     gameRoomTypingName,
   ]);
+
+  function addGameRoomLiveEvent(
+    eventKey: string,
+    message: string,
+  ) {
+    if (
+      gameRoomSeenLiveEventKeysRef.current.has(
+        eventKey,
+      )
+    ) {
+      return;
+    }
+
+    gameRoomSeenLiveEventKeysRef.current.add(
+      eventKey,
+    );
+
+    setGameRoomLiveEvents((current) => [
+      ...current,
+      {
+        id: eventKey,
+        message,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+  }
+
+  async function loadGameRoomPicks(
+    game: BrowserGame,
+    silent = false,
+  ) {
+    if (
+      !signedInPlayer ||
+      !challenge ||
+      !challengeGameIds.includes(game.id)
+    ) {
+      setGameRoomPicks([]);
+      setGameRoomPicksRevealed(false);
+      setGameRoomPickedCount(0);
+      setGameRoomTotalPlayers(0);
+      return;
+    }
+
+    const sessionToken =
+      window.localStorage.getItem(
+        "fambam_session_token",
+      );
+
+    if (!sessionToken) return;
+
+    if (!silent) {
+      setGameRoomPicksLoading(true);
+    }
+
+    try {
+      const params = new URLSearchParams({
+        playerId: signedInPlayer.id,
+        gameId: game.id,
+        challengeId: challenge.id,
+      });
+
+      const response = await fetch(
+        `/api/game-room/picks?${params.toString()}`,
+        {
+          headers: {
+            "x-fambam-session": sessionToken,
+          },
+          cache: "no-store",
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ??
+            "Unable to load FamBam picks.",
+        );
+      }
+
+      setGameRoomPicks(
+        (data.picks ?? []) as GameRoomPick[],
+      );
+
+      setGameRoomPicksRevealed(
+        Boolean(data.revealed),
+      );
+
+      setGameRoomPickedCount(
+        Number(data.pickedCount) || 0,
+      );
+
+      setGameRoomTotalPlayers(
+        Number(data.totalPlayers) || 0,
+      );
+    } catch (error) {
+      console.error(
+        "Game Room picks load failed:",
+        error,
+      );
+    } finally {
+      if (!silent) {
+        setGameRoomPicksLoading(false);
+      }
+    }
+  }
 
   async function openGameRoom(game: BrowserGame) {
     if (!signedInPlayer) {
@@ -833,7 +1049,20 @@ export default function Home() {
     setGameRoomMessage("");
     setGameRoomError(null);
 
-    await loadGameRoomMessages(game);
+    setGameRoomPicks([]);
+    setGameRoomPicksRevealed(false);
+    setGameRoomPickedCount(0);
+    setGameRoomTotalPlayers(0);
+
+    setGameRoomLiveEvents([]);
+    gameRoomScoreSnapshotRef.current = null;
+    gameRoomSeenLiveEventKeysRef.current =
+      new Set();
+
+    await Promise.all([
+      loadGameRoomMessages(game),
+      loadGameRoomPicks(game),
+    ]);
   }
 
   useEffect(() => {
@@ -910,7 +1139,264 @@ export default function Home() {
     setGameRoomMessages([]);
     setGameRoomMessage("");
     setGameRoomError(null);
+    setGameRoomPicks([]);
+    setGameRoomPicksRevealed(false);
+    setGameRoomPickedCount(0);
+    setGameRoomTotalPlayers(0);
+
+    setGameRoomLiveEvents([]);
+    gameRoomScoreSnapshotRef.current = null;
+    gameRoomSeenLiveEventKeysRef.current =
+      new Set();
   }
+
+  useEffect(() => {
+    if (!gameRoomGame) return;
+
+    const gameRoomGameId = gameRoomGame.id;
+
+    let cancelled = false;
+
+    async function refreshGameRoomGame() {
+      try {
+        const response = await fetch("/api/games", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) return;
+
+        const body = (await response.json()) as {
+          games?: ApiGame[];
+        };
+
+        const updatedGame = (body.games ?? []).find(
+          (game) => game.id === gameRoomGameId,
+        );
+
+        if (!updatedGame || cancelled) return;
+
+        const previousSnapshot =
+          gameRoomScoreSnapshotRef.current;
+
+        const nextSnapshot = {
+          gameId: updatedGame.id,
+          homeScore: updatedGame.homeScore,
+          awayScore: updatedGame.awayScore,
+          status: String(updatedGame.status ?? ""),
+        };
+
+        if (
+          previousSnapshot &&
+          previousSnapshot.gameId ===
+            updatedGame.id
+        ) {
+          const previousStatus =
+            previousSnapshot.status.toLowerCase();
+
+          const nextStatus =
+            nextSnapshot.status.toLowerCase();
+
+          const finalStatuses = [
+            "final",
+            "finished",
+            "complete",
+            "completed",
+            "closed",
+          ];
+
+          const isFinal =
+            finalStatuses.some((status) =>
+              nextStatus.includes(status),
+            );
+
+          const wasFinal =
+            finalStatuses.some((status) =>
+              previousStatus.includes(status),
+            );
+
+          const isHalftime =
+            nextStatus === "ht" ||
+            nextStatus.includes("half");
+
+          const wasHalftime =
+            previousStatus === "ht" ||
+            previousStatus.includes("half");
+
+          const hasScore =
+            updatedGame.homeScore !== null &&
+            updatedGame.awayScore !== null;
+
+          const scoreText = hasScore
+            ? `${updatedGame.away} ${updatedGame.awayScore} – ${updatedGame.home} ${updatedGame.homeScore}`
+            : "";
+
+          if (isFinal && !wasFinal) {
+            addGameRoomLiveEvent(
+              `${updatedGame.id}:final:${updatedGame.awayScore}:${updatedGame.homeScore}`,
+              `🏁 FINAL — ${scoreText}`,
+            );
+          } else {
+            const homeIncreased =
+              previousSnapshot.homeScore !==
+                null &&
+              updatedGame.homeScore !== null &&
+              updatedGame.homeScore >
+                previousSnapshot.homeScore;
+
+            const awayIncreased =
+              previousSnapshot.awayScore !==
+                null &&
+              updatedGame.awayScore !== null &&
+              updatedGame.awayScore >
+                previousSnapshot.awayScore;
+
+            if (
+              hasScore &&
+              (homeIncreased || awayIncreased)
+            ) {
+              const scoringTeam =
+                homeIncreased && !awayIncreased
+                  ? updatedGame.home
+                  : awayIncreased && !homeIncreased
+                    ? updatedGame.away
+                    : null;
+
+              const sport =
+                String(
+                  updatedGame.sport ?? "",
+                ).toLowerCase();
+
+              let scoringMessage = "";
+
+              if (
+                sport.includes("soccer") &&
+                scoringTeam
+              ) {
+                scoringMessage =
+                  `⚽ GOAL! ${scoringTeam} — ${scoreText}`;
+              } else if (
+                sport.includes("football") &&
+                scoringTeam
+              ) {
+                scoringMessage =
+                  `🏈 ${scoringTeam} scored! — ${scoreText}`;
+              } else if (
+                sport.includes("basketball")
+              ) {
+                scoringMessage =
+                  `🏀 Score update — ${scoreText}`;
+              } else {
+                scoringMessage =
+                  `📣 Score update — ${scoreText}`;
+              }
+
+              addGameRoomLiveEvent(
+                `${updatedGame.id}:score:${updatedGame.awayScore}:${updatedGame.homeScore}`,
+                scoringMessage,
+              );
+            }
+
+            if (isHalftime && !wasHalftime) {
+              addGameRoomLiveEvent(
+                `${updatedGame.id}:halftime:${updatedGame.awayScore}:${updatedGame.homeScore}`,
+                hasScore
+                  ? `⏱️ Halftime — ${scoreText}`
+                  : "⏱️ Halftime",
+              );
+            }
+          }
+        }
+
+        gameRoomScoreSnapshotRef.current =
+          nextSnapshot;
+
+        setGameRoomGame((current) => {
+          if (
+            !current ||
+            current.id !== updatedGame.id
+          ) {
+            return current;
+          }
+
+          return {
+            ...current,
+            startsAt: updatedGame.startsAt,
+            startTimeTbd:
+              updatedGame.startTimeTbd,
+            homeScore: updatedGame.homeScore,
+            awayScore: updatedGame.awayScore,
+            status: updatedGame.status,
+          };
+        });
+
+        setRealGames((currentGames) =>
+          currentGames.map((game) =>
+            game.id === updatedGame.id
+              ? {
+                  ...game,
+                  startsAt: updatedGame.startsAt,
+                  startTimeTbd:
+                    updatedGame.startTimeTbd,
+                  homeScore: updatedGame.homeScore,
+                  awayScore: updatedGame.awayScore,
+                  status: updatedGame.status,
+                }
+              : game,
+          ),
+        );
+      } catch (error) {
+        console.error(
+          "Game Room score refresh failed:",
+          error,
+        );
+      }
+    }
+
+    void refreshGameRoomGame();
+
+    const interval = window.setInterval(
+      refreshGameRoomGame,
+      60_000,
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [gameRoomGame?.id]);
+
+  useEffect(() => {
+    if (
+      !gameRoomGame ||
+      !challenge ||
+      !challengeGameIds.includes(
+        gameRoomGame.id,
+      )
+    ) {
+      return;
+    }
+
+    const currentGame = gameRoomGame;
+
+    const interval = window.setInterval(
+      () => {
+        void loadGameRoomPicks(
+          currentGame,
+          true,
+        );
+      },
+      30_000,
+    );
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [
+    gameRoomGame?.id,
+    challenge?.id,
+    signedInPlayer?.id,
+    challengeGameIds.join(","),
+  ]);
 
   async function signalGameRoomTyping() {
     if (!signedInPlayer || !gameRoomGame) return;
@@ -3398,6 +3884,162 @@ export default function Home() {
                 )}
               </div>
 
+              {/* FAMBAM SPORTS DESK */}
+              <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8dba8] bg-white shadow-sm">
+                <div className="flex items-center justify-between gap-3 bg-[#06284a] px-3 py-2 text-white">
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
+                      FamBam Sports Desk
+                    </div>
+
+                    <div className="mt-0.5 text-xs font-black">
+                      {gameRoomGame.status === "final"
+                        ? "🏁 Final"
+                        : gameRoomGame.homeScore !== null ||
+                            gameRoomGame.awayScore !== null
+                          ? "🔴 Live Update"
+                          : isTomorrowGame(
+                                gameRoomGame,
+                                currentTime,
+                              )
+                            ? "📅 Tomorrow in FamBam"
+                            : "🏟️ Game Preview"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-black">
+                    {getStatusLabel(gameRoomGame)}
+                  </div>
+                </div>
+
+                <div className="p-3">
+                  {(gameRoomGame.homeScore !== null ||
+                    gameRoomGame.awayScore !== null) && (
+                    <div className="rounded-xl bg-[#f7f4ec] px-3 py-3 text-center">
+                      <div className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+                        {gameRoomGame.status === "final"
+                          ? "Final Score"
+                          : "Current Score"}
+                      </div>
+
+                      <div className="mt-1 text-base font-black text-[#06284a]">
+                        {gameRoomGame.away}{" "}
+                        {gameRoomGame.awayScore ?? 0}
+                        {" · "}
+                        {gameRoomGame.home}{" "}
+                        {gameRoomGame.homeScore ?? 0}
+                      </div>
+                    </div>
+                  )}
+
+                  {gameRoomGame.homeScore === null &&
+                    gameRoomGame.awayScore === null && (
+                      <div className="text-xs font-semibold leading-relaxed text-slate-600">
+                        {getWatchInfo(
+                          gameRoomGame,
+                          collegeFootballRankings,
+                        ).label}
+                        {" · "}
+                        {formatGameDate(
+                          gameRoomGame.startsAt,
+                        )}
+                        {" · "}
+                        {formatGameTime(
+                          gameRoomGame.startsAt,
+                          gameRoomGame.startTimeTbd,
+                        )}
+                      </div>
+                    )}
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {challengeGameIds.includes(
+                      gameRoomGame.id,
+                    ) && (
+                      <span className="rounded-full bg-[#fff5cf] px-2.5 py-1 text-[9px] font-black text-[#765800]">
+                        🏆 FamBam Challenge
+                      </span>
+                    )}
+
+                  </div>
+                </div>
+              </div>
+
+              {challengeGameIds.includes(
+                gameRoomGame.id,
+              ) && (
+                <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5">
+                    <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
+                      🏆 FamBam Picks
+                    </div>
+
+                    {!gameRoomPicksRevealed && (
+                      <div className="text-[9px] font-black text-slate-400">
+                        🔒 Hidden
+                      </div>
+                    )}
+                  </div>
+
+                  {gameRoomPicksLoading ? (
+                    <div className="px-3 py-4 text-center text-xs font-bold text-slate-400">
+                      Loading picks…
+                    </div>
+                  ) : !gameRoomPicksRevealed ? (
+                    <div className="px-3 py-4 text-center">
+                      <div className="text-sm font-black text-[#06284a]">
+                        🔒 Picks reveal at kickoff
+                      </div>
+
+                      <div className="mt-1 text-xs font-semibold text-slate-500">
+                        ✅ {gameRoomPickedCount} of{" "}
+                        {gameRoomTotalPlayers} FamBammers
+                        have picked
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {gameRoomPicks.map((pick) => {
+                        const pickLabel =
+                          pick.pick_choice === "home"
+                            ? gameRoomGame.home
+                            : pick.pick_choice === "away"
+                              ? gameRoomGame.away
+                              : pick.pick_choice === "draw"
+                                ? "Draw"
+                                : "No pick";
+
+                        return (
+                          <div
+                            key={pick.player_id}
+                            className="flex items-center justify-between gap-3 px-3 py-2.5"
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f3c64f] text-[9px] font-black text-[#06284a]">
+                                {pick.initials ?? "FB"}
+                              </div>
+
+                              <span className="truncate text-xs font-black text-[#06284a]">
+                                {pick.display_name}
+                              </span>
+                            </div>
+
+                            <span
+                              className={`shrink-0 text-xs font-black ${
+                                pick.pick_choice
+                                  ? "text-slate-700"
+                                  : "text-slate-400"
+                              }`}
+                            >
+                              {pickLabel}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {gameRoomLoading && (
                 <div className="py-10 text-center text-sm font-bold text-slate-500">
                   Opening the Game Room…
@@ -3405,7 +4047,8 @@ export default function Home() {
               )}
 
               {!gameRoomLoading &&
-                gameRoomMessages.length === 0 && (
+                gameRoomMessages.length === 0 &&
+                gameRoomLiveEvents.length === 0 && (
                   <div className="py-10 text-center">
                     <div className="text-3xl">🛋️</div>
                     <div className="mt-2 text-sm font-black text-[#06284a]">
@@ -3418,62 +4061,133 @@ export default function Home() {
                 )}
 
               <div className="space-y-3">
-                {gameRoomMessages.map((message) => {
-                  const mine =
-                    message.player_id === signedInPlayer.id;
+                {[
+                  ...gameRoomMessages.map(
+                    (message) => ({
+                      kind: "message" as const,
+                      created_at:
+                        message.created_at,
+                      message,
+                    }),
+                  ),
+                  ...gameRoomLiveEvents.map(
+                    (event) => ({
+                      kind: "live" as const,
+                      created_at:
+                        event.created_at,
+                      event,
+                    }),
+                  ),
+                ]
+                  .sort(
+                    (a, b) =>
+                      new Date(
+                        a.created_at,
+                      ).getTime() -
+                      new Date(
+                        b.created_at,
+                      ).getTime(),
+                  )
+                  .map((item) => {
+                    if (item.kind === "live") {
+                      return (
+                        <div
+                          key={item.event.id}
+                          className="flex justify-center py-1"
+                        >
+                          <div className="max-w-[92%] rounded-2xl border border-[#f3c64f]/50 bg-[#fff8dc] px-3 py-2 text-center shadow-sm">
+                            <div className="text-[9px] font-black uppercase tracking-[0.15em] text-[#9a7414]">
+                              FamBam Live
+                            </div>
 
-                  return (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        mine
-                          ? "justify-end"
-                          : "justify-start"
-                      }`}
-                    >
+                            <div className="mt-0.5 text-xs font-black text-[#06284a]">
+                              {item.event.message}
+                            </div>
+
+                            <div className="mt-1 text-[9px] font-semibold text-slate-400">
+                              {new Date(
+                                item.event.created_at,
+                              ).toLocaleTimeString(
+                                [],
+                                {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const message =
+                      item.message;
+
+                    const mine =
+                      message.player_id ===
+                      signedInPlayer.id;
+
+                    return (
                       <div
-                        className={`max-w-[82%] ${
-                          mine ? "text-right" : "text-left"
+                        key={message.id}
+                        className={`flex ${
+                          mine
+                            ? "justify-end"
+                            : "justify-start"
                         }`}
                       >
                         <div
-                          className={`mb-1 flex items-center gap-1.5 ${
+                          className={`max-w-[82%] ${
                             mine
-                              ? "justify-end"
-                              : "justify-start"
+                              ? "text-right"
+                              : "text-left"
                           }`}
                         >
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f3c64f] text-[9px] font-black text-[#06284a]">
-                            {message.player_initials}
+                          <div
+                            className={`mb-1 flex items-center gap-1.5 ${
+                              mine
+                                ? "justify-end"
+                                : "justify-start"
+                            }`}
+                          >
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f3c64f] text-[9px] font-black text-[#06284a]">
+                              {
+                                message.player_initials
+                              }
+                            </div>
+
+                            <span className="text-[10px] font-black text-slate-500">
+                              {
+                                message.player_name
+                              }
+                            </span>
                           </div>
 
-                          <span className="text-[10px] font-black text-slate-500">
-                            {message.player_name}
-                          </span>
-                        </div>
+                          <div
+                            className={`inline-block rounded-2xl px-3 py-2 text-sm font-semibold ${
+                              mine
+                                ? "rounded-br-md bg-[#06284a] text-white"
+                                : "rounded-bl-md bg-white text-slate-800 shadow-sm"
+                            }`}
+                          >
+                            {message.message}
+                          </div>
 
-                        <div
-                          className={`inline-block rounded-2xl px-3 py-2 text-sm font-semibold ${
-                            mine
-                              ? "rounded-br-md bg-[#06284a] text-white"
-                              : "rounded-bl-md bg-white text-slate-800 shadow-sm"
-                          }`}
-                        >
-                          {message.message}
-                        </div>
-
-                        <div className="mt-1 text-[9px] font-semibold text-slate-400">
-                          {new Date(
-                            message.created_at,
-                          ).toLocaleTimeString([], {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
+                          <div className="mt-1 text-[9px] font-semibold text-slate-400">
+                            {new Date(
+                              message.created_at,
+                            ).toLocaleTimeString(
+                              [],
+                              {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              },
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
                 {gameRoomTypingName && (
                   <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
                     <span>

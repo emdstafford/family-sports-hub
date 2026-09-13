@@ -64,6 +64,22 @@ const SELECT_FIELDS = `
   sport:sports!games_sport_id_fkey(name)
 `;
 
+const SELECT_FIELDS_WITH_SPORT_FILTER = `
+  id,
+  starts_at,
+  start_time_tbd,
+  source_notes,
+  home_score,
+  away_score,
+  status,
+  external_provider,
+  external_id,
+  home_team:teams!games_home_team_id_fkey(name),
+  away_team:teams!games_away_team_id_fkey(name),
+  competition:competitions!games_competition_id_fkey(name),
+  sport:sports!games_sport_id_fkey!inner(name)
+`;
+
 export async function GET(request: Request) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -99,7 +115,11 @@ export async function GET(request: Request) {
     if (gameId) {
       let query = supabase
         .from("games")
-        .select(SELECT_FIELDS)
+        .select(
+          sport
+            ? SELECT_FIELDS_WITH_SPORT_FILTER
+            : SELECT_FIELDS,
+        )
         .eq("id", gameId);
 
       if (sport) {
@@ -131,7 +151,11 @@ export async function GET(request: Request) {
       while (true) {
         let query = supabase
           .from("games")
-          .select(SELECT_FIELDS)
+          .select(
+            sport
+              ? SELECT_FIELDS_WITH_SPORT_FILTER
+              : SELECT_FIELDS,
+          )
           .order("starts_at", { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
 

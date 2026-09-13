@@ -2014,6 +2014,158 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (activeSection !== "Home") return;
+
+    let cancelled = false;
+
+    async function refreshHomeLiveScores() {
+      const now = Date.now();
+
+      const finalStatuses = [
+        "final",
+        "finished",
+        "complete",
+        "completed",
+        "closed",
+      ];
+
+      const gamesToRefresh = realGames.filter((game) => {
+        if (
+          game.sport !== "Soccer" &&
+          game.sport !== "College Football"
+        ) {
+          return false;
+        }
+
+        if (!game.startsAt) return false;
+
+        const status = String(
+          game.status ?? "",
+        ).toLowerCase();
+
+        if (
+          finalStatuses.some((finalStatus) =>
+            status.includes(finalStatus),
+          )
+        ) {
+          return false;
+        }
+
+        const startsAtMs = new Date(
+          game.startsAt,
+        ).getTime();
+
+        return (
+          now >= startsAtMs - 10 * 60_000 &&
+          now <= startsAtMs + 6 * 60 * 60_000
+        );
+      });
+
+      if (gamesToRefresh.length === 0) return;
+
+      await Promise.all(
+        gamesToRefresh.map(async (game) => {
+          try {
+            // Refresh this exact game from the provider first.
+            const liveResponse = await fetch(
+              `/api/game-room/live?gameId=${encodeURIComponent(
+                game.id,
+              )}`,
+              {
+                cache: "no-store",
+              },
+            );
+
+            // Unsupported providers or temporary provider
+            // failures should never break the Home page.
+            if (!liveResponse.ok) return;
+
+            // Read the newly updated game back from Supabase.
+            const gameResponse = await fetch(
+              `/api/games?gameId=${encodeURIComponent(
+                game.id,
+              )}`,
+              {
+                cache: "no-store",
+              },
+            );
+
+            if (!gameResponse.ok || cancelled) return;
+
+            const body = (await gameResponse.json()) as {
+              games?: ApiGame[];
+            };
+
+            const updatedGame = (
+              body.games ?? []
+            ).find(
+              (candidate) =>
+                candidate.id === game.id,
+            );
+
+            if (!updatedGame || cancelled) return;
+
+            setRealGames((currentGames) =>
+              currentGames.map((currentGame) => {
+                if (
+                  currentGame.id !==
+                  updatedGame.id
+                ) {
+                  return currentGame;
+                }
+
+                const unchanged =
+                  currentGame.homeScore ===
+                    updatedGame.homeScore &&
+                  currentGame.awayScore ===
+                    updatedGame.awayScore &&
+                  currentGame.status ===
+                    updatedGame.status &&
+                  currentGame.startsAt ===
+                    updatedGame.startsAt;
+
+                if (unchanged) {
+                  return currentGame;
+                }
+
+                return {
+                  ...currentGame,
+                  homeScore:
+                    updatedGame.homeScore,
+                  awayScore:
+                    updatedGame.awayScore,
+                  status: updatedGame.status,
+                  startsAt:
+                    updatedGame.startsAt,
+                  startTimeTbd:
+                    updatedGame.startTimeTbd,
+                };
+              }),
+            );
+          } catch (error) {
+            console.error(
+              "Home live score refresh failed:",
+              error,
+            );
+          }
+        }),
+      );
+    }
+
+    void refreshHomeLiveScores();
+
+    const interval = window.setInterval(
+      refreshHomeLiveScores,
+      60_000,
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [activeSection, realGames]);
+
+  useEffect(() => {
     async function loadHome() {
       const supabase = createClient();
 
@@ -3261,6 +3413,29 @@ export default function Home() {
                       {formatGameTime(game.startsAt, game.startTimeTbd)}
                     </div>
 
+                    {(game.homeScore !== null ||
+                      game.awayScore !== null) && (
+                      <div className="mt-2 flex items-center justify-between rounded-lg bg-[#06284a] px-3 py-2 text-white">
+                        <div>
+                          <div className="text-[9px] font-black uppercase tracking-wide text-[#f3c64f]">
+                            {game.status === "final"
+                              ? "Final"
+                              : "🔴 Live"}
+                          </div>
+
+                          <div className="mt-0.5 text-xs font-black">
+                            {game.away} {game.awayScore ?? 0}
+                            {" · "}
+                            {game.home} {game.homeScore ?? 0}
+                          </div>
+                        </div>
+
+                        <div className="text-[9px] font-black uppercase text-slate-200">
+                          {getStatusLabel(game)}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
                       {getGameContext(game, collegeFootballRankings)}
                     </div>
@@ -3279,7 +3454,7 @@ export default function Home() {
                         onClick={() => openGameRoom(game)}
                         className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
                       >
-                        Game Room 💬
+                        Game Details →
                       </button>
                     </div>
 
@@ -3474,7 +3649,7 @@ export default function Home() {
                           onClick={() => openGameRoom(game)}
                           className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
                         >
-                          Game Room 💬
+                          Game Details →
                         </button>
                       </div>
 
@@ -3636,7 +3811,7 @@ export default function Home() {
                             onClick={() => openGameRoom(game)}
                             className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
                           >
-                            Game Room 💬
+                            Game Details →
                           </button>
                         </div>
 
@@ -4245,7 +4420,7 @@ export default function Home() {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
-                    {gameRoomGame.icon} Game Room
+                    {gameRoomGame.icon} Game Details
                   </div>
 
                   <h2 className="mt-1 text-xl font-black leading-tight">
@@ -4267,7 +4442,7 @@ export default function Home() {
                 <button
                   onClick={closeGameRoom}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-lg font-black"
-                  aria-label="Close Game Room"
+                  aria-label="Close Game Details"
                 >
                   ×
                 </button>
@@ -4440,167 +4615,86 @@ export default function Home() {
 
               {gameRoomLoading && (
                 <div className="py-10 text-center text-sm font-bold text-slate-500">
-                  Opening the Game Room…
+                  Loading game details…
                 </div>
               )}
 
-              {!gameRoomLoading &&
-                gameRoomMessages.length === 0 &&
-                gameRoomLiveEvents.length === 0 && (
-                  <div className="py-10 text-center">
-                    <div className="text-3xl">🛋️</div>
-                    <div className="mt-2 text-sm font-black text-[#06284a]">
-                      The couch is empty!
-                    </div>
-                    <div className="mt-1 text-xs font-semibold text-slate-500">
-                      Be the first to say something about this game.
-                    </div>
-                  </div>
-                )}
-
-              <div className="space-y-3">
-                {[
-                  ...gameRoomMessages.map(
-                    (message) => ({
-                      kind: "message" as const,
-                      created_at:
-                        message.created_at,
-                      message,
-                    }),
-                  ),
-                  ...gameRoomLiveEvents.map(
-                    (event) => ({
-                      kind: "live" as const,
-                      created_at:
-                        event.created_at,
-                      event,
-                    }),
-                  ),
-                ]
-                  .sort(
-                    (a, b) =>
-                      new Date(
-                        a.created_at,
-                      ).getTime() -
-                      new Date(
-                        b.created_at,
-                      ).getTime(),
-                  )
-                  .map((item) => {
-                    if (item.kind === "live") {
-                      return (
-                        <div
-                          key={item.event.id}
-                          className="flex justify-center py-1"
-                        >
-                          <div className="max-w-[92%] rounded-2xl border border-[#f3c64f]/50 bg-[#fff8dc] px-3 py-2 text-center shadow-sm">
-                            <div className="text-[9px] font-black uppercase tracking-[0.15em] text-[#9a7414]">
-                              FamBam Live
-                            </div>
-
-                            <div className="mt-0.5 text-xs font-black text-[#06284a]">
-                              {item.event.message}
-                            </div>
-
-                            <div className="mt-1 text-[9px] font-semibold text-slate-400">
-                              {new Date(
-                                item.event.created_at,
-                              ).toLocaleTimeString(
-                                [],
-                                {
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                },
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    const message =
-                      item.message;
-
-                    const mine =
-                      message.player_id ===
-                      signedInPlayer.id;
-
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex ${
-                          mine
-                            ? "justify-end"
-                            : "justify-start"
-                        }`}
-                      >
-                        <div
-                          className={`max-w-[82%] ${
-                            mine
-                              ? "text-right"
-                              : "text-left"
-                          }`}
-                        >
-                          <div
-                            className={`mb-1 flex items-center gap-1.5 ${
-                              mine
-                                ? "justify-end"
-                                : "justify-start"
-                            }`}
-                          >
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f3c64f] text-[9px] font-black text-[#06284a]">
-                              {
-                                message.player_initials
-                              }
-                            </div>
-
-                            <span className="text-[10px] font-black text-slate-500">
-                              {
-                                message.player_name
-                              }
-                            </span>
-                          </div>
-
-                          <div
-                            className={`inline-block rounded-2xl px-3 py-2 text-sm font-semibold ${
-                              mine
-                                ? "rounded-br-md bg-[#06284a] text-white"
-                                : "rounded-bl-md bg-white text-slate-800 shadow-sm"
-                            }`}
-                          >
-                            {message.message}
-                          </div>
-
-                          <div className="mt-1 text-[9px] font-semibold text-slate-400">
-                            {new Date(
-                              message.created_at,
-                            ).toLocaleTimeString(
-                              [],
-                              {
-                                hour: "numeric",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </div>
-                        </div>
+              {!gameRoomLoading && (
+                <>
+                  <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+                    <div className="border-b border-slate-100 px-3 py-2.5">
+                      <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
+                        📣 Game Updates
                       </div>
-                    );
-                  })}
-                {gameRoomTypingName && (
-                  <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
-                    <span>
-                      {gameRoomTypingName} is typing
-                    </span>
-                    <span className="inline-flex gap-0.5">
-                      <span className="animate-pulse">•</span>
-                      <span className="animate-pulse">•</span>
-                      <span className="animate-pulse">•</span>
-                    </span>
-                  </div>
-                )}
+                    </div>
 
-                <div ref={gameRoomBottomRef} />
-              </div>
+                    {gameRoomLiveEvents.length > 0 ? (
+                      <div className="space-y-2 p-3">
+                        {[...gameRoomLiveEvents]
+                          .sort(
+                            (a, b) =>
+                              new Date(b.created_at).getTime() -
+                              new Date(a.created_at).getTime(),
+                          )
+                          .map((event) => (
+                            <div
+                              key={event.id}
+                              className="rounded-xl border border-[#f3c64f]/50 bg-[#fff8dc] px-3 py-2"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-xs font-black text-[#06284a]">
+                                  {event.message}
+                                </div>
+
+                                <div className="shrink-0 text-[9px] font-semibold text-slate-400">
+                                  {new Date(
+                                    event.created_at,
+                                  ).toLocaleTimeString([], {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="px-3 py-4 text-xs font-semibold text-slate-500">
+                        Live scoring updates will appear here as the game happens.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+                    <div className="border-b border-slate-100 px-3 py-2.5">
+                      <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
+                        🔥 Why This Game Matters
+                      </div>
+                    </div>
+
+                    <div className="p-3">
+                      <div className="rounded-xl bg-[#edf5ff] px-3 py-2.5 text-xs font-semibold leading-relaxed text-[#284d7e]">
+                        {getGameContext(
+                          gameRoomGame,
+                          collegeFootballRankings,
+                        )}
+                      </div>
+
+                      <ul className="mt-3 space-y-2 text-xs font-semibold leading-relaxed text-slate-600">
+                        {getGameFacts(
+                          gameRoomGame,
+                          collegeFootballRankings,
+                        ).map((fact) => (
+                          <li key={fact} className="flex gap-2">
+                            <span className="text-[#f3c64f]">●</span>
+                            <span>{fact}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {gameRoomError && (
                 <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">
@@ -4609,62 +4703,6 @@ export default function Home() {
               )}
             </div>
 
-            <div
-              className="shrink-0 border-t border-slate-200 bg-white px-3 pt-2"
-              style={{
-                paddingBottom:
-                  "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
-              }}
-            >
-              <div className="mb-2 flex justify-center gap-2">
-                {["😱", "🔥", "👀", "🙌", "😂"].map(
-                  (reaction) => (
-                    <button
-                      key={reaction}
-                      onClick={() =>
-                        sendGameRoomMessage(reaction)
-                      }
-                      disabled={gameRoomSending}
-                      className="flex h-9 w-11 items-center justify-center rounded-full bg-[#f7f4ec] text-lg active:scale-95 disabled:opacity-50"
-                    >
-                      {reaction}
-                    </button>
-                  ),
-                )}
-              </div>
-
-              <div className="flex items-end gap-2">
-                <textarea
-                  value={gameRoomMessage}
-                  onChange={(event) => {
-                    const value =
-                      event.target.value.slice(0, 500);
-
-                    setGameRoomMessage(value);
-
-                    if (value.trim()) {
-                      void signalGameRoomTyping();
-                    }
-                  }}
-                  placeholder={`Message the FamBam…`}
-                  rows={1}
-                  className="min-h-11 max-h-28 flex-1 resize-none rounded-2xl border border-slate-200 bg-[#f7f4ec] px-3 py-3 text-base font-semibold text-slate-900 outline-none focus:border-[#f3c64f]"
-                />
-
-                <button
-                  onClick={() =>
-                    sendGameRoomMessage()
-                  }
-                  disabled={
-                    gameRoomSending ||
-                    !gameRoomMessage.trim()
-                  }
-                  className="h-11 rounded-2xl bg-[#f3c64f] px-4 text-xs font-black text-[#06284a] disabled:opacity-40"
-                >
-                  {gameRoomSending ? "…" : "Send"}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}

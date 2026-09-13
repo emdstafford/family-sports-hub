@@ -498,6 +498,96 @@ function getWatchInfo(
 }
 
 
+function getCompetitionExplainer(
+  game: BrowserGame,
+): string[] {
+  const competition = (
+    game.competition ?? ""
+  ).toLowerCase();
+
+  if (competition.includes("premier league")) {
+    return [
+      "The Premier League is a season-long table. A win earns 3 points, a draw earns 1, and a loss earns 0.",
+      "Each club plays 38 league matches, so this result contributes directly to the title race, European places, or the relegation fight.",
+      "When teams finish level on points, goal difference becomes an important tiebreaker — so the score can matter beyond simply winning or losing.",
+    ];
+  }
+
+  if (
+    competition.includes("champions league") ||
+    competition.includes("uefa champions")
+  ) {
+    return [
+      "The Champions League brings together Europe's top clubs rather than teams from only one domestic league.",
+      "In the current format, 36 clubs share one league-phase table and each club plays eight different opponents — four at home and four away.",
+      "League-phase position affects who advances directly, who must survive an extra playoff round, and the path into the knockout rounds.",
+    ];
+  }
+
+  if (
+    competition.includes("fa cup") ||
+    competition.includes("efl cup") ||
+    competition.includes("league cup")
+  ) {
+    return [
+      "This is a cup competition, so league-table points are not at stake.",
+      "Cup matches are about advancement: survive the tie and move closer to a trophy; lose and the cup run ends.",
+      "Cup games can create some of English football's best upset stories when a smaller club gets a chance against a bigger one.",
+    ];
+  }
+
+  if (
+    competition.includes("league one") ||
+    competition.includes("efl league one")
+  ) {
+    return [
+      "League One is part of England's promotion and relegation system, so every league result affects the race up or down the pyramid.",
+      "The top two clubs earn automatic promotion, while the next four enter the promotion playoffs.",
+      "Results near the bottom matter too because the lowest clubs are relegated to League Two.",
+    ];
+  }
+
+  if (game.sport === "College Football") {
+    return [
+      "College football results can affect conference races, national rankings, and the College Football Playoff picture.",
+      "Ranked matchups matter even more because one result can move both teams significantly in the national conversation.",
+      "Conference games become especially important because they help determine who reaches the conference championship.",
+    ];
+  }
+
+  if (game.sport === "College Basketball") {
+    return [
+      "College basketball results build a team's résumé for conference positioning and eventually the NCAA Tournament.",
+      "Conference games affect league standings, while strong wins can become important when tournament selections and seeding are decided.",
+    ];
+  }
+
+  if (game.sport === "Hockey") {
+    return [
+      "NHL games contribute to the standings through points, so results build toward division position and the playoff race.",
+      "As the season progresses, games against nearby teams in the standings can have an especially large playoff impact.",
+    ];
+  }
+
+  if (game.sport === "Baseball") {
+    return [
+      "MLB teams are building toward division championships and Wild Card places across a long regular season.",
+      "Series against division opponents can become especially important because they affect both teams competing in the same race.",
+    ];
+  }
+
+  if (game.sport === "Volleyball") {
+    return [
+      "College volleyball matches help shape conference standings, national rankings, and the résumé used for NCAA Tournament selection.",
+      "Conference matches become particularly valuable later in the season as teams fight for championships and postseason positioning.",
+    ];
+  }
+
+  return [
+    "This section will teach you what this competition means, what is at stake, and how this game fits into the bigger season.",
+  ];
+}
+
 function getGameContext(
   game: BrowserGame,
   rankings: CollegeFootballRanking[],
@@ -730,6 +820,15 @@ export default function Home() {
 
   const [activeSport, setActiveSport] =
     useState<Sport>("All");
+
+  const [activeWatchFilter, setActiveWatchFilter] =
+    useState<
+      | "All"
+      | "Must Watch"
+      | "Big Game"
+      | "FamBam"
+      | "Worth Watching"
+    >("All");
 
   const [trophyRoomOpen, setTrophyRoomOpen] =
     useState(false);
@@ -1140,7 +1239,7 @@ export default function Home() {
 
   async function openGameRoom(game: BrowserGame) {
     if (!signedInPlayer) {
-      setLoadError("Choose your player before entering a Game Room.");
+      setLoadError("Choose your player before opening Game Details.");
       return;
     }
 
@@ -1159,80 +1258,13 @@ export default function Home() {
     gameRoomSeenLiveEventKeysRef.current =
       new Set();
 
-    await Promise.all([
-      loadGameRoomMessages(game),
-      loadGameRoomPicks(game),
-    ]);
+    await loadGameRoomPicks(game);
   }
 
-  useEffect(() => {
-    if (!gameRoomGame || !signedInPlayer) return;
+  // Chat/typing realtime subscriptions are intentionally disabled.
+  // Game Details keeps live scores, game events and FamBam Picks,
+  // while the old chat code remains available for a future feature.
 
-    const supabase = createClient();
-
-    const channel = supabase
-      .channel(`game-room-${gameRoomGame.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "game_room_events",
-          filter: `game_id=eq.${gameRoomGame.id}`,
-        },
-        async (payload) => {
-          const event = payload.new as {
-            event_type?: string;
-            player_id?: string | null;
-          };
-
-          if (event.event_type === "typing") {
-            if (
-              event.player_id &&
-              event.player_id !== signedInPlayer.id
-            ) {
-              const typingPlayer =
-                players.find(
-                  (player) => player.id === event.player_id,
-                );
-
-              setGameRoomTypingName(
-                typingPlayer?.display_name ?? "Someone",
-              );
-
-              if (gameRoomTypingTimeoutRef.current) {
-                clearTimeout(
-                  gameRoomTypingTimeoutRef.current,
-                );
-              }
-
-              gameRoomTypingTimeoutRef.current =
-                setTimeout(() => {
-                  setGameRoomTypingName(null);
-                }, 2500);
-            }
-
-            return;
-          }
-
-          if (event.event_type === "message") {
-            setGameRoomTypingName(null);
-            await loadGameRoomMessages(gameRoomGame);
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-
-      if (gameRoomTypingTimeoutRef.current) {
-        clearTimeout(gameRoomTypingTimeoutRef.current);
-      }
-
-      setGameRoomTypingName(null);
-    };
-  }, [gameRoomGame?.id, signedInPlayer?.id, players]);
 
   function closeGameRoom() {
     setGameRoomGame(null);
@@ -1275,14 +1307,14 @@ export default function Home() {
               .catch(() => null);
 
             console.error(
-              "Game Room provider refresh failed:",
+              "Game Details provider refresh failed:",
               liveResponse.status,
               liveBody,
             );
           }
         } catch (liveError) {
           console.error(
-            "Game Room provider refresh request failed:",
+            "Game Details provider refresh request failed:",
             liveError,
           );
         }
@@ -1466,6 +1498,18 @@ export default function Home() {
             return current;
           }
 
+          const unchanged =
+            current.startsAt === updatedGame.startsAt &&
+            current.startTimeTbd ===
+              updatedGame.startTimeTbd &&
+            current.homeScore ===
+              updatedGame.homeScore &&
+            current.awayScore ===
+              updatedGame.awayScore &&
+            current.status === updatedGame.status;
+
+          if (unchanged) return current;
+
           return {
             ...current,
             startsAt: updatedGame.startsAt,
@@ -1477,24 +1521,48 @@ export default function Home() {
           };
         });
 
-        setRealGames((currentGames) =>
-          currentGames.map((game) =>
-            game.id === updatedGame.id
-              ? {
-                  ...game,
-                  startsAt: updatedGame.startsAt,
-                  startTimeTbd:
-                    updatedGame.startTimeTbd,
-                  homeScore: updatedGame.homeScore,
-                  awayScore: updatedGame.awayScore,
-                  status: updatedGame.status,
-                }
-              : game,
-          ),
-        );
+        setRealGames((currentGames) => {
+          let changed = false;
+
+          const nextGames = currentGames.map(
+            (game) => {
+              if (game.id !== updatedGame.id) {
+                return game;
+              }
+
+              const unchanged =
+                game.startsAt === updatedGame.startsAt &&
+                game.startTimeTbd ===
+                  updatedGame.startTimeTbd &&
+                game.homeScore ===
+                  updatedGame.homeScore &&
+                game.awayScore ===
+                  updatedGame.awayScore &&
+                game.status === updatedGame.status;
+
+              if (unchanged) return game;
+
+              changed = true;
+
+              return {
+                ...game,
+                startsAt: updatedGame.startsAt,
+                startTimeTbd:
+                  updatedGame.startTimeTbd,
+                homeScore: updatedGame.homeScore,
+                awayScore: updatedGame.awayScore,
+                status: updatedGame.status,
+              };
+            },
+          );
+
+          return changed
+            ? nextGames
+            : currentGames;
+        });
       } catch (error) {
         console.error(
-          "Game Room score refresh failed:",
+          "Game Details score refresh failed:",
           error,
         );
       }
@@ -2105,43 +2173,55 @@ export default function Home() {
 
             if (!updatedGame || cancelled) return;
 
-            setRealGames((currentGames) =>
-              currentGames.map((currentGame) => {
-                if (
-                  currentGame.id !==
-                  updatedGame.id
-                ) {
-                  return currentGame;
-                }
+            setRealGames((currentGames) => {
+              let changed = false;
 
-                const unchanged =
-                  currentGame.homeScore ===
-                    updatedGame.homeScore &&
-                  currentGame.awayScore ===
-                    updatedGame.awayScore &&
-                  currentGame.status ===
-                    updatedGame.status &&
-                  currentGame.startsAt ===
-                    updatedGame.startsAt;
+              const nextGames = currentGames.map(
+                (currentGame) => {
+                  if (
+                    currentGame.id !==
+                    updatedGame.id
+                  ) {
+                    return currentGame;
+                  }
 
-                if (unchanged) {
-                  return currentGame;
-                }
+                  const unchanged =
+                    currentGame.homeScore ===
+                      updatedGame.homeScore &&
+                    currentGame.awayScore ===
+                      updatedGame.awayScore &&
+                    currentGame.status ===
+                      updatedGame.status &&
+                    currentGame.startsAt ===
+                      updatedGame.startsAt &&
+                    currentGame.startTimeTbd ===
+                      updatedGame.startTimeTbd;
 
-                return {
-                  ...currentGame,
-                  homeScore:
-                    updatedGame.homeScore,
-                  awayScore:
-                    updatedGame.awayScore,
-                  status: updatedGame.status,
-                  startsAt:
-                    updatedGame.startsAt,
-                  startTimeTbd:
-                    updatedGame.startTimeTbd,
-                };
-              }),
-            );
+                  if (unchanged) {
+                    return currentGame;
+                  }
+
+                  changed = true;
+
+                  return {
+                    ...currentGame,
+                    homeScore:
+                      updatedGame.homeScore,
+                    awayScore:
+                      updatedGame.awayScore,
+                    status: updatedGame.status,
+                    startsAt:
+                      updatedGame.startsAt,
+                    startTimeTbd:
+                      updatedGame.startTimeTbd,
+                  };
+                },
+              );
+
+              return changed
+                ? nextGames
+                : currentGames;
+            });
           } catch (error) {
             console.error(
               "Home live score refresh failed:",
@@ -2533,13 +2613,51 @@ export default function Home() {
     return watchInfo.score >= 80;
   });
 
-  const filteredGames =
+  const isFamBamGame = (game: BrowserGame) =>
+    hasTeam(game, "Georgia") ||
+    hasTeam(game, "Kentucky") ||
+    hasTeam(game, "Arsenal") ||
+    hasTeam(game, "Liverpool") ||
+    hasTeam(game, "Aston Villa") ||
+    hasTeam(game, "AFC Wimbledon");
+
+  const sportFilteredGames =
     activeSport === "All"
       ? watchGames
       : watchGames.filter(
           (game) =>
             game.sport === activeSport,
         );
+
+  const filteredGames = sportFilteredGames.filter((game) => {
+    if (activeWatchFilter === "All") return true;
+
+    const watchInfo = getWatchInfo(
+      game,
+      collegeFootballRankings,
+    );
+
+    if (activeWatchFilter === "Must Watch") {
+      return watchInfo.score >= 95;
+    }
+
+    if (activeWatchFilter === "Big Game") {
+      return (
+        watchInfo.score >= 90 &&
+        watchInfo.score < 95
+      );
+    }
+
+    if (activeWatchFilter === "FamBam") {
+      return isFamBamGame(game);
+    }
+
+    if (activeWatchFilter === "Worth Watching") {
+      return watchInfo.score < 90;
+    }
+
+    return true;
+  });
 
   const challengeGames =
     realGames.filter((game) =>
@@ -3560,55 +3678,87 @@ export default function Home() {
           </div>
         </section>
 
-        {/* UP NEXT */}
+        {/* THIS WEEK */}
         <section className="mb-2.5 overflow-hidden rounded-2xl bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
             <div className="flex items-center gap-2">
-              <span className="text-xl">◷</span>
+              <span className="text-xl">🗓️</span>
               <h2 className="text-base font-black uppercase">
-                Up Next
+                This Week
               </h2>
             </div>
 
-            <div className="text-[10px] font-black uppercase">
-              This Week
+            <div className="text-[10px] font-black uppercase text-slate-500">
+              Next 7 Days
             </div>
           </div>
 
           <div className="divide-y divide-slate-200 px-3">
-            {challengeGames
+            {filteredGames
               .filter((game) => {
-                if (gameIsLocked(game, currentTime)) return false;
-                if (!game.startsAt) return true;
+                if (!game.startsAt) return false;
 
-                const gameDay = new Date(game.startsAt).toLocaleDateString(
-                  "en-CA",
-                  { timeZone: "America/New_York" },
+                const startsAtMs =
+                  new Date(game.startsAt).getTime();
+
+                const nowMs =
+                  currentTime ?? Date.now();
+
+                const gameDay =
+                  new Date(
+                    game.startsAt,
+                  ).toLocaleDateString(
+                    "en-CA",
+                    {
+                      timeZone:
+                        "America/New_York",
+                    },
+                  );
+
+                const todayDay =
+                  new Date(
+                    nowMs,
+                  ).toLocaleDateString(
+                    "en-CA",
+                    {
+                      timeZone:
+                        "America/New_York",
+                    },
+                  );
+
+                const sevenDaysFromNow =
+                  nowMs +
+                  7 * 24 * 60 * 60 * 1000;
+
+                return (
+                  gameDay > todayDay &&
+                  startsAtMs <= sevenDaysFromNow
                 );
-
-                const todayDay = new Date(
-                  currentTime ?? Date.now(),
-                ).toLocaleDateString("en-CA", {
-                  timeZone: "America/New_York",
-                });
-
-                return gameDay > todayDay;
               })
               .sort(
                 (a, b) =>
-                  (a.startsAt
-                    ? new Date(a.startsAt).getTime()
-                    : Number.MAX_SAFE_INTEGER) -
-                  (b.startsAt
-                    ? new Date(b.startsAt).getTime()
-                    : Number.MAX_SAFE_INTEGER),
+                  new Date(
+                    a.startsAt ?? 0,
+                  ).getTime() -
+                  new Date(
+                    b.startsAt ?? 0,
+                  ).getTime(),
               )
-              .slice(0, 2)
+              .slice(0, 5)
               .map((game) => (
-                <article key={game.id} className="py-3">
+                <article
+                  key={game.id}
+                  onClick={() =>
+                    openGameRoom(game)
+                  }
+                  className="cursor-pointer py-3"
+                >
                   <div className="flex gap-3">
                     <div className="flex w-12 shrink-0 flex-col items-center justify-center text-center">
-                      <div className="text-2xl">{game.icon}</div>
+                      <div className="text-2xl">
+                        {game.icon}
+                      </div>
+
                       <div className="mt-1 text-[7px] font-black uppercase leading-tight">
                         {game.competition}
                       </div>
@@ -3616,59 +3766,95 @@ export default function Home() {
 
                     <div className="min-w-0 flex-1">
                       <div className="text-[15px] font-black leading-tight">
-                        {game.sport === "College Football"
-                          ? rankedTeamLabel(game.away, collegeFootballRankings)
+                        {game.sport ===
+                        "College Football"
+                          ? rankedTeamLabel(
+                              game.away,
+                              collegeFootballRankings,
+                            )
                           : game.away}
                         {" vs "}
-                        {game.sport === "College Football"
-                          ? rankedTeamLabel(game.home, collegeFootballRankings)
+                        {game.sport ===
+                        "College Football"
+                          ? rankedTeamLabel(
+                              game.home,
+                              collegeFootballRankings,
+                            )
                           : game.home}
                       </div>
 
                       <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                        {formatGameDate(game.startsAt)}
+                        {formatGameDate(
+                          game.startsAt,
+                        )}
                         {" · "}
-                        {formatGameTime(game.startsAt, game.startTimeTbd)}
+                        {formatGameTime(
+                          game.startsAt,
+                          game.startTimeTbd,
+                        )}
                       </div>
 
                       <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
-                        {getGameContext(game, collegeFootballRankings)}
+                        {getGameContext(
+                          game,
+                          collegeFootballRankings,
+                        )}
                       </div>
 
-                      <div className="mt-2 flex justify-end gap-2">
-                        <button
-                          onClick={() => toggleGameDetails(game.id)}
-                          className="rounded-lg bg-[#edf5ff] px-3 py-1.5 text-[10px] font-black text-[#164d9b]"
-                        >
-                          {expandedGameIds.includes(game.id)
-                            ? "Show Less ↑"
-                            : "Tell Me More →"}
-                        </button>
-
-                        <button
-                          onClick={() => openGameRoom(game)}
-                          className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
-                        >
-                          Game Details →
-                        </button>
+                      <div className="mt-2 text-right text-[9px] font-black uppercase tracking-wide text-[#164d9b]">
+                        Game Details →
                       </div>
-
-                      {expandedGameIds.includes(game.id) && (
-                        <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
-                          <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
-                            {getGameFacts(
-                              game,
-                              collegeFootballRankings,
-                            ).map((fact) => (
-                              <li key={fact}>• {fact}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </article>
               ))}
+
+            {filteredGames.filter((game) => {
+              if (!game.startsAt) return false;
+
+              const startsAtMs =
+                new Date(game.startsAt).getTime();
+
+              const nowMs =
+                currentTime ?? Date.now();
+
+              const gameDay =
+                new Date(
+                  game.startsAt,
+                ).toLocaleDateString(
+                  "en-CA",
+                  {
+                    timeZone:
+                      "America/New_York",
+                  },
+                );
+
+              const todayDay =
+                new Date(
+                  nowMs,
+                ).toLocaleDateString(
+                  "en-CA",
+                  {
+                    timeZone:
+                      "America/New_York",
+                  },
+                );
+
+              return (
+                gameDay > todayDay &&
+                startsAtMs <=
+                  nowMs +
+                    7 *
+                      24 *
+                      60 *
+                      60 *
+                      1000
+              );
+            }).length === 0 && (
+              <div className="py-5 text-center text-xs font-bold text-slate-500">
+                No games on your radar this week.
+              </div>
+            )}
           </div>
         </section>
 
@@ -3693,11 +3879,11 @@ export default function Home() {
               Games to Watch 👀
             </h1>
             <p className="mt-1 text-xs font-semibold text-slate-500">
-              Big games, FamBam teams, rivalries and matchups worth your time.
+              Tap any game for scores, context, picks and everything you need to know.
             </p>
           </div>
 
-          <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
             {[
               "All",
               "Soccer",
@@ -3721,131 +3907,336 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-            <div className="divide-y divide-slate-200 px-3">
-              {filteredGames.map((game) => {
-                const watchInfo =
-                  getWatchInfo(game, collegeFootballRankings);
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+            {(
+              [
+                ["All", "All"],
+                ["Must Watch", "🔥 Must Watch"],
+                ["Big Game", "⭐ Big Game"],
+                ["FamBam", "💙 FamBam"],
+                ["Worth Watching", "👀 Worth Watching"],
+              ] as const
+            ).map(([filter, label]) => (
+              <button
+                key={filter}
+                onClick={() => setActiveWatchFilter(filter)}
+                className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-black transition ${
+                  activeWatchFilter === filter
+                    ? "bg-[#f3c64f] text-[#06284a] shadow-sm"
+                    : "bg-white text-[#10254a] shadow-sm"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-                let label = "Games to Watch";
+          {(() => {
+            const sortedGames = [...filteredGames].sort((a, b) => {
+              const aTime = a.startsAt
+                ? new Date(a.startsAt).getTime()
+                : Number.MAX_SAFE_INTEGER;
 
-                if (watchInfo.score >= 95) {
-                  label = "Must Watch";
-                } else if (watchInfo.score >= 90) {
-                  label = "Big Game";
-                } else if (
-                  hasTeam(game, "Georgia") ||
-                  hasTeam(game, "Kentucky") ||
-                  hasTeam(game, "Arsenal") ||
-                  hasTeam(game, "Liverpool") ||
-                  hasTeam(game, "Aston Villa") ||
-                  hasTeam(game, "AFC Wimbledon")
-                ) {
-                  label = "FamBam Game";
-                }
+              const bTime = b.startsAt
+                ? new Date(b.startsAt).getTime()
+                : Number.MAX_SAFE_INTEGER;
 
-                return (
-                  <article key={game.id} className="py-4">
-                    <div className="flex gap-3">
-                      <div className="flex w-12 shrink-0 flex-col items-center justify-start text-center">
-                        <div className="text-2xl">{game.icon}</div>
-                        <div className="mt-1 text-[7px] font-black uppercase leading-tight text-[#10254a]">
-                          {game.competition}
+              return aTime - bTime;
+            });
+
+            const groupedGames = sortedGames.reduce<
+              Record<string, typeof sortedGames>
+            >((groups, game) => {
+              const key = game.startsAt
+                ? (() => {
+                    const gameDate = new Date(game.startsAt);
+
+                    return `${gameDate.getFullYear()}-${String(
+                      gameDate.getMonth() + 1,
+                    ).padStart(2, "0")}-${String(
+                      gameDate.getDate(),
+                    ).padStart(2, "0")}`;
+                  })()
+                : "TBD";
+
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(game);
+              return groups;
+            }, {});
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            const getDateHeading = (dateKey: string) => {
+              if (dateKey === "TBD") {
+                return {
+                  eyebrow: "DATE TBD",
+                  title: "Start time to be announced",
+                };
+              }
+
+              const [year, month, day] = dateKey.split("-").map(Number);
+              const date = new Date(year, month - 1, day);
+
+              if (date.getTime() === today.getTime()) {
+                return {
+                  eyebrow: "TODAY",
+                  title: date.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "short",
+                    day: "numeric",
+                  }),
+                };
+              }
+
+              if (date.getTime() === tomorrow.getTime()) {
+                return {
+                  eyebrow: "TOMORROW",
+                  title: date.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "short",
+                    day: "numeric",
+                  }),
+                };
+              }
+
+              return {
+                eyebrow: date.toLocaleDateString("en-US", {
+                  weekday: "long",
+                }).toUpperCase(),
+                title: date.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                }),
+              };
+            };
+
+            return (
+              <div className="space-y-5">
+                {Object.entries(groupedGames).map(
+                  ([dateKey, gamesForDate]) => {
+                    const heading = getDateHeading(dateKey);
+
+                    return (
+                      <section key={dateKey}>
+                        <div className="mb-2 flex items-end gap-2 px-1">
+                          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#b28a2e]">
+                            {heading.eyebrow}
+                          </div>
+                          <div className="pb-px text-[11px] font-bold text-slate-400">
+                            {heading.title}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                          <span className="rounded-full bg-[#fff3c4] px-2 py-1 text-[8px] font-black uppercase text-[#8a6618]">
-                            {label}
-                          </span>
-
-                          <span className="text-[9px] font-bold text-slate-400">
-                            {formatGameDate(game.startsAt)}
-                          </span>
-                        </div>
-
-                        <div className="text-[15px] font-black leading-tight text-[#10254a]">
-                          {game.sport === "College Football"
-                            ? rankedTeamLabel(
-                                game.away,
-                                collegeFootballRankings,
-                              )
-                            : game.away}
-                          {" vs "}
-                          {game.sport === "College Football"
-                            ? rankedTeamLabel(
-                                game.home,
-                                collegeFootballRankings,
-                              )
-                            : game.home}
-                        </div>
-
-                        <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                          {formatGameTime(
-                            game.startsAt,
-                            game.startTimeTbd,
-                          )}
-                        </div>
-
-                        <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
-                          {getGameContext(
-                            game,
-                            collegeFootballRankings,
-                          )}
-                        </div>
-
-                        <div className="mt-2 flex justify-end gap-2">
-                          <button
-                            onClick={() =>
-                              toggleGameDetails(game.id)
-                            }
-                            className="rounded-lg bg-[#eef2f6] px-3 py-1.5 text-[10px] font-black text-[#06284a]"
-                          >
-                            {expandedGameIds.includes(game.id)
-                              ? "Show Less ↑"
-                              : "Tell Me More →"}
-                          </button>
-
-                          <button
-                            onClick={() => openGameRoom(game)}
-                            className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
-                          >
-                            Game Details →
-                          </button>
-                        </div>
-
-                        {expandedGameIds.includes(game.id) && (
-                          <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
-                            <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
-                              {getGameFacts(
+                        <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                            {gamesForDate.map((game) => {
+                              const watchInfo = getWatchInfo(
                                 game,
                                 collegeFootballRankings,
-                              ).map((fact) => (
-                                <li key={fact}>• {fact}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+                              );
 
-              {!gamesLoading && filteredGames.length === 0 && (
-                <div className="py-8 text-center">
-                  <div className="text-2xl">👀</div>
-                  <div className="mt-2 text-sm font-black text-[#10254a]">
-                    Nothing major on the radar.
+                              const famBamGame =
+                                isFamBamGame(game);
+
+                              const watchMarkers: Array<{
+                                emoji: string;
+                                label: string;
+                              }> = [];
+
+                              if (watchInfo.score >= 95) {
+                                watchMarkers.push({
+                                  emoji: "🔥",
+                                  label: "Must Watch",
+                                });
+                              } else if (watchInfo.score >= 90) {
+                                watchMarkers.push({
+                                  emoji: "⭐",
+                                  label: "Big Game",
+                                });
+                              } else {
+                                watchMarkers.push({
+                                  emoji: "👀",
+                                  label: "Worth Watching",
+                                });
+                              }
+
+                              if (famBamGame) {
+                                watchMarkers.push({
+                                  emoji: "💙",
+                                  label: "FamBam Game",
+                                });
+                              }
+
+                              const normalizedStatus = (
+                                game.status ?? ""
+                              ).toLowerCase();
+
+                              const isFinal = [
+                                "final",
+                                "finished",
+                                "complete",
+                                "completed",
+                                "closed",
+                              ].some((status) =>
+                                normalizedStatus.includes(status),
+                              );
+
+                              const hasScore =
+                                game.homeScore != null &&
+                                game.awayScore != null;
+
+                              const startMs = game.startsAt
+                                ? new Date(game.startsAt).getTime()
+                                : Number.MAX_SAFE_INTEGER;
+
+                              const nowMs = Date.now();
+
+                              const isLive =
+                                !isFinal &&
+                                (normalizedStatus.includes("live") ||
+                                  normalizedStatus.includes(
+                                    "in_progress",
+                                  ) ||
+                                  normalizedStatus.includes(
+                                    "in progress",
+                                  ) ||
+                                  (hasScore &&
+                                    nowMs >= startMs &&
+                                    nowMs <=
+                                      startMs +
+                                        6 * 60 * 60 * 1000));
+
+                              return (
+                                <article
+                                  key={game.id}
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => openGameRoom(game)}
+                                  onKeyDown={(event) => {
+                                    if (
+                                      event.key === "Enter" ||
+                                      event.key === " "
+                                    ) {
+                                      event.preventDefault();
+                                      openGameRoom(game);
+                                    }
+                                  }}
+                                  className="cursor-pointer rounded-xl bg-white px-3 py-3 shadow-sm transition active:bg-slate-50"
+                                >
+                                  <div className="flex gap-3">
+                                    <div className="flex w-12 shrink-0 flex-col items-center justify-start text-center">
+                                      <div className="text-2xl">
+                                        {game.icon}
+                                      </div>
+
+                                      <div className="mt-1 text-[7px] font-black uppercase leading-tight text-[#10254a]">
+                                        {game.competition}
+                                      </div>
+
+                                      <div className="mt-1 flex flex-wrap items-center justify-center gap-0.5">
+                                        {watchMarkers.map((marker) => (
+                                          <span
+                                            key={`${game.id}-${marker.label}`}
+                                            title={marker.label}
+                                            aria-label={marker.label}
+                                            className="text-[11px] leading-none"
+                                          >
+                                            {marker.emoji}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                      <div className="mb-2 flex items-center justify-end">
+                                        <span
+                                          className={`shrink-0 text-[10px] font-black ${
+                                            isLive
+                                              ? "text-red-600"
+                                              : isFinal
+                                                ? "text-slate-500"
+                                                : "text-[#10254a]"
+                                          }`}
+                                        >
+                                          {isLive
+                                            ? "● LIVE"
+                                            : isFinal
+                                              ? "FINAL"
+                                              : formatGameTime(
+                                                  game.startsAt,
+                                                  game.startTimeTbd,
+                                                )}
+                                        </span>
+                                      </div>
+
+                                      <div className="space-y-1">
+                                        <div className="flex items-center justify-between gap-3">
+                                          <div className="min-w-0 truncate text-[14px] font-black text-[#10254a]">
+                                            {game.sport ===
+                                            "College Football"
+                                              ? rankedTeamLabel(
+                                                  game.away,
+                                                  collegeFootballRankings,
+                                                )
+                                              : game.away}
+                                          </div>
+
+                                          {hasScore &&
+                                            (isLive || isFinal) && (
+                                              <div className="shrink-0 text-lg font-black tabular-nums text-[#10254a]">
+                                                {game.awayScore}
+                                              </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center justify-between gap-3">
+                                          <div className="min-w-0 truncate text-[14px] font-black text-[#10254a]">
+                                            {game.sport ===
+                                            "College Football"
+                                              ? rankedTeamLabel(
+                                                  game.home,
+                                                  collegeFootballRankings,
+                                                )
+                                              : game.home}
+                                          </div>
+
+                                          {hasScore &&
+                                            (isLive || isFinal) && (
+                                              <div className="shrink-0 text-lg font-black tabular-nums text-[#10254a]">
+                                                {game.homeScore}
+                                              </div>
+                                            )}
+                                        </div>
+                                      </div>
+
+                                    </div>
+                                  </div>
+                                </article>
+                              );
+                            })}
+                        </div>
+                      </section>
+                    );
+                  },
+                )}
+
+                {!gamesLoading && filteredGames.length === 0 && (
+                  <div className="rounded-2xl bg-white py-8 text-center shadow-sm">
+                    <div className="text-2xl">👀</div>
+                    <div className="mt-2 text-sm font-black text-[#10254a]">
+                      Nothing major on the radar.
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-slate-500">
+                      Try another sport.
+                    </div>
                   </div>
-                  <div className="mt-1 text-xs font-semibold text-slate-500">
-                    Try another sport.
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+                )}
+              </div>
+            );
+          })()}
         </section>
       )}
 
@@ -4450,13 +4841,6 @@ export default function Home() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-              <div className="mb-4 rounded-2xl bg-[#edf5ff] p-3 text-xs font-semibold text-[#284d7e]">
-                {getGameContext(
-                  gameRoomGame,
-                  collegeFootballRankings,
-                )}
-              </div>
-
               {/* FAMBAM SPORTS DESK */}
               <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8dba8] bg-white shadow-sm">
                 <div className="flex items-center justify-between gap-3 bg-[#06284a] px-3 py-2 text-white">
@@ -4466,7 +4850,19 @@ export default function Home() {
                     </div>
 
                     <div className="mt-0.5 text-xs font-black">
-                      {gameRoomGame.status === "final"
+                      {[
+                        "final",
+                        "finished",
+                        "complete",
+                        "completed",
+                        "closed",
+                      ].some((status) =>
+                        String(
+                          gameRoomGame.status ?? "",
+                        )
+                          .toLowerCase()
+                          .includes(status),
+                      )
                         ? "🏁 Final"
                         : gameRoomGame.homeScore !== null ||
                             gameRoomGame.awayScore !== null
@@ -4490,7 +4886,19 @@ export default function Home() {
                     gameRoomGame.awayScore !== null) && (
                     <div className="rounded-xl bg-[#f7f4ec] px-3 py-3 text-center">
                       <div className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-                        {gameRoomGame.status === "final"
+                        {[
+                          "final",
+                          "finished",
+                          "complete",
+                          "completed",
+                          "closed",
+                        ].some((status) =>
+                          String(
+                            gameRoomGame.status ?? "",
+                          )
+                            .toLowerCase()
+                            .includes(status),
+                        )
                           ? "Final Score"
                           : "Current Score"}
                       </div>
@@ -4536,6 +4944,160 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+
+              <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-3 py-2.5">
+                  <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
+                    🔥 Why This Game Matters
+                  </div>
+                </div>
+
+                <div className="p-3">
+                  <div className="rounded-xl bg-[#edf5ff] px-3 py-2.5 text-xs font-semibold leading-relaxed text-[#284d7e]">
+                    {getGameContext(
+                      gameRoomGame,
+                      collegeFootballRankings,
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {gameRoomLoading && (
+                <div className="py-10 text-center text-sm font-bold text-slate-500">
+                  Loading game details…
+                </div>
+              )}
+
+              {!gameRoomLoading && (
+                <>
+                  <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+                    <div className="border-b border-slate-100 px-3 py-2.5">
+                      <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
+                        📣 Game Updates
+                      </div>
+                    </div>
+
+                    {gameRoomLiveEvents.length > 0 ? (
+                      <div className="space-y-2 p-3">
+                        {[...gameRoomLiveEvents]
+                          .sort(
+                            (a, b) =>
+                              new Date(b.created_at).getTime() -
+                              new Date(a.created_at).getTime(),
+                          )
+                          .map((event) => (
+                            <div
+                              key={event.id}
+                              className="rounded-xl border border-[#f3c64f]/50 bg-[#fff8dc] px-3 py-2"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-xs font-black text-[#06284a]">
+                                  {event.message}
+                                </div>
+
+                                <div className="shrink-0 text-[9px] font-semibold text-slate-400">
+                                  {new Date(
+                                    event.created_at,
+                                  ).toLocaleTimeString([], {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="px-3 py-4 text-xs font-semibold text-slate-500">
+                        Live scoring updates will appear here as the game happens.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+                    <div className="border-b border-slate-100 px-3 py-2.5">
+                      <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
+                        📚 Tell Me More
+                      </div>
+                    </div>
+
+                    <div className="p-3">
+                      <div className="space-y-2">
+                        {getCompetitionExplainer(
+                          gameRoomGame,
+                        ).map((lesson) => (
+                          <div
+                            key={lesson}
+                            className="rounded-xl bg-[#f7f4ec] px-3 py-2.5 text-xs font-semibold leading-relaxed text-slate-600"
+                          >
+                            {lesson}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-4 text-[10px] font-black uppercase tracking-wide text-[#06284a]">
+                        About This Matchup
+                      </div>
+
+                      <ul className="mt-2 space-y-2 text-xs font-semibold leading-relaxed text-slate-600">
+                        {getGameFacts(
+                          gameRoomGame,
+                          collegeFootballRankings,
+                        ).map((fact) => (
+                          <li key={fact} className="flex gap-2">
+                            <span className="text-[#f3c64f]">
+                              ●
+                            </span>
+                            <span>{fact}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {[
+                    "final",
+                    "finished",
+                    "complete",
+                    "completed",
+                    "closed",
+                  ].some((status) =>
+                    String(
+                      gameRoomGame.status ?? "",
+                    )
+                      .toLowerCase()
+                      .includes(status),
+                  ) && (
+                    <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+                      <div className="border-b border-slate-100 px-3 py-2.5">
+                        <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
+                          🏁 Postgame
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 p-3">
+                        <div className="rounded-xl bg-[#f7f4ec] px-3 py-2.5">
+                          <div className="text-[10px] font-black uppercase tracking-wide text-[#06284a]">
+                            How It Happened
+                          </div>
+                          <div className="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
+                            A fuller game recap will appear here when detailed game events are available.
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl bg-[#edf5ff] px-3 py-2.5">
+                          <div className="text-[10px] font-black uppercase tracking-wide text-[#284d7e]">
+                            What This Means
+                          </div>
+                          <div className="mt-1 text-xs font-semibold leading-relaxed text-[#54739a]">
+                            Standings, rankings, advancement and season impact will appear here when FamBam has the data to calculate them accurately.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
 
               {challengeGameIds.includes(
                 gameRoomGame.id,
@@ -4611,89 +5173,6 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-              )}
-
-              {gameRoomLoading && (
-                <div className="py-10 text-center text-sm font-bold text-slate-500">
-                  Loading game details…
-                </div>
-              )}
-
-              {!gameRoomLoading && (
-                <>
-                  <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
-                    <div className="border-b border-slate-100 px-3 py-2.5">
-                      <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
-                        📣 Game Updates
-                      </div>
-                    </div>
-
-                    {gameRoomLiveEvents.length > 0 ? (
-                      <div className="space-y-2 p-3">
-                        {[...gameRoomLiveEvents]
-                          .sort(
-                            (a, b) =>
-                              new Date(b.created_at).getTime() -
-                              new Date(a.created_at).getTime(),
-                          )
-                          .map((event) => (
-                            <div
-                              key={event.id}
-                              className="rounded-xl border border-[#f3c64f]/50 bg-[#fff8dc] px-3 py-2"
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="text-xs font-black text-[#06284a]">
-                                  {event.message}
-                                </div>
-
-                                <div className="shrink-0 text-[9px] font-semibold text-slate-400">
-                                  {new Date(
-                                    event.created_at,
-                                  ).toLocaleTimeString([], {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    ) : (
-                      <div className="px-3 py-4 text-xs font-semibold text-slate-500">
-                        Live scoring updates will appear here as the game happens.
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
-                    <div className="border-b border-slate-100 px-3 py-2.5">
-                      <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
-                        🔥 Why This Game Matters
-                      </div>
-                    </div>
-
-                    <div className="p-3">
-                      <div className="rounded-xl bg-[#edf5ff] px-3 py-2.5 text-xs font-semibold leading-relaxed text-[#284d7e]">
-                        {getGameContext(
-                          gameRoomGame,
-                          collegeFootballRankings,
-                        )}
-                      </div>
-
-                      <ul className="mt-3 space-y-2 text-xs font-semibold leading-relaxed text-slate-600">
-                        {getGameFacts(
-                          gameRoomGame,
-                          collegeFootballRankings,
-                        ).map((fact) => (
-                          <li key={fact} className="flex gap-2">
-                            <span className="text-[#f3c64f]">●</span>
-                            <span>{fact}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </>
               )}
 
               {gameRoomError && (

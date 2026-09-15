@@ -15,3 +15,10 @@ jobs:
           curl --fail --silent --show-error \
             https://family-sports-hub.vercel.app/api/sync/sports \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+      - name: Build current FamBam Challenge
+        run: |
+          curl --fail --silent --show-error \
+            -X POST \
+            https://family-sports-hub.vercel.app/api/challenge/auto-build \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

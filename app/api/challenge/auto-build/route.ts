@@ -89,6 +89,22 @@ function isFinalStatus(status: string | null) {
 
 export async function POST(request: Request) {
   try {
+    const cronSecret =
+      process.env.CRON_SECRET;
+
+    const authorization =
+      request.headers.get("authorization");
+
+    if (
+      !cronSecret ||
+      authorization !== `Bearer ${cronSecret}`
+    ) {
+      return NextResponse.json(
+        { error: "Unauthorized." },
+        { status: 401 },
+      );
+    }
+
     const supabaseUrl =
       process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseSecretKey =
@@ -119,31 +135,210 @@ export async function POST(request: Request) {
     const reset =
       requestUrl.searchParams.get("reset") === "true";
 
+    const now = new Date();
+
+    /*
+     * FamBam Challenge weeks run Monday through Sunday.
+     *
+     * We currently have one FamBam family, so the most
+     * recent Challenge is the authoritative source for
+     * family_id when a new weekly Challenge is created.
+     */
     const {
-      data: openChallenge,
-      error: challengeError,
+      data: recentChallenge,
+      error: recentChallengeError,
     } = await supabase
       .from("challenges")
       .select("*")
-      .eq("status", "open")
+      .order("starts_at", {
+        ascending: false,
+      })
       .limit(1)
       .maybeSingle();
 
-    if (challengeError) {
-      throw challengeError;
+    if (recentChallengeError) {
+      throw recentChallengeError;
     }
 
-    if (!openChallenge?.id) {
+    if (!recentChallenge?.family_id) {
       return NextResponse.json(
         {
           error:
-            "No open FamBam Challenge was found.",
+            "No existing FamBam Challenge with a family_id was found.",
         },
         { status: 404 },
       );
     }
 
-    const now = new Date();
+    /*
+     * Calculate the current Monday-Sunday week.
+     *
+     * Challenge records are stored as UTC timestamps,
+     * while the displayed week is based on calendar days.
+     */
+    const todayUtc = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+      ),
+    );
+
+    const weekday = todayUtc.getUTCDay();
+
+    const daysSinceMonday =
+      weekday === 0 ? 6 : weekday - 1;
+
+    const weekStart = new Date(todayUtc);
+    weekStart.setUTCDate(
+      weekStart.getUTCDate() -
+        daysSinceMonday,
+    );
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(
+      weekEnd.getUTCDate() + 6,
+    );
+    weekEnd.setUTCHours(
+      23,
+      59,
+      59,
+      999,
+    );
+
+    /*
+     * First close any expired Challenge that is
+     * incorrectly still marked open.
+     */
+    const {
+      error: closeExpiredError,
+    } = await supabase
+      .from("challenges")
+      .update({
+        status: "complete",
+        updated_at:
+          now.toISOString(),
+      })
+      .eq("status", "open")
+      .lt(
+        "ends_at",
+        weekStart.toISOString(),
+      );
+
+    if (closeExpiredError) {
+      throw closeExpiredError;
+    }
+
+    /*
+     * Reuse the current week's Challenge if it
+     * already exists. This makes the route safe
+     * to run repeatedly without creating duplicates.
+     */
+    const {
+      data: existingCurrentChallenge,
+      error:
+        existingCurrentChallengeError,
+    } = await supabase
+      .from("challenges")
+      .select("*")
+      .eq(
+        "family_id",
+        recentChallenge.family_id,
+      )
+      .gte(
+        "starts_at",
+        weekStart.toISOString(),
+      )
+      .lte(
+        "starts_at",
+        weekEnd.toISOString(),
+      )
+      .order("starts_at", {
+        ascending: false,
+      })
+      .limit(1)
+      .maybeSingle();
+
+    if (
+      existingCurrentChallengeError
+    ) {
+      throw existingCurrentChallengeError;
+    }
+
+    let openChallenge =
+      existingCurrentChallenge;
+
+    if (!openChallenge?.id) {
+      const formatMonthDay = (
+        value: Date,
+      ) =>
+        value.toLocaleDateString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            timeZone: "UTC",
+          },
+        );
+
+      const {
+        data: createdChallenge,
+        error: createChallengeError,
+      } = await supabase
+        .from("challenges")
+        .insert({
+          family_id:
+            recentChallenge.family_id,
+          name:
+            `FamBam Challenge · ${formatMonthDay(
+              weekStart,
+            )}–${formatMonthDay(
+              weekEnd,
+            )}`,
+          description:
+            "Weekly FamBam Sports Challenge",
+          starts_at:
+            weekStart.toISOString(),
+          ends_at:
+            weekEnd.toISOString(),
+          status: "open",
+        })
+        .select("*")
+        .single();
+
+      if (createChallengeError) {
+        throw createChallengeError;
+      }
+
+      openChallenge =
+        createdChallenge;
+    } else if (
+      openChallenge.status !== "open"
+    ) {
+      const {
+        data: reopenedChallenge,
+        error: reopenChallengeError,
+      } = await supabase
+        .from("challenges")
+        .update({
+          status: "open",
+          updated_at:
+            now.toISOString(),
+        })
+        .eq(
+          "id",
+          openChallenge.id,
+        )
+        .select("*")
+        .single();
+
+      if (reopenChallengeError) {
+        throw reopenChallengeError;
+      }
+
+      openChallenge =
+        reopenedChallenge;
+    }
 
     const windowEnd = new Date(now);
     windowEnd.setUTCDate(

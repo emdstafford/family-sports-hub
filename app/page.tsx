@@ -2298,7 +2298,10 @@ export default function Home() {
             (pickStatusData ?? []) as ChallengePickStatusRow[]
           ).forEach((row) => {
             nextPickStatus[row.player_id] =
-              Number(row.picks_made) || 0;
+              Math.min(
+                Number(row.picks_made) || 0,
+                loadedChallengeGameIds.length,
+              );
           });
 
           setChallengePickStatus(nextPickStatus);
@@ -3079,7 +3082,7 @@ export default function Home() {
 
   const currentPlayerReady =
     challengeGames.length > 0 &&
-    challengeGamesWithSavedPick ===
+    challengeGamesWithSavedPick >=
       challengeGames.length;
 
   return (
@@ -3219,7 +3222,11 @@ export default function Home() {
                         You have
                       </div>
                       <div className="text-xl font-black text-[#f3c64f]">
-                        {challengeGames.length - challengeGamesWithSavedPick} picks left
+                        {Math.max(
+                          0,
+                          challengeGames.length -
+                            challengeGamesWithSavedPick,
+                        )} picks left
                       </div>
                       <div className="mt-0.5 text-[10px] font-black">
                         Finish My Picks ›
@@ -4981,7 +4988,7 @@ export default function Home() {
 
                     const ready =
                       challengeGames.length > 0 &&
-                      count === challengeGames.length;
+                      count >= challengeGames.length;
 
                     const isYou =
                       player.id === signedInPlayer.id;

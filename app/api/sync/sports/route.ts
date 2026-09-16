@@ -38,67 +38,6 @@ async function callInternalRoute(
   };
 }
 
-function getCollegeFootballWeek(now = new Date()) {
-  const year = now.getUTCFullYear();
-
-  /*
-   * FamBam only needs regular-season CFB syncing
-   * during the late-summer/fall season.
-   */
-  const month = now.getUTCMonth();
-
-  if (month < 7 || month > 11) {
-    return null;
-  }
-
-  /*
-   * Treat the Monday on or immediately before
-   * September 1 as the start of Week 1.
-   *
-   * For 2026:
-   * Aug 31 = Week 1
-   * Sep 7  = Week 2
-   */
-  const septemberFirst = new Date(
-    Date.UTC(year, 8, 1),
-  );
-
-  const dayOfWeek =
-    septemberFirst.getUTCDay();
-
-  const daysBackToMonday =
-    dayOfWeek === 0
-      ? 6
-      : dayOfWeek - 1;
-
-  const weekOneStart = new Date(
-    septemberFirst,
-  );
-
-  weekOneStart.setUTCDate(
-    septemberFirst.getUTCDate() -
-      daysBackToMonday,
-  );
-
-  const millisecondsPerDay =
-    24 * 60 * 60 * 1000;
-
-  const daysSinceWeekOne = Math.floor(
-    (
-      now.getTime() -
-      weekOneStart.getTime()
-    ) / millisecondsPerDay,
-  );
-
-  const week =
-    Math.floor(daysSinceWeekOne / 7) + 1;
-
-  return {
-    year,
-    week: Math.max(1, week),
-  };
-}
-
 async function runSync(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
 
@@ -143,40 +82,30 @@ async function runSync(request: NextRequest) {
     ),
   );
 
+  /*
+   * ESPN covers the English competitions that are not
+   * available on our football-data.org plan:
+   * League One, Carabao Cup, FA Cup, and EFL Trophy.
+   *
+   * The ESPN importer refreshes recent results and
+   * upcoming fixtures using daily scoreboard requests.
+   */
   results.push(
     await callInternalRoute(
       request,
-      "/api/soccer/league-one/import?season=2026",
+      "/api/soccer/espn/import",
     ),
   );
 
   /*
-   * College football changes heavily on game days.
-   * Refresh the current week plus the previous week
-   * so late finals/delays still get picked up.
+   * CollegeFootballData is intentionally NOT called by
+   * the hourly sports sync.
+   *
+   * FamBam keeps the CFB schedule already stored in
+   * Supabase, while CFBD is reserved for a separate
+   * low-frequency schedule refresh to protect its
+   * monthly API quota.
    */
-  const collegeFootball =
-    getCollegeFootballWeek();
-
-  if (collegeFootball) {
-    const weeks = [
-      collegeFootball.week,
-      collegeFootball.week - 1,
-    ].filter(
-      (week, index, values) =>
-        week >= 1 &&
-        values.indexOf(week) === index,
-    );
-
-    for (const week of weeks) {
-      results.push(
-        await callInternalRoute(
-          request,
-          `/api/college-football/import?year=${collegeFootball.year}&week=${week}`,
-        ),
-      );
-    }
-  }
 
   /*
    * Grade every currently open Challenge after the
@@ -215,29 +144,11 @@ async function runSync(request: NextRequest) {
           },
         ];
 
-  /*
-   * League One may be unavailable on the current
-   * football-data.org plan. Treat that specific 403
-   * as a warning so it does not break the rest of sync.
-   */
-  const warnings = results.filter(
-    (result) =>
-      result.name.includes(
-        "/api/soccer/league-one/import",
-      ) &&
-      !result.ok &&
-      result.status === 502 &&
-      typeof result.data === "object" &&
-      result.data !== null &&
-      "status" in result.data &&
-      (result.data as { status?: number }).status === 403,
-  );
+  const warnings: SyncResult[] = [];
 
   const failures = [
     ...results.filter(
-      (result) =>
-        !result.ok &&
-        !warnings.includes(result),
+      (result) => !result.ok,
     ),
     ...gradingResults.filter(
       (result) => !result.ok,

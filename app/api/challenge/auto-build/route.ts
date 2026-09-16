@@ -831,11 +831,19 @@ export async function POST(request: Request) {
       }
     }
 
+    /*
+     * The active Weekly Challenge must contain
+     * only the games selected by this week's
+     * builder. TARGET_GAMES caps this at 10.
+     *
+     * Picks themselves remain stored separately,
+     * so an old picked game does not need to stay
+     * in challenge_games just to preserve history.
+     */
     const desiredIds =
-      new Set<string>([
-        ...selectedIds,
-        ...protectedIds,
-      ]);
+      new Set<string>(
+        selectedIds,
+      );
 
     const removeIds =
       existing

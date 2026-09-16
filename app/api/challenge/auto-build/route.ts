@@ -704,7 +704,21 @@ export async function POST(request: Request) {
           !candidate.mandatory,
       );
 
-    const selected = [...mandatory];
+    /*
+     * Weekly Challenge is always exactly
+     * TARGET_GAMES at most.
+     *
+     * Mandatory games are already sorted
+     * ahead of optional games and by score,
+     * so if there are more mandatory games
+     * than available Challenge slots, keep
+     * the strongest ones rather than letting
+     * the Challenge grow beyond its target.
+     */
+    const selected = mandatory.slice(
+      0,
+      TARGET_GAMES,
+    );
 
     for (const candidate of optional) {
       if (

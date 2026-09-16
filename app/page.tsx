@@ -79,6 +79,8 @@ type BrowserGame = {
   homeScore: number | null;
   awayScore: number | null;
   status: string;
+  externalProvider: string | null;
+  externalId: string | null;
   icon: string;
   liveData: boolean;
 };
@@ -178,17 +180,37 @@ function formatGameTime(
 
 function getStatusLabel(game: BrowserGame) {
   if (!game.liveData) return "SAMPLE";
-  if (game.status === "final") return "FINAL";
+
+  const normalizedStatus = (
+    game.status ?? ""
+  ).toLowerCase();
+
+  const isFinal = [
+    "final",
+    "finished",
+    "complete",
+    "completed",
+    "closed",
+  ].some((status) =>
+    normalizedStatus.includes(status),
+  );
+
+  if (isFinal) return "FINAL";
   if (game.startTimeTbd) return "TIME TBD";
 
-  if (
-    game.homeScore !== null ||
-    game.awayScore !== null
-  ) {
-    return "LIVE";
-  }
+  const startMs = game.startsAt
+    ? new Date(game.startsAt).getTime()
+    : Number.MAX_SAFE_INTEGER;
 
-  return "SCHEDULED";
+  const hasStarted = Date.now() >= startMs;
+
+  const isLive =
+    hasStarted &&
+    (normalizedStatus.includes("live") ||
+      normalizedStatus.includes("in_progress") ||
+      normalizedStatus.includes("in progress"));
+
+  return isLive ? "LIVE" : "SCHEDULED";
 }
 
 function getEasternDateParts(value: Date | number | string) {
@@ -644,135 +666,6 @@ function getGameContext(
   return "One of this week's FamBam Challenge games.";
 }
 
-function getGameFacts(
-  game: BrowserGame,
-  rankings: CollegeFootballRanking[],
-) {
-  const facts: string[] = [];
-
-  if (game.sport === "College Football") {
-    const awayRank = getTeamRank(game.away, rankings);
-    const homeRank = getTeamRank(game.home, rankings);
-
-    if (awayRank && homeRank) {
-      facts.push(
-        `This is a ranked-vs-ranked matchup: #${awayRank} ${game.away} visits #${homeRank} ${game.home}.`,
-      );
-    } else if (awayRank) {
-      facts.push(
-        `#${awayRank} ${game.away} comes into this one ranked, while ${game.home} gets the game at home.`,
-      );
-    } else if (homeRank) {
-      facts.push(
-        `${game.away} gets a road shot at #${homeRank} ${game.home}.`,
-      );
-    } else {
-      facts.push(
-        `${game.away} goes on the road to face ${game.home}.`,
-      );
-    }
-
-    if (hasTeam(game, "Kentucky")) {
-      const opponent =
-        game.home.toLowerCase().includes("kentucky")
-          ? game.away
-          : game.home;
-
-      facts.push(
-        `Kentucky's matchup with ${opponent} is one the family will especially want to keep an eye on.`,
-      );
-    } else if (hasTeam(game, "Georgia")) {
-      const opponent =
-        game.home.toLowerCase().includes("georgia")
-          ? game.away
-          : game.home;
-
-      facts.push(
-        `Georgia faces ${opponent} in a game that will be especially relevant for the Georgia fans in the family.`,
-      );
-    }
-
-    if (awayRank && !homeRank) {
-      facts.push(
-        `${game.home} has the home-field opportunity to knock off a ranked opponent.`,
-      );
-    } else if (homeRank && !awayRank) {
-      facts.push(
-        `${game.away} would have to beat a ranked opponent on the road to pull this one out.`,
-      );
-    } else if (awayRank && homeRank) {
-      facts.push(
-        `With both teams ranked, this is one of the stronger matchups on the Challenge slate.`,
-      );
-    }
-  }
-
-  if (game.sport === "Soccer") {
-    facts.push(
-      `${game.away} travels to ${game.home} for this ${game.competition} matchup.`,
-    );
-
-    if (hasTeam(game, "Arsenal")) {
-      const opponent =
-        game.home.toLowerCase().includes("arsenal")
-          ? game.away
-          : game.home;
-
-      facts.push(
-        `Arsenal faces ${opponent}, making this especially relevant for the Arsenal supporters in the family.`,
-      );
-    } else if (hasTeam(game, "Liverpool")) {
-      const opponent =
-        game.home.toLowerCase().includes("liverpool")
-          ? game.away
-          : game.home;
-
-      facts.push(
-        `Liverpool faces ${opponent}, so this one belongs on Kayla's radar.`,
-      );
-    } else if (hasTeam(game, "Aston Villa")) {
-      const opponent =
-        game.home.toLowerCase().includes("aston villa")
-          ? game.away
-          : game.home;
-
-      facts.push(
-        `Aston Villa faces ${opponent}, making this one especially relevant for the Villa supporters in the family.`,
-      );
-    } else if (hasTeam(game, "AFC Wimbledon")) {
-      const opponent =
-        game.home.toLowerCase().includes("afc wimbledon")
-          ? game.away
-          : game.home;
-
-      facts.push(
-        `AFC Wimbledon faces ${opponent}, so this is one of Emily's clubs to follow.`,
-      );
-    }
-
-    facts.push(
-      `Because this is ${game.competition}, the result counts toward that competition rather than a separate league or cup.`,
-    );
-  }
-
-  if (facts.length < 2) {
-    facts.push(
-      `${game.away} visits ${game.home} in the ${game.competition}.`,
-    );
-  }
-
-  if (facts.length < 3) {
-    facts.push(
-      `Kickoff: ${formatGameDate(game.startsAt)} at ${formatGameTime(
-        game.startsAt,
-        game.startTimeTbd,
-      )}.`,
-    );
-  }
-
-  return facts.slice(0, 3);
-}
-
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [challenge, setChallenge] =
@@ -915,13 +808,6 @@ export default function Home() {
   const [savedPickGameIds, setSavedPickGameIds] =
     useState<string[]>([]);
 
-  const [expandedGameIds, setExpandedGameIds] =
-    useState<string[]>([]);
-
-  useEffect(() => {
-    setExpandedGameIds([]);
-  }, [activeSection]);
-
   const [gameRoomGame, setGameRoomGame] =
     useState<BrowserGame | null>(null);
 
@@ -932,6 +818,18 @@ export default function Home() {
     useState("");
 
   const [gameRoomLoading, setGameRoomLoading] =
+    useState(false);
+
+  const [gameInsights, setGameInsights] =
+    useState<
+      Array<{
+        type: string;
+        title: string;
+        text: string;
+      }>
+    >([]);
+
+  const [gameInsightsLoading, setGameInsightsLoading] =
     useState(false);
 
   const [gameRoomSending, setGameRoomSending] =
@@ -1245,6 +1143,36 @@ export default function Home() {
 
     setGameRoomGame(game);
     setGameRoomMessages([]);
+    setGameInsights([]);
+    setGameInsightsLoading(true);
+
+    void fetch(
+      `/api/game-insights?gameId=${encodeURIComponent(game.id)}`,
+    )
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Unable to load game insights");
+        }
+
+        return response.json();
+      })
+      .then((data) => {
+        setGameInsights(
+          Array.isArray(data.insights)
+            ? data.insights
+            : [],
+        );
+      })
+      .catch((error) => {
+        console.error(
+          "Unable to load game insights:",
+          error,
+        );
+        setGameInsights([]);
+      })
+      .finally(() => {
+        setGameInsightsLoading(false);
+      });
     setGameRoomMessage("");
     setGameRoomError(null);
 
@@ -1269,6 +1197,8 @@ export default function Home() {
   function closeGameRoom() {
     setGameRoomGame(null);
     setGameRoomMessages([]);
+    setGameInsights([]);
+    setGameInsightsLoading(false);
     setGameRoomMessage("");
     setGameRoomError(null);
     setGameRoomPicks([]);
@@ -2437,6 +2367,10 @@ export default function Home() {
             homeScore: game.homeScore,
             awayScore: game.awayScore,
             status: game.status,
+            externalProvider:
+              game.externalProvider ?? null,
+            externalId:
+              game.externalId ?? null,
             icon:
               game.sport === "Soccer"
                 ? "⚽"
@@ -2898,14 +2832,6 @@ export default function Home() {
     }
   }
 
-  function toggleGameDetails(gameId: string) {
-    setExpandedGameIds((current) =>
-      current.includes(gameId)
-        ? current.filter((id) => id !== gameId)
-        : [...current, gameId],
-    );
-  }
-
   async function openPicks() {
     if (!signedInPlayer || !challenge) {
       return;
@@ -3153,7 +3079,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#eef1f4] pb-24 text-[#10254a]">
       {/* DARK APP HEADER */}
-      <header className="bg-[#06284a] text-white">
+      <header className="sticky top-0 z-50 bg-[#06284a] text-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <img
@@ -3300,154 +3226,6 @@ export default function Home() {
           </>
         )}
 
-        {/* BOTTOM DASHBOARD ROW */}
-        <div className="mb-3 grid grid-cols-2 gap-2.5">
-          {/* WHO'S READY */}
-          <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
-            <div className="flex items-center gap-1.5">
-              <span>👥</span>
-              <h2 className="text-[12px] font-black uppercase">
-                Who&apos;s Ready?
-              </h2>
-            </div>
-
-            <div className="mt-3 grid grid-cols-5 gap-1">
-              {players.map((player) => {
-                const count = challengePickStatus[player.id] ?? 0;
-                const ready =
-                  challengeGames.length > 0 &&
-                  count === challengeGames.length;
-
-                return (
-                  <div
-                    key={player.id}
-                    className="min-w-0 text-center"
-                  >
-                    <div
-                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[8px] font-black ${
-                        signedInPlayer?.id === player.id
-                          ? "bg-[#06284a] text-white"
-                          : "bg-slate-200 text-[#10254a]"
-                      }`}
-                    >
-                      {player.initials ?? "?"}
-                    </div>
-
-                    <div
-                      className={`mt-0.5 whitespace-nowrap text-[6px] font-black ${
-                        ready ? "text-green-600" : "text-red-500"
-                      }`}
-                    >
-                      {ready
-                        ? "All set! ✓"
-                        : `${Math.max(
-                            0,
-                            challengeGames.length - count,
-                          )} left`}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* ON YOUR RADAR */}
-          <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
-            <div className="flex items-center gap-1.5">
-              <span>🔥</span>
-              <h2 className="text-[12px] font-black uppercase">
-                On Your Radar
-              </h2>
-            </div>
-
-            <div className="mt-2 space-y-1.5">
-              {/* Challenge status always gets the first spot */}
-              <button
-                onClick={openPicks}
-                className="flex w-full gap-1.5 text-left text-[8px] font-semibold leading-tight"
-              >
-                <span>{currentPlayerReady ? "✅" : "🏆"}</span>
-                <span>
-                  {currentPlayerReady
-                    ? "Your Challenge picks are complete."
-                    : `${Math.max(
-                        0,
-                        challengeGames.length -
-                          challengeGamesWithSavedPick,
-                      )} Challenge picks left.`}
-                </span>
-              </button>
-
-              {/* Best upcoming games based on FamBam watch scoring */}
-              {filteredGames
-                .filter((game) => {
-                  if (!game.startsAt) return false;
-
-                  return (
-                    new Date(game.startsAt).getTime() >
-                    (currentTime ?? Date.now())
-                  );
-                })
-                .sort((a, b) => {
-                  const scoreDifference =
-                    getWatchInfo(
-                      b,
-                      collegeFootballRankings,
-                    ).score -
-                    getWatchInfo(
-                      a,
-                      collegeFootballRankings,
-                    ).score;
-
-                  if (scoreDifference !== 0) {
-                    return scoreDifference;
-                  }
-
-                  return (
-                    new Date(a.startsAt!).getTime() -
-                    new Date(b.startsAt!).getTime()
-                  );
-                })
-                .slice(0, 4)
-                .map((game) => {
-                  const watchInfo = getWatchInfo(
-                    game,
-                    collegeFootballRankings,
-                  );
-
-                  return (
-                    <div
-                      key={game.id}
-                      className="flex gap-1.5 text-[8px] font-semibold leading-tight"
-                    >
-                      <span>{game.icon}</span>
-
-                      <span className="min-w-0">
-                        <span className="font-black">
-                          {watchInfo.label}
-                        </span>
-                        {" · "}
-                        {game.sport === "College Football"
-                          ? rankedTeamLabel(
-                              game.away,
-                              collegeFootballRankings,
-                            )
-                          : game.away}
-                        {" vs "}
-                        {game.sport === "College Football"
-                          ? rankedTeamLabel(
-                              game.home,
-                              collegeFootballRankings,
-                            )
-                          : game.home}
-                      </span>
-                    </div>
-                  );
-                })}
-            </div>
-          </section>
-        </div>
-
         {/* TODAY'S GAMES */}
         <section className="mb-2.5 overflow-hidden rounded-2xl bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
@@ -3517,6 +3295,12 @@ export default function Home() {
                   </div>
 
                   <div className="min-w-0 flex-1">
+                    <button
+                      type="button"
+                      onClick={() => openGameRoom(game)}
+                      className="block w-full rounded-xl text-left active:bg-slate-50"
+                      aria-label={`Open game details for ${game.away} vs ${game.home}`}
+                    >
                     <div className="text-[15px] font-black leading-tight text-[#10254a]">
                       {game.sport === "College Football"
                         ? rankedTeamLabel(game.away, collegeFootballRankings)
@@ -3531,63 +3315,61 @@ export default function Home() {
                       {formatGameTime(game.startsAt, game.startTimeTbd)}
                     </div>
 
-                    {(game.homeScore !== null ||
-                      game.awayScore !== null) && (
-                      <div className="mt-2 flex items-center justify-between rounded-lg bg-[#06284a] px-3 py-2 text-white">
-                        <div>
-                          <div className="text-[9px] font-black uppercase tracking-wide text-[#f3c64f]">
-                            {game.status === "final"
-                              ? "Final"
-                              : "🔴 Live"}
+                    {(() => {
+                      const normalizedStatus = (
+                        game.status ?? ""
+                      ).toLowerCase();
+
+                      const isFinal = [
+                        "final",
+                        "finished",
+                        "complete",
+                        "completed",
+                        "closed",
+                      ].some((status) =>
+                        normalizedStatus.includes(status),
+                      );
+
+                      const startMs = game.startsAt
+                        ? new Date(game.startsAt).getTime()
+                        : Number.MAX_SAFE_INTEGER;
+
+                      const hasStarted = Date.now() >= startMs;
+
+                      const isLive =
+                        !isFinal &&
+                        hasStarted &&
+                        (normalizedStatus.includes("live") ||
+                          normalizedStatus.includes("in_progress") ||
+                          normalizedStatus.includes("in progress"));
+
+                      if (!isLive && !isFinal) {
+                        return null;
+                      }
+
+                      return (
+                        <div className="mt-2 flex items-center justify-between rounded-lg bg-[#06284a] px-3 py-2 text-white">
+                          <div>
+                            <div className="text-[9px] font-black uppercase tracking-wide text-[#f3c64f]">
+                              {isFinal ? "Final" : "🔴 Live"}
+                            </div>
+
+                            <div className="mt-0.5 text-xs font-black">
+                              {game.away} {game.awayScore ?? 0}
+                              {" · "}
+                              {game.home} {game.homeScore ?? 0}
+                            </div>
                           </div>
 
-                          <div className="mt-0.5 text-xs font-black">
-                            {game.away} {game.awayScore ?? 0}
-                            {" · "}
-                            {game.home} {game.homeScore ?? 0}
+                          <div className="text-[9px] font-black uppercase text-slate-200">
+                            {isFinal ? "FINAL" : "LIVE"}
                           </div>
                         </div>
+                      );
+                    })()}
 
-                        <div className="text-[9px] font-black uppercase text-slate-200">
-                          {getStatusLabel(game)}
-                        </div>
-                      </div>
-                    )}
+                    </button>
 
-                    <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
-                      {getGameContext(game, collegeFootballRankings)}
-                    </div>
-
-                    <div className="mt-2 flex justify-end gap-2">
-                      <button
-                        onClick={() => toggleGameDetails(game.id)}
-                        className="rounded-lg bg-[#eef2f6] px-3 py-1.5 text-[10px] font-black text-[#06284a]"
-                      >
-                        {expandedGameIds.includes(game.id)
-                          ? "Show Less ↑"
-                          : "Tell Me More →"}
-                      </button>
-
-                      <button
-                        onClick={() => openGameRoom(game)}
-                        className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
-                      >
-                        Game Details →
-                      </button>
-                    </div>
-
-                    {expandedGameIds.includes(game.id) && (
-                      <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
-                        <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
-                          {getGameFacts(
-                            game,
-                            collegeFootballRankings,
-                          ).map((fact) => (
-                            <li key={fact}>• {fact}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 </div>
               </article>
@@ -3794,16 +3576,6 @@ export default function Home() {
                         )}
                       </div>
 
-                      <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
-                        {getGameContext(
-                          game,
-                          collegeFootballRankings,
-                        )}
-                      </div>
-
-                      <div className="mt-2 text-right text-[9px] font-black uppercase tracking-wide text-[#164d9b]">
-                        Game Details →
-                      </div>
                     </div>
                   </div>
                 </article>
@@ -4094,8 +3866,12 @@ export default function Home() {
 
                               const nowMs = Date.now();
 
+                              const hasStarted =
+                                nowMs >= startMs;
+
                               const isLive =
                                 !isFinal &&
+                                hasStarted &&
                                 (normalizedStatus.includes("live") ||
                                   normalizedStatus.includes(
                                     "in_progress",
@@ -4104,7 +3880,6 @@ export default function Home() {
                                     "in progress",
                                   ) ||
                                   (hasScore &&
-                                    nowMs >= startMs &&
                                     nowMs <=
                                       startMs +
                                         6 * 60 * 60 * 1000));
@@ -4850,22 +4625,9 @@ export default function Home() {
                     </div>
 
                     <div className="mt-0.5 text-xs font-black">
-                      {[
-                        "final",
-                        "finished",
-                        "complete",
-                        "completed",
-                        "closed",
-                      ].some((status) =>
-                        String(
-                          gameRoomGame.status ?? "",
-                        )
-                          .toLowerCase()
-                          .includes(status),
-                      )
+                      {getStatusLabel(gameRoomGame) === "FINAL"
                         ? "🏁 Final"
-                        : gameRoomGame.homeScore !== null ||
-                            gameRoomGame.awayScore !== null
+                        : getStatusLabel(gameRoomGame) === "LIVE"
                           ? "🔴 Live Update"
                           : isTomorrowGame(
                                 gameRoomGame,
@@ -4882,8 +4644,9 @@ export default function Home() {
                 </div>
 
                 <div className="p-3">
-                  {(gameRoomGame.homeScore !== null ||
-                    gameRoomGame.awayScore !== null) && (
+                  {(["LIVE", "FINAL"].includes(
+                    getStatusLabel(gameRoomGame),
+                  )) && (
                     <div className="rounded-xl bg-[#f7f4ec] px-3 py-3 text-center">
                       <div className="text-[10px] font-black uppercase tracking-wide text-slate-500">
                         {[
@@ -4913,8 +4676,9 @@ export default function Home() {
                     </div>
                   )}
 
-                  {gameRoomGame.homeScore === null &&
-                    gameRoomGame.awayScore === null && (
+                  {!["LIVE", "FINAL"].includes(
+                    getStatusLabel(gameRoomGame),
+                  ) && (
                       <div className="text-xs font-semibold leading-relaxed text-slate-600">
                         {getWatchInfo(
                           gameRoomGame,
@@ -4941,23 +4705,6 @@ export default function Home() {
                       </span>
                     )}
 
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
-                <div className="border-b border-slate-100 px-3 py-2.5">
-                  <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
-                    🔥 Why This Game Matters
-                  </div>
-                </div>
-
-                <div className="p-3">
-                  <div className="rounded-xl bg-[#edf5ff] px-3 py-2.5 text-xs font-semibold leading-relaxed text-[#284d7e]">
-                    {getGameContext(
-                      gameRoomGame,
-                      collegeFootballRankings,
-                    )}
                   </div>
                 </div>
               </div>
@@ -5017,41 +4764,45 @@ export default function Home() {
                   <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
                     <div className="border-b border-slate-100 px-3 py-2.5">
                       <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
-                        📚 Tell Me More
+                        📊 About This Game
                       </div>
                     </div>
 
                     <div className="p-3">
-                      <div className="space-y-2">
-                        {getCompetitionExplainer(
-                          gameRoomGame,
-                        ).map((lesson) => (
-                          <div
-                            key={lesson}
-                            className="rounded-xl bg-[#f7f4ec] px-3 py-2.5 text-xs font-semibold leading-relaxed text-slate-600"
-                          >
-                            {lesson}
-                          </div>
-                        ))}
-                      </div>
+                      {gameInsightsLoading ? (
+                        <div className="py-3 text-center text-xs font-semibold text-slate-500">
+                          Checking the matchup…
+                        </div>
+                      ) : gameInsights.length > 0 ? (
+                        <div className="space-y-3">
+                          {gameInsights.map((insight, index) => (
+                            <div
+                              key={`${insight.type}-${index}`}
+                              className="rounded-xl bg-[#f7f4ec] px-3 py-2.5"
+                            >
+                              <div className="text-[10px] font-black uppercase tracking-wide text-[#06284a]">
+                                {insight.title}
+                              </div>
 
-                      <div className="mt-4 text-[10px] font-black uppercase tracking-wide text-[#06284a]">
-                        About This Matchup
-                      </div>
-
-                      <ul className="mt-2 space-y-2 text-xs font-semibold leading-relaxed text-slate-600">
-                        {getGameFacts(
-                          gameRoomGame,
-                          collegeFootballRankings,
-                        ).map((fact) => (
-                          <li key={fact} className="flex gap-2">
-                            <span className="text-[#f3c64f]">
-                              ●
-                            </span>
-                            <span>{fact}</span>
-                          </li>
-                        ))}
-                      </ul>
+                              <div className="mt-1 whitespace-pre-line text-xs font-semibold leading-relaxed text-slate-600">
+                                {insight.text}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : gameRoomGame.sport ===
+                        "College Football" ? (
+                        <div className="rounded-xl bg-[#edf5ff] px-3 py-2.5 text-xs font-semibold leading-relaxed text-[#284d7e]">
+                          {getGameContext(
+                            gameRoomGame,
+                            collegeFootballRankings,
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-xs font-semibold leading-relaxed text-slate-500">
+                          No extra matchup insights are available yet.
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -5199,6 +4950,78 @@ export default function Home() {
                   <h2 className="mt-1 text-2xl font-black tracking-tight">
                     {signedInPlayer.display_name}&apos;s Picks
                   </h2>
+                </div>
+              </div>
+
+              {/* WHO'S READY */}
+              <div className="border-b border-[#e5dcc5] bg-white px-4 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">👥</span>
+                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#06284a]">
+                      Who&apos;s Ready?
+                    </div>
+                  </div>
+
+                  <div className="text-[9px] font-bold text-slate-400">
+                    {challengeGames.length} picks this week
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2">
+                  {players.map((player) => {
+                    const count =
+                      challengePickStatus[player.id] ?? 0;
+
+                    const ready =
+                      challengeGames.length > 0 &&
+                      count === challengeGames.length;
+
+                    const isYou =
+                      player.id === signedInPlayer.id;
+
+                    return (
+                      <div
+                        key={player.id}
+                        className="min-w-0 text-center"
+                      >
+                        <div
+                          className={`relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-[9px] font-black ${
+                            isYou
+                              ? "bg-[#06284a] text-white"
+                              : "bg-[#f7f4ec] text-[#10254a] ring-1 ring-[#e5dcc5]"
+                          }`}
+                        >
+                          {player.initials ?? "?"}
+
+                          {ready && (
+                            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[8px] font-black text-white ring-2 ring-white">
+                              ✓
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-1 truncate text-[8px] font-black text-[#10254a]">
+                          {player.display_name}
+                        </div>
+
+                        <div
+                          className={`mt-0.5 text-[7px] font-black ${
+                            ready
+                              ? "text-green-600"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          {ready
+                            ? "Ready!"
+                            : `${Math.max(
+                                0,
+                                challengeGames.length - count,
+                              )} left`}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -5410,21 +5233,32 @@ export default function Home() {
                               </div>
                             ) : locked ? (
                               <>
-                                <div className="mt-3 text-lg font-black text-slate-950">
-                                  {game.sport === "College Football"
-                                    ? rankedTeamLabel(
-                                        game.away,
-                                        collegeFootballRankings,
-                                      )
-                                    : game.away}
-                                  {" at "}
-                                  {game.sport === "College Football"
-                                    ? rankedTeamLabel(
-                                        game.home,
-                                        collegeFootballRankings,
-                                      )
-                                    : game.home}
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => openGameRoom(game)}
+                                  className="mt-3 block w-full rounded-xl text-left active:bg-slate-50"
+                                  aria-label={`Open game details for ${game.away} vs ${game.home}`}
+                                >
+                                  <div className="text-lg font-black text-slate-950">
+                                    {game.sport === "College Football"
+                                      ? rankedTeamLabel(
+                                          game.away,
+                                          collegeFootballRankings,
+                                        )
+                                      : game.away}
+                                    {" at "}
+                                    {game.sport === "College Football"
+                                      ? rankedTeamLabel(
+                                          game.home,
+                                          collegeFootballRankings,
+                                        )
+                                      : game.home}
+                                  </div>
+
+                                  <div className="mt-1 text-[10px] font-bold text-[#164d75]">
+                                    Tap matchup for game details →
+                                  </div>
+                                </button>
 
                                 {isFinal && (
                                   <div className="mt-3 rounded-2xl border border-[#e3dccd] bg-[#f8f6ef] p-3">
@@ -5446,36 +5280,7 @@ export default function Home() {
                                   </div>
                                 )}
 
-                                <p className="mt-1 text-sm font-semibold leading-snug text-slate-600">
-                                  {getGameContext(
-                                    game,
-                                    collegeFootballRankings,
-                                  )}
-                                </p>
 
-                                <button
-                                  onClick={() =>
-                                    toggleGameDetails(game.id)
-                                  }
-                                  className="mt-2 text-xs font-black text-[#164d75]"
-                                >
-                                  {expandedGameIds.includes(game.id)
-                                    ? "Show Less ↑"
-                                    : "Tell Me More →"}
-                                </button>
-
-                                {expandedGameIds.includes(game.id) && (
-                                  <div className="mt-2 rounded-xl bg-[#f8f6ef] p-3">
-                                    <ul className="space-y-1.5 text-xs font-semibold text-slate-600">
-                                      {getGameFacts(
-                                        game,
-                                        collegeFootballRankings,
-                                      ).map((fact) => (
-                                        <li key={fact}>• {fact}</li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
 
                                 {challengeRevealedPicks[game.id] && (
                                   <div className="mt-3 rounded-2xl border border-[#e3dccd] bg-[#f8f6ef] p-3">
@@ -5585,52 +5390,34 @@ export default function Home() {
                               </>
                             ) : (
                               <>
-                                <div className="mt-3 text-lg font-black text-slate-950">
-                                  {game.sport === "College Football"
-                                    ? rankedTeamLabel(
-                                        game.away,
-                                        collegeFootballRankings,
-                                      )
-                                    : game.away}
-                                  {" at "}
-                                  {game.sport === "College Football"
-                                    ? rankedTeamLabel(
-                                        game.home,
-                                        collegeFootballRankings,
-                                      )
-                                    : game.home}
-                                </div>
-
-                                <p className="mt-1 text-sm font-semibold leading-snug text-slate-600">
-                                  {getGameContext(
-                                    game,
-                                    collegeFootballRankings,
-                                  )}
-                                </p>
-
                                 <button
-                                  onClick={() =>
-                                    toggleGameDetails(game.id)
-                                  }
-                                  className="mt-2 text-xs font-black text-[#164d75]"
+                                  type="button"
+                                  onClick={() => openGameRoom(game)}
+                                  className="mt-3 block w-full rounded-xl text-left active:bg-slate-50"
+                                  aria-label={`Open game details for ${game.away} vs ${game.home}`}
                                 >
-                                  {expandedGameIds.includes(game.id)
-                                    ? "Show Less ↑"
-                                    : "Tell Me More →"}
+                                  <div className="text-lg font-black text-slate-950">
+                                    {game.sport === "College Football"
+                                      ? rankedTeamLabel(
+                                          game.away,
+                                          collegeFootballRankings,
+                                        )
+                                      : game.away}
+                                    {" at "}
+                                    {game.sport === "College Football"
+                                      ? rankedTeamLabel(
+                                          game.home,
+                                          collegeFootballRankings,
+                                        )
+                                      : game.home}
+                                  </div>
+
+                                  <div className="mt-1 text-[10px] font-bold text-[#164d75]">
+                                    Tap matchup for game details →
+                                  </div>
                                 </button>
 
-                                {expandedGameIds.includes(game.id) && (
-                                  <div className="mt-2 rounded-xl bg-[#f8f6ef] p-3">
-                                    <ul className="space-y-1.5 text-xs font-semibold text-slate-600">
-                                      {getGameFacts(
-                                        game,
-                                        collegeFootballRankings,
-                                      ).map((fact) => (
-                                        <li key={fact}>• {fact}</li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
+
 
                                 <div
                                   className={`mt-4 grid gap-2 ${

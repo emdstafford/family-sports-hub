@@ -3040,19 +3040,25 @@ export default function Home() {
         ],
       );
 
+      const activeSavedCount =
+        Math.min(
+          totalSaved,
+          challengeGames.length,
+        );
+
       setChallengePickStatus(
         (current) => ({
           ...current,
           [signedInPlayer.id]:
-            totalSaved,
+            activeSavedCount,
         }),
       );
 
       setPicksSuccess(
-        totalSaved ===
+        activeSavedCount ===
           challengeGames.length
-          ? `You're all set! ${totalSaved}/${challengeGames.length} picks saved. ✅`
-          : `${totalSaved}/${challengeGames.length} picks saved. Come back anytime to finish!`,
+          ? `You're all set! ${activeSavedCount}/${challengeGames.length} picks saved. ✅`
+          : `${activeSavedCount}/${challengeGames.length} picks saved. Come back anytime to finish!`,
       );
     } catch (error) {
       setPicksError(

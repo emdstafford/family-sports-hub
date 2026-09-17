@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 type NamedRow = {
-  id?: string;
   name: string;
 };
 
@@ -12,11 +11,6 @@ type GameRow = {
   status: string | null;
   external_provider: string | null;
   external_id: string | null;
-  home_score: number | null;
-  away_score: number | null;
-  week_label: string | null;
-  season: string | null;
-  source_notes: string | null;
   home_team: NamedRow | NamedRow[] | null;
   away_team: NamedRow | NamedRow[] | null;
   competition: NamedRow | NamedRow[] | null;
@@ -71,10 +65,7 @@ type Insight = {
     | "standings"
     | "standings_note"
     | "form"
-    | "previous_meeting"
-    | "why_it_matters"
-    | "event_context"
-    | "final_score";
+    | "previous_meeting";
   title: string;
   text: string;
 };
@@ -89,13 +80,6 @@ function getName(
   }
 
   return value.name;
-}
-
-function getRow(
-  value: NamedRow | NamedRow[] | null,
-) {
-  if (!value) return null;
-  return Array.isArray(value) ? value[0] ?? null : value;
 }
 
 function getAdminClient() {
@@ -394,381 +378,6 @@ function previousMeetingInsight(
   };
 }
 
-function isFinalStatus(status: string | null) {
-  const value = String(status ?? "").toLowerCase();
-
-  return [
-    "final",
-    "finished",
-    "complete",
-    "completed",
-    "closed",
-  ].some((item) => value.includes(item));
-}
-
-function isUsefulSourceNote(value: string | null) {
-  const note = String(value ?? "").trim();
-
-  if (!note) return false;
-
-  const providerStatusCodes = new Set([
-    "FT",
-    "HT",
-    "NS",
-    "TBD",
-    "AET",
-    "PEN",
-    "PST",
-    "CANC",
-    "ABD",
-    "AWD",
-    "WO",
-    "LIVE",
-    "FINAL",
-    "FINISHED",
-    "SCHEDULED",
-  ]);
-
-  return !providerStatusCodes.has(note.toUpperCase());
-}
-
-function isKnockoutCompetition(competition: string) {
-  const value = competition.toLowerCase();
-
-  return (
-    value.includes("carabao") ||
-    value.includes("efl cup") ||
-    value.includes("league cup") ||
-    value.includes("fa cup")
-  );
-}
-
-function winnerText(
-  home: string,
-  away: string,
-  homeScore: number,
-  awayScore: number,
-) {
-  if (homeScore > awayScore) return home;
-  if (awayScore > homeScore) return away;
-  return null;
-}
-
-function buildStoredGameInsights(game: GameRow): Insight[] {
-  const sport = getName(game.sport) ?? "Sports";
-  const competition = getName(game.competition) ?? "Game";
-  const home = getName(game.home_team) ?? "Home";
-  const away = getName(game.away_team) ?? "Away";
-  const insights: Insight[] = [];
-
-  const isFinal =
-    isFinalStatus(game.status) &&
-    game.home_score !== null &&
-    game.away_score !== null;
-
-  const winner =
-    isFinal
-      ? winnerText(
-          home,
-          away,
-          game.home_score as number,
-          game.away_score as number,
-        )
-      : null;
-
-  let whyItMatters: string;
-
-  if (isKnockoutCompetition(competition)) {
-    if (isFinal && winner) {
-      const eliminated =
-        winner === home ? away : home;
-
-      whyItMatters =
-        `${winner} advanced in ${competition} with a ` +
-        `${game.home_score}-${game.away_score} win over ${eliminated}. ` +
-        `This is a knockout competition, so ${winner} moves on and ` +
-        `${eliminated} is eliminated.`;
-    } else if (isFinal) {
-      whyItMatters =
-        `${home} and ${away} finished level in ${competition}. ` +
-        `Because this is a knockout competition, the tie must be decided ` +
-        `by the competition's tiebreak procedure before a team advances.`;
-    } else {
-      whyItMatters =
-        `${home} and ${away} meet in ${competition}, a knockout competition. ` +
-        `The team that wins advances; the losing team's cup run ends.`;
-    }
-  } else if (isUsefulSourceNote(game.source_notes)) {
-    whyItMatters = game.source_notes!.trim();
-  } else if (
-    sport === "Soccer" &&
-    competition.toLowerCase().includes("premier league")
-  ) {
-    whyItMatters =
-      `${away} at ${home} is a Premier League match. ` +
-      `League results affect the season table: a win earns 3 points, ` +
-      `a draw earns 1, and a loss earns 0.`;
-  } else if (
-    sport === "Soccer" &&
-    competition.toLowerCase().includes("champions league")
-  ) {
-    whyItMatters =
-      `${away} at ${home} is a UEFA Champions League match. ` +
-      `The result affects each club's path through Europe's top club competition.`;
-  } else {
-    whyItMatters =
-      `${away} at ${home} is part of ${competition}.`;
-  }
-
-  insights.push({
-    type: "why_it_matters",
-    title: "Why It Matters",
-    text: whyItMatters,
-  });
-
-  let eventContext: string;
-
-  if (isKnockoutCompetition(competition)) {
-    eventContext =
-      `${competition} is a knockout cup competition for English clubs. ` +
-      `Unlike a league table, there are no standings points to collect from this match: ` +
-      `one team advances and the other is eliminated.`;
-  } else if (
-    sport === "Soccer" &&
-    competition.toLowerCase().includes("premier league")
-  ) {
-    eventContext =
-      `The Premier League is a season-long table. Clubs earn 3 points for a win, ` +
-      `1 for a draw and 0 for a loss, with results building toward the final standings.`;
-  } else if (
-    sport === "Soccer" &&
-    competition.toLowerCase().includes("champions league")
-  ) {
-    eventContext =
-      `The UEFA Champions League brings together leading clubs from across Europe. ` +
-      `Results determine advancement through the competition and the path toward the final.`;
-  } else {
-    const contextParts = [
-      sport,
-      competition,
-      game.week_label,
-      game.season ? `Season ${game.season}` : null,
-    ].filter(Boolean);
-
-    eventContext = contextParts.join(" · ");
-  }
-
-  if (eventContext) {
-    insights.push({
-      type: "event_context",
-      title: "Tell Me More",
-      text: eventContext,
-    });
-  }
-
-  if (isFinal) {
-    insights.push({
-      type: "final_score",
-      title: "What Happened?",
-      text: `${away} ${game.away_score} · ${home} ${game.home_score}`,
-    });
-  }
-
-  return insights;
-}
-
-
-async function buildCollegeFootballInsights(
-  game: GameRow,
-): Promise<Insight[]> {
-  const supabase = getAdminClient();
-  const homeRow = getRow(game.home_team);
-  const awayRow = getRow(game.away_team);
-  const home = homeRow?.name ?? "Home";
-  const away = awayRow?.name ?? "Away";
-
-  const seasonNumber = Number(game.season);
-  const season =
-    Number.isFinite(seasonNumber) && seasonNumber > 2000
-      ? seasonNumber
-      : new Date(game.starts_at ?? Date.now()).getFullYear();
-
-  const weekMatch = String(game.week_label ?? "").match(/(\d+)/);
-  const week = weekMatch ? Number(weekMatch[1]) : null;
-
-  let rankingQuery = supabase
-    .from("college_football_rankings")
-    .select("team_name, rank, season, week, poll")
-    .eq("poll", "AP Top 25")
-    .eq("season", season)
-    .in("team_name", [home, away])
-    .order("week", { ascending: false });
-
-  if (week !== null) {
-    rankingQuery = rankingQuery.lte("week", week);
-  }
-
-  const { data: rankingRows } = await rankingQuery.limit(10);
-
-  const latestRankingWeek =
-    (rankingRows ?? []).reduce(
-      (latest, row) => Math.max(latest, Number(row.week) || 0),
-      0,
-    );
-
-  const currentRankings = (rankingRows ?? []).filter(
-    (row) => Number(row.week) === latestRankingWeek,
-  );
-
-  const homeRank =
-    currentRankings.find(
-      (row) =>
-        row.team_name.trim().toLowerCase() ===
-        home.trim().toLowerCase(),
-    )?.rank ?? null;
-
-  const awayRank =
-    currentRankings.find(
-      (row) =>
-        row.team_name.trim().toLowerCase() ===
-        away.trim().toLowerCase(),
-    )?.rank ?? null;
-
-  const teamIds = [homeRow?.id, awayRow?.id].filter(
-    (id): id is string => Boolean(id),
-  );
-
-  let recentGames: Array<{
-    home_team_id: string;
-    away_team_id: string;
-    home_score: number | null;
-    away_score: number | null;
-    starts_at: string | null;
-    status: string | null;
-  }> = [];
-
-  if (teamIds.length > 0) {
-    const cutoff = game.starts_at ?? new Date().toISOString();
-
-    const { data } = await supabase
-      .from("games")
-      .select(
-        "home_team_id, away_team_id, home_score, away_score, starts_at, status",
-      )
-      .eq("sport_id", game.sport ? getRow(game.sport)?.id ?? "" : "")
-      .lt("starts_at", cutoff)
-      .or(
-        teamIds
-          .flatMap((id) => [
-            `home_team_id.eq.${id}`,
-            `away_team_id.eq.${id}`,
-          ])
-          .join(","),
-      )
-      .order("starts_at", { ascending: false })
-      .limit(20);
-
-    recentGames = data ?? [];
-  }
-
-  function recordFor(teamId: string | undefined) {
-    if (!teamId) return null;
-
-    const teamGames = recentGames
-      .filter(
-        (row) =>
-          row.home_team_id === teamId ||
-          row.away_team_id === teamId,
-      )
-      .filter(
-        (row) =>
-          isFinalStatus(row.status) &&
-          row.home_score !== null &&
-          row.away_score !== null,
-      )
-      .slice(0, 5);
-
-    if (!teamGames.length) return null;
-
-    let wins = 0;
-    let losses = 0;
-
-    for (const row of teamGames) {
-      const isHome = row.home_team_id === teamId;
-      const teamScore = isHome ? row.home_score! : row.away_score!;
-      const opponentScore = isHome ? row.away_score! : row.home_score!;
-
-      if (teamScore > opponentScore) wins += 1;
-      else if (teamScore < opponentScore) losses += 1;
-    }
-
-    return { wins, losses, games: teamGames.length };
-  }
-
-  const homeRecord = recordFor(homeRow?.id);
-  const awayRecord = recordFor(awayRow?.id);
-
-  const rankedHome = homeRank ? `#${homeRank} ${home}` : home;
-  const rankedAway = awayRank ? `#${awayRank} ${away}` : away;
-
-  let why =
-    `${rankedAway} visits ${rankedHome} in NCAA Football.`;
-
-  if (homeRank && awayRank) {
-    why =
-      `This is a ranked matchup: #${awayRank} ${away} visits ` +
-      `#${homeRank} ${home}. A result between two AP Top 25 teams can ` +
-      `matter for the national rankings and postseason picture.`;
-  } else if (homeRank || awayRank) {
-    const rankedTeam = homeRank
-      ? `#${homeRank} ${home}`
-      : `#${awayRank} ${away}`;
-
-    why =
-      `${rankedTeam} enters this matchup ranked in the AP Top 25. ` +
-      `Games involving ranked teams can affect the next poll and the ` +
-      `larger postseason picture.`;
-  } else if (game.week_label) {
-    why =
-      `${away} visits ${home} in ${game.week_label} of the college football season.`;
-  }
-
-  const details: string[] = [];
-
-  if (homeRank || awayRank) {
-    details.push(
-      `AP Top 25: ${awayRank ? `#${awayRank} ${away}` : `${away} unranked`} · ` +
-      `${homeRank ? `#${homeRank} ${home}` : `${home} unranked`}.`,
-    );
-  }
-
-  if (awayRecord || homeRecord) {
-    details.push(
-      `Recent completed games: ` +
-      `${away}${awayRecord ? ` ${awayRecord.wins}-${awayRecord.losses}` : " —"} · ` +
-      `${home}${homeRecord ? ` ${homeRecord.wins}-${homeRecord.losses}` : " —"}.`,
-    );
-  }
-
-  details.push(
-    `College football results can affect conference races, national rankings ` +
-    `and the College Football Playoff picture.`,
-  );
-
-  return [
-    {
-      type: "why_it_matters",
-      title: "Why It Matters",
-      text: why,
-    },
-    {
-      type: "event_context",
-      title: "Tell Me More",
-      text: details.join(" "),
-    },
-  ];
-}
-
 async function buildFootballDataInsights(
   game: GameRow,
 ): Promise<Insight[]> {
@@ -794,14 +403,12 @@ async function buildFootballDataInsights(
     homeMatchesResponse,
     awayMatchesResponse,
   ] = await Promise.all([
-    getName(game.competition) === "Premier League"
-      ? footballDataFetch<{
-          standings: Array<{
-            type: string;
-            table: StandingRow[];
-          }>;
-        }>("/competitions/PL/standings")
-      : Promise.resolve(null),
+    footballDataFetch<{
+      standings: Array<{
+        type: string;
+        table: StandingRow[];
+      }>;
+    }>("/competitions/PL/standings"),
 
     footballDataFetch<{
       matches: FootballDataMatch[];
@@ -958,15 +565,10 @@ export async function GET(
           status,
           external_provider,
           external_id,
-          home_score,
-          away_score,
-          week_label,
-          season,
-          source_notes,
-          home_team:teams!games_home_team_id_fkey(id,name),
-          away_team:teams!games_away_team_id_fkey(id,name),
+          home_team:teams!games_home_team_id_fkey(name),
+          away_team:teams!games_away_team_id_fkey(name),
           competition:competitions!games_competition_id_fkey(name),
-          sport:sports!games_sport_id_fkey(id,name)
+          sport:sports!games_sport_id_fkey(name)
         `)
         .eq("id", gameId)
         .maybeSingle();
@@ -996,37 +598,17 @@ export async function GET(
     const game =
       data as unknown as GameRow;
 
-    let insights: Insight[] =
-      buildStoredGameInsights(game);
-
-    if (getName(game.sport) === "College Football") {
-      const collegeFootballInsights =
-        await buildCollegeFootballInsights(game);
-
-      insights = [
-        ...collegeFootballInsights,
-        ...insights.filter(
-          (item) =>
-            item.type !== "why_it_matters" &&
-            item.type !== "event_context",
-        ),
-      ];
-    }
+    let insights: Insight[] = [];
 
     if (
       getName(game.sport) === "Soccer" &&
       game.external_provider ===
         "football-data"
     ) {
-      const providerInsights =
+      insights =
         await buildFootballDataInsights(
           game,
         );
-
-      insights = [
-        ...insights,
-        ...providerInsights,
-      ];
     }
 
     return NextResponse.json({
@@ -1047,9 +629,6 @@ export async function GET(
           game.external_provider,
         externalId:
           game.external_id,
-        weekLabel: game.week_label,
-        season: game.season,
-        sourceNotes: game.source_notes,
       },
       insights,
     });

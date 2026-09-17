@@ -79,8 +79,6 @@ type BrowserGame = {
   homeScore: number | null;
   awayScore: number | null;
   status: string;
-  externalProvider: string | null;
-  externalId: string | null;
   icon: string;
   liveData: boolean;
 };
@@ -180,37 +178,17 @@ function formatGameTime(
 
 function getStatusLabel(game: BrowserGame) {
   if (!game.liveData) return "SAMPLE";
-
-  const normalizedStatus = (
-    game.status ?? ""
-  ).toLowerCase();
-
-  const isFinal = [
-    "final",
-    "finished",
-    "complete",
-    "completed",
-    "closed",
-  ].some((status) =>
-    normalizedStatus.includes(status),
-  );
-
-  if (isFinal) return "FINAL";
+  if (game.status === "final") return "FINAL";
   if (game.startTimeTbd) return "TIME TBD";
 
-  const startMs = game.startsAt
-    ? new Date(game.startsAt).getTime()
-    : Number.MAX_SAFE_INTEGER;
+  if (
+    game.homeScore !== null ||
+    game.awayScore !== null
+  ) {
+    return "LIVE";
+  }
 
-  const hasStarted = Date.now() >= startMs;
-
-  const isLive =
-    hasStarted &&
-    (normalizedStatus.includes("live") ||
-      normalizedStatus.includes("in_progress") ||
-      normalizedStatus.includes("in progress"));
-
-  return isLive ? "LIVE" : "SCHEDULED";
+  return "SCHEDULED";
 }
 
 function getEasternDateParts(value: Date | number | string) {
@@ -520,96 +498,6 @@ function getWatchInfo(
 }
 
 
-function getCompetitionExplainer(
-  game: BrowserGame,
-): string[] {
-  const competition = (
-    game.competition ?? ""
-  ).toLowerCase();
-
-  if (competition.includes("premier league")) {
-    return [
-      "The Premier League is a season-long table. A win earns 3 points, a draw earns 1, and a loss earns 0.",
-      "Each club plays 38 league matches, so this result contributes directly to the title race, European places, or the relegation fight.",
-      "When teams finish level on points, goal difference becomes an important tiebreaker — so the score can matter beyond simply winning or losing.",
-    ];
-  }
-
-  if (
-    competition.includes("champions league") ||
-    competition.includes("uefa champions")
-  ) {
-    return [
-      "The Champions League brings together Europe's top clubs rather than teams from only one domestic league.",
-      "In the current format, 36 clubs share one league-phase table and each club plays eight different opponents — four at home and four away.",
-      "League-phase position affects who advances directly, who must survive an extra playoff round, and the path into the knockout rounds.",
-    ];
-  }
-
-  if (
-    competition.includes("fa cup") ||
-    competition.includes("efl cup") ||
-    competition.includes("league cup")
-  ) {
-    return [
-      "This is a cup competition, so league-table points are not at stake.",
-      "Cup matches are about advancement: survive the tie and move closer to a trophy; lose and the cup run ends.",
-      "Cup games can create some of English football's best upset stories when a smaller club gets a chance against a bigger one.",
-    ];
-  }
-
-  if (
-    competition.includes("league one") ||
-    competition.includes("efl league one")
-  ) {
-    return [
-      "League One is part of England's promotion and relegation system, so every league result affects the race up or down the pyramid.",
-      "The top two clubs earn automatic promotion, while the next four enter the promotion playoffs.",
-      "Results near the bottom matter too because the lowest clubs are relegated to League Two.",
-    ];
-  }
-
-  if (game.sport === "College Football") {
-    return [
-      "College football results can affect conference races, national rankings, and the College Football Playoff picture.",
-      "Ranked matchups matter even more because one result can move both teams significantly in the national conversation.",
-      "Conference games become especially important because they help determine who reaches the conference championship.",
-    ];
-  }
-
-  if (game.sport === "College Basketball") {
-    return [
-      "College basketball results build a team's résumé for conference positioning and eventually the NCAA Tournament.",
-      "Conference games affect league standings, while strong wins can become important when tournament selections and seeding are decided.",
-    ];
-  }
-
-  if (game.sport === "Hockey") {
-    return [
-      "NHL games contribute to the standings through points, so results build toward division position and the playoff race.",
-      "As the season progresses, games against nearby teams in the standings can have an especially large playoff impact.",
-    ];
-  }
-
-  if (game.sport === "Baseball") {
-    return [
-      "MLB teams are building toward division championships and Wild Card places across a long regular season.",
-      "Series against division opponents can become especially important because they affect both teams competing in the same race.",
-    ];
-  }
-
-  if (game.sport === "Volleyball") {
-    return [
-      "College volleyball matches help shape conference standings, national rankings, and the résumé used for NCAA Tournament selection.",
-      "Conference matches become particularly valuable later in the season as teams fight for championships and postseason positioning.",
-    ];
-  }
-
-  return [
-    "This section will teach you what this competition means, what is at stake, and how this game fits into the bigger season.",
-  ];
-}
-
 function getGameContext(
   game: BrowserGame,
   rankings: CollegeFootballRanking[],
@@ -666,6 +554,135 @@ function getGameContext(
   return "One of this week's FamBam Challenge games.";
 }
 
+function getGameFacts(
+  game: BrowserGame,
+  rankings: CollegeFootballRanking[],
+) {
+  const facts: string[] = [];
+
+  if (game.sport === "College Football") {
+    const awayRank = getTeamRank(game.away, rankings);
+    const homeRank = getTeamRank(game.home, rankings);
+
+    if (awayRank && homeRank) {
+      facts.push(
+        `This is a ranked-vs-ranked matchup: #${awayRank} ${game.away} visits #${homeRank} ${game.home}.`,
+      );
+    } else if (awayRank) {
+      facts.push(
+        `#${awayRank} ${game.away} comes into this one ranked, while ${game.home} gets the game at home.`,
+      );
+    } else if (homeRank) {
+      facts.push(
+        `${game.away} gets a road shot at #${homeRank} ${game.home}.`,
+      );
+    } else {
+      facts.push(
+        `${game.away} goes on the road to face ${game.home}.`,
+      );
+    }
+
+    if (hasTeam(game, "Kentucky")) {
+      const opponent =
+        game.home.toLowerCase().includes("kentucky")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `Kentucky's matchup with ${opponent} is one the family will especially want to keep an eye on.`,
+      );
+    } else if (hasTeam(game, "Georgia")) {
+      const opponent =
+        game.home.toLowerCase().includes("georgia")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `Georgia faces ${opponent} in a game that will be especially relevant for the Georgia fans in the family.`,
+      );
+    }
+
+    if (awayRank && !homeRank) {
+      facts.push(
+        `${game.home} has the home-field opportunity to knock off a ranked opponent.`,
+      );
+    } else if (homeRank && !awayRank) {
+      facts.push(
+        `${game.away} would have to beat a ranked opponent on the road to pull this one out.`,
+      );
+    } else if (awayRank && homeRank) {
+      facts.push(
+        `With both teams ranked, this is one of the stronger matchups on the Challenge slate.`,
+      );
+    }
+  }
+
+  if (game.sport === "Soccer") {
+    facts.push(
+      `${game.away} travels to ${game.home} for this ${game.competition} matchup.`,
+    );
+
+    if (hasTeam(game, "Arsenal")) {
+      const opponent =
+        game.home.toLowerCase().includes("arsenal")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `Arsenal faces ${opponent}, making this especially relevant for the Arsenal supporters in the family.`,
+      );
+    } else if (hasTeam(game, "Liverpool")) {
+      const opponent =
+        game.home.toLowerCase().includes("liverpool")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `Liverpool faces ${opponent}, so this one belongs on Kayla's radar.`,
+      );
+    } else if (hasTeam(game, "Aston Villa")) {
+      const opponent =
+        game.home.toLowerCase().includes("aston villa")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `Aston Villa faces ${opponent}, making this one especially relevant for the Villa supporters in the family.`,
+      );
+    } else if (hasTeam(game, "AFC Wimbledon")) {
+      const opponent =
+        game.home.toLowerCase().includes("afc wimbledon")
+          ? game.away
+          : game.home;
+
+      facts.push(
+        `AFC Wimbledon faces ${opponent}, so this is one of Emily's clubs to follow.`,
+      );
+    }
+
+    facts.push(
+      `Because this is ${game.competition}, the result counts toward that competition rather than a separate league or cup.`,
+    );
+  }
+
+  if (facts.length < 2) {
+    facts.push(
+      `${game.away} visits ${game.home} in the ${game.competition}.`,
+    );
+  }
+
+  if (facts.length < 3) {
+    facts.push(
+      `Kickoff: ${formatGameDate(game.startsAt)} at ${formatGameTime(
+        game.startsAt,
+        game.startTimeTbd,
+      )}.`,
+    );
+  }
+
+  return facts.slice(0, 3);
+}
+
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [challenge, setChallenge] =
@@ -713,15 +730,6 @@ export default function Home() {
 
   const [activeSport, setActiveSport] =
     useState<Sport>("All");
-
-  const [activeWatchFilter, setActiveWatchFilter] =
-    useState<
-      | "All"
-      | "Must Watch"
-      | "Big Game"
-      | "FamBam"
-      | "Worth Watching"
-    >("All");
 
   const [trophyRoomOpen, setTrophyRoomOpen] =
     useState(false);
@@ -808,6 +816,9 @@ export default function Home() {
   const [savedPickGameIds, setSavedPickGameIds] =
     useState<string[]>([]);
 
+  const [expandedGameIds, setExpandedGameIds] =
+    useState<string[]>([]);
+
   const [gameRoomGame, setGameRoomGame] =
     useState<BrowserGame | null>(null);
 
@@ -818,18 +829,6 @@ export default function Home() {
     useState("");
 
   const [gameRoomLoading, setGameRoomLoading] =
-    useState(false);
-
-  const [gameInsights, setGameInsights] =
-    useState<
-      Array<{
-        type: string;
-        title: string;
-        text: string;
-      }>
-    >([]);
-
-  const [gameInsightsLoading, setGameInsightsLoading] =
     useState(false);
 
   const [gameRoomSending, setGameRoomSending] =
@@ -1137,42 +1136,12 @@ export default function Home() {
 
   async function openGameRoom(game: BrowserGame) {
     if (!signedInPlayer) {
-      setLoadError("Choose your player before opening Game Details.");
+      setLoadError("Choose your player before entering a Game Room.");
       return;
     }
 
     setGameRoomGame(game);
     setGameRoomMessages([]);
-    setGameInsights([]);
-    setGameInsightsLoading(true);
-
-    void fetch(
-      `/api/game-insights?gameId=${encodeURIComponent(game.id)}`,
-    )
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("Unable to load game insights");
-        }
-
-        return response.json();
-      })
-      .then((data) => {
-        setGameInsights(
-          Array.isArray(data.insights)
-            ? data.insights
-            : [],
-        );
-      })
-      .catch((error) => {
-        console.error(
-          "Unable to load game insights:",
-          error,
-        );
-        setGameInsights([]);
-      })
-      .finally(() => {
-        setGameInsightsLoading(false);
-      });
     setGameRoomMessage("");
     setGameRoomError(null);
 
@@ -1186,19 +1155,84 @@ export default function Home() {
     gameRoomSeenLiveEventKeysRef.current =
       new Set();
 
-    await loadGameRoomPicks(game);
+    await Promise.all([
+      loadGameRoomMessages(game),
+      loadGameRoomPicks(game),
+    ]);
   }
 
-  // Chat/typing realtime subscriptions are intentionally disabled.
-  // Game Details keeps live scores, game events and FamBam Picks,
-  // while the old chat code remains available for a future feature.
+  useEffect(() => {
+    if (!gameRoomGame || !signedInPlayer) return;
 
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel(`game-room-${gameRoomGame.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "game_room_events",
+          filter: `game_id=eq.${gameRoomGame.id}`,
+        },
+        async (payload) => {
+          const event = payload.new as {
+            event_type?: string;
+            player_id?: string | null;
+          };
+
+          if (event.event_type === "typing") {
+            if (
+              event.player_id &&
+              event.player_id !== signedInPlayer.id
+            ) {
+              const typingPlayer =
+                players.find(
+                  (player) => player.id === event.player_id,
+                );
+
+              setGameRoomTypingName(
+                typingPlayer?.display_name ?? "Someone",
+              );
+
+              if (gameRoomTypingTimeoutRef.current) {
+                clearTimeout(
+                  gameRoomTypingTimeoutRef.current,
+                );
+              }
+
+              gameRoomTypingTimeoutRef.current =
+                setTimeout(() => {
+                  setGameRoomTypingName(null);
+                }, 2500);
+            }
+
+            return;
+          }
+
+          if (event.event_type === "message") {
+            setGameRoomTypingName(null);
+            await loadGameRoomMessages(gameRoomGame);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+
+      if (gameRoomTypingTimeoutRef.current) {
+        clearTimeout(gameRoomTypingTimeoutRef.current);
+      }
+
+      setGameRoomTypingName(null);
+    };
+  }, [gameRoomGame?.id, signedInPlayer?.id, players]);
 
   function closeGameRoom() {
     setGameRoomGame(null);
     setGameRoomMessages([]);
-    setGameInsights([]);
-    setGameInsightsLoading(false);
     setGameRoomMessage("");
     setGameRoomError(null);
     setGameRoomPicks([]);
@@ -1221,34 +1255,6 @@ export default function Home() {
 
     async function refreshGameRoomGame() {
       try {
-        // First refresh this exact game from its live data provider.
-        // This updates Supabase before the Game Room reads the score.
-        try {
-          const liveResponse = await fetch(
-            `/api/game-room/live?gameId=${encodeURIComponent(gameRoomGameId)}`,
-            {
-              cache: "no-store",
-            },
-          );
-
-          if (!liveResponse.ok) {
-            const liveBody = await liveResponse
-              .json()
-              .catch(() => null);
-
-            console.error(
-              "Game Details provider refresh failed:",
-              liveResponse.status,
-              liveBody,
-            );
-          }
-        } catch (liveError) {
-          console.error(
-            "Game Details provider refresh request failed:",
-            liveError,
-          );
-        }
-
         const response = await fetch(
           `/api/games?gameId=${encodeURIComponent(gameRoomGameId)}`,
           {
@@ -1428,18 +1434,6 @@ export default function Home() {
             return current;
           }
 
-          const unchanged =
-            current.startsAt === updatedGame.startsAt &&
-            current.startTimeTbd ===
-              updatedGame.startTimeTbd &&
-            current.homeScore ===
-              updatedGame.homeScore &&
-            current.awayScore ===
-              updatedGame.awayScore &&
-            current.status === updatedGame.status;
-
-          if (unchanged) return current;
-
           return {
             ...current,
             startsAt: updatedGame.startsAt,
@@ -1451,89 +1445,30 @@ export default function Home() {
           };
         });
 
-        setRealGames((currentGames) => {
-          let changed = false;
-
-          const nextGames = currentGames.map(
-            (game) => {
-              if (game.id !== updatedGame.id) {
-                return game;
-              }
-
-              const unchanged =
-                game.startsAt === updatedGame.startsAt &&
-                game.startTimeTbd ===
-                  updatedGame.startTimeTbd &&
-                game.homeScore ===
-                  updatedGame.homeScore &&
-                game.awayScore ===
-                  updatedGame.awayScore &&
-                game.status === updatedGame.status;
-
-              if (unchanged) return game;
-
-              changed = true;
-
-              return {
-                ...game,
-                startsAt: updatedGame.startsAt,
-                startTimeTbd:
-                  updatedGame.startTimeTbd,
-                homeScore: updatedGame.homeScore,
-                awayScore: updatedGame.awayScore,
-                status: updatedGame.status,
-              };
-            },
-          );
-
-          return changed
-            ? nextGames
-            : currentGames;
-        });
+        setRealGames((currentGames) =>
+          currentGames.map((game) =>
+            game.id === updatedGame.id
+              ? {
+                  ...game,
+                  startsAt: updatedGame.startsAt,
+                  startTimeTbd:
+                    updatedGame.startTimeTbd,
+                  homeScore: updatedGame.homeScore,
+                  awayScore: updatedGame.awayScore,
+                  status: updatedGame.status,
+                }
+              : game,
+          ),
+        );
       } catch (error) {
         console.error(
-          "Game Details score refresh failed:",
+          "Game Room score refresh failed:",
           error,
         );
       }
     }
 
     void refreshGameRoomGame();
-
-    const finalStatuses = [
-      "final",
-      "finished",
-      "complete",
-      "completed",
-      "closed",
-    ];
-
-    const status =
-      String(gameRoomGame.status ?? "").toLowerCase();
-
-    const alreadyFinal = finalStatuses.some(
-      (value) => status.includes(value),
-    );
-
-    const startsAtMs = gameRoomGame.startsAt
-      ? new Date(gameRoomGame.startsAt).getTime()
-      : null;
-
-    const nowMs = Date.now();
-
-    // Keep live polling focused around the actual game window.
-    // Start 10 minutes before kickoff and allow a generous
-    // six-hour window for long football games / delays.
-    const inLiveWindow =
-      startsAtMs !== null &&
-      nowMs >= startsAtMs - 10 * 60_000 &&
-      nowMs <= startsAtMs + 6 * 60 * 60_000;
-
-    if (alreadyFinal || !inLiveWindow) {
-      return () => {
-        cancelled = true;
-      };
-    }
 
     const interval = window.setInterval(
       refreshGameRoomGame,
@@ -1689,18 +1624,7 @@ export default function Home() {
     }
   }
 
-  useEffect(() => {
-    if (
-      activeSection === "Locker Room" &&
-      signedInPlayer &&
-      profileSports.length === 0 &&
-      !profileLoading
-    ) {
-      void openProfile(false);
-    }
-  }, [activeSection, signedInPlayer?.id]);
-
-  async function openProfile(showModal = true) {
+  async function openProfile() {
     if (!signedInPlayer) return;
 
     const sessionToken =
@@ -1708,7 +1632,7 @@ export default function Home() {
         "fambam_session_token",
       );
 
-    setProfileOpen(showModal);
+    setProfileOpen(true);
     setProfileLoading(true);
     setProfileError(null);
     setProfileTeamSearch("");
@@ -2023,170 +1947,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (activeSection !== "Home") return;
-
-    let cancelled = false;
-
-    async function refreshHomeLiveScores() {
-      const now = Date.now();
-
-      const finalStatuses = [
-        "final",
-        "finished",
-        "complete",
-        "completed",
-        "closed",
-      ];
-
-      const gamesToRefresh = realGames.filter((game) => {
-        if (
-          game.sport !== "Soccer" &&
-          game.sport !== "College Football"
-        ) {
-          return false;
-        }
-
-        if (!game.startsAt) return false;
-
-        const status = String(
-          game.status ?? "",
-        ).toLowerCase();
-
-        if (
-          finalStatuses.some((finalStatus) =>
-            status.includes(finalStatus),
-          )
-        ) {
-          return false;
-        }
-
-        const startsAtMs = new Date(
-          game.startsAt,
-        ).getTime();
-
-        return (
-          now >= startsAtMs - 10 * 60_000 &&
-          now <= startsAtMs + 6 * 60 * 60_000
-        );
-      });
-
-      if (gamesToRefresh.length === 0) return;
-
-      await Promise.all(
-        gamesToRefresh.map(async (game) => {
-          try {
-            // Refresh this exact game from the provider first.
-            const liveResponse = await fetch(
-              `/api/game-room/live?gameId=${encodeURIComponent(
-                game.id,
-              )}`,
-              {
-                cache: "no-store",
-              },
-            );
-
-            // Unsupported providers or temporary provider
-            // failures should never break the Home page.
-            if (!liveResponse.ok) return;
-
-            // Read the newly updated game back from Supabase.
-            const gameResponse = await fetch(
-              `/api/games?gameId=${encodeURIComponent(
-                game.id,
-              )}`,
-              {
-                cache: "no-store",
-              },
-            );
-
-            if (!gameResponse.ok || cancelled) return;
-
-            const body = (await gameResponse.json()) as {
-              games?: ApiGame[];
-            };
-
-            const updatedGame = (
-              body.games ?? []
-            ).find(
-              (candidate) =>
-                candidate.id === game.id,
-            );
-
-            if (!updatedGame || cancelled) return;
-
-            setRealGames((currentGames) => {
-              let changed = false;
-
-              const nextGames = currentGames.map(
-                (currentGame) => {
-                  if (
-                    currentGame.id !==
-                    updatedGame.id
-                  ) {
-                    return currentGame;
-                  }
-
-                  const unchanged =
-                    currentGame.homeScore ===
-                      updatedGame.homeScore &&
-                    currentGame.awayScore ===
-                      updatedGame.awayScore &&
-                    currentGame.status ===
-                      updatedGame.status &&
-                    currentGame.startsAt ===
-                      updatedGame.startsAt &&
-                    currentGame.startTimeTbd ===
-                      updatedGame.startTimeTbd;
-
-                  if (unchanged) {
-                    return currentGame;
-                  }
-
-                  changed = true;
-
-                  return {
-                    ...currentGame,
-                    homeScore:
-                      updatedGame.homeScore,
-                    awayScore:
-                      updatedGame.awayScore,
-                    status: updatedGame.status,
-                    startsAt:
-                      updatedGame.startsAt,
-                    startTimeTbd:
-                      updatedGame.startTimeTbd,
-                  };
-                },
-              );
-
-              return changed
-                ? nextGames
-                : currentGames;
-            });
-          } catch (error) {
-            console.error(
-              "Home live score refresh failed:",
-              error,
-            );
-          }
-        }),
-      );
-    }
-
-    void refreshHomeLiveScores();
-
-    const interval = window.setInterval(
-      refreshHomeLiveScores,
-      60_000,
-    );
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [activeSection, realGames]);
-
-  useEffect(() => {
     async function loadHome() {
       const supabase = createClient();
 
@@ -2309,10 +2069,7 @@ export default function Home() {
             (pickStatusData ?? []) as ChallengePickStatusRow[]
           ).forEach((row) => {
             nextPickStatus[row.player_id] =
-              Math.min(
-                Number(row.picks_made) || 0,
-                loadedChallengeGameIds.length,
-              );
+              Number(row.picks_made) || 0;
           });
 
           setChallengePickStatus(nextPickStatus);
@@ -2381,10 +2138,6 @@ export default function Home() {
             homeScore: game.homeScore,
             awayScore: game.awayScore,
             status: game.status,
-            externalProvider:
-              game.externalProvider ?? null,
-            externalId:
-              game.externalId ?? null,
             icon:
               game.sport === "Soccer"
                 ? "⚽"
@@ -2561,108 +2314,13 @@ export default function Home() {
     return watchInfo.score >= 80;
   });
 
-  const isFamBamGame = (game: BrowserGame) =>
-    hasTeam(game, "Georgia") ||
-    hasTeam(game, "Kentucky") ||
-    hasTeam(game, "Arsenal") ||
-    hasTeam(game, "Liverpool") ||
-    hasTeam(game, "Aston Villa") ||
-    hasTeam(game, "AFC Wimbledon");
-
-  const recentResults = realGames
-    .filter((game) => {
-      if (!game.startsAt) return false;
-
-      const normalizedStatus = String(
-        game.status ?? "",
-      ).toLowerCase();
-
-      const isFinal = [
-        "final",
-        "finished",
-        "complete",
-        "completed",
-        "closed",
-      ].some((status) =>
-        normalizedStatus.includes(status),
-      );
-
-      if (!isFinal) return false;
-
-      const gameTime = new Date(game.startsAt).getTime();
-      const now = currentTime ?? Date.now();
-      const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-
-      if (gameTime < sevenDaysAgo || gameTime > now) {
-        return false;
-      }
-
-      if (challengeGameIds.includes(game.id)) {
-        return true;
-      }
-
-      if (isFamBamGame(game)) {
-        return true;
-      }
-
-      if (personalTeamSports.has(game.sport)) {
-        return favoriteProfileTeams.some(
-          (team) =>
-            team.name.trim().toLowerCase() ===
-              game.home.trim().toLowerCase() ||
-            team.name.trim().toLowerCase() ===
-              game.away.trim().toLowerCase(),
-        );
-      }
-
-      return (
-        getWatchInfo(game, collegeFootballRankings).score >= 80
-      );
-    })
-    .sort(
-      (a, b) =>
-        new Date(b.startsAt ?? 0).getTime() -
-        new Date(a.startsAt ?? 0).getTime(),
-    )
-    .slice(0, 6);
-
-  const sportFilteredGames =
+  const filteredGames =
     activeSport === "All"
       ? watchGames
       : watchGames.filter(
           (game) =>
             game.sport === activeSport,
         );
-
-  const filteredGames = sportFilteredGames.filter((game) => {
-    if (activeWatchFilter === "All") return true;
-
-    const watchInfo = getWatchInfo(
-      game,
-      collegeFootballRankings,
-    );
-
-    if (activeWatchFilter === "Must Watch") {
-      return watchInfo.score >= 95;
-    }
-
-    if (activeWatchFilter === "Big Game") {
-      return (
-        watchInfo.score >= 90 &&
-        watchInfo.score < 95
-      );
-    }
-
-    if (activeWatchFilter === "FamBam") {
-      return isFamBamGame(game);
-    }
-
-    if (activeWatchFilter === "Worth Watching") {
-      return watchInfo.score < 90;
-    }
-
-    return true;
-  });
 
   const challengeGames =
     realGames.filter((game) =>
@@ -2903,6 +2561,14 @@ export default function Home() {
     }
   }
 
+  function toggleGameDetails(gameId: string) {
+    setExpandedGameIds((current) =>
+      current.includes(gameId)
+        ? current.filter((id) => id !== gameId)
+        : [...current, gameId],
+    );
+  }
+
   async function openPicks() {
     if (!signedInPlayer || !challenge) {
       return;
@@ -3111,25 +2777,19 @@ export default function Home() {
         ],
       );
 
-      const activeSavedCount =
-        Math.min(
-          totalSaved,
-          challengeGames.length,
-        );
-
       setChallengePickStatus(
         (current) => ({
           ...current,
           [signedInPlayer.id]:
-            activeSavedCount,
+            totalSaved,
         }),
       );
 
       setPicksSuccess(
-        activeSavedCount ===
+        totalSaved ===
           challengeGames.length
-          ? `You're all set! ${activeSavedCount}/${challengeGames.length} picks saved. ✅`
-          : `${activeSavedCount}/${challengeGames.length} picks saved. Come back anytime to finish!`,
+          ? `You're all set! ${totalSaved}/${challengeGames.length} picks saved. ✅`
+          : `${totalSaved}/${challengeGames.length} picks saved. Come back anytime to finish!`,
       );
     } catch (error) {
       setPicksError(
@@ -3150,13 +2810,13 @@ export default function Home() {
 
   const currentPlayerReady =
     challengeGames.length > 0 &&
-    challengeGamesWithSavedPick >=
+    challengeGamesWithSavedPick ===
       challengeGames.length;
 
   return (
     <main className="min-h-screen bg-[#eef1f4] pb-24 text-[#10254a]">
       {/* DARK APP HEADER */}
-      <header className="sticky top-0 z-50 bg-[#06284a] text-white shadow-sm">
+      <header className="bg-[#06284a] text-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <img
@@ -3290,11 +2950,7 @@ export default function Home() {
                         You have
                       </div>
                       <div className="text-xl font-black text-[#f3c64f]">
-                        {Math.max(
-                          0,
-                          challengeGames.length -
-                            challengeGamesWithSavedPick,
-                        )} picks left
+                        {challengeGames.length - challengeGamesWithSavedPick} picks left
                       </div>
                       <div className="mt-0.5 text-[10px] font-black">
                         Finish My Picks ›
@@ -3306,6 +2962,154 @@ export default function Home() {
             </section>
           </>
         )}
+
+        {/* BOTTOM DASHBOARD ROW */}
+        <div className="mb-3 grid grid-cols-2 gap-2.5">
+          {/* WHO'S READY */}
+          <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span>👥</span>
+              <h2 className="text-[12px] font-black uppercase">
+                Who&apos;s Ready?
+              </h2>
+            </div>
+
+            <div className="mt-3 grid grid-cols-5 gap-1">
+              {players.map((player) => {
+                const count = challengePickStatus[player.id] ?? 0;
+                const ready =
+                  challengeGames.length > 0 &&
+                  count === challengeGames.length;
+
+                return (
+                  <div
+                    key={player.id}
+                    className="min-w-0 text-center"
+                  >
+                    <div
+                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[8px] font-black ${
+                        signedInPlayer?.id === player.id
+                          ? "bg-[#06284a] text-white"
+                          : "bg-slate-200 text-[#10254a]"
+                      }`}
+                    >
+                      {player.initials ?? "?"}
+                    </div>
+
+                    <div
+                      className={`mt-0.5 whitespace-nowrap text-[6px] font-black ${
+                        ready ? "text-green-600" : "text-red-500"
+                      }`}
+                    >
+                      {ready
+                        ? "All set! ✓"
+                        : `${Math.max(
+                            0,
+                            challengeGames.length - count,
+                          )} left`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ON YOUR RADAR */}
+          <section className="min-w-0 rounded-2xl bg-white p-3 shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <span>🔥</span>
+              <h2 className="text-[12px] font-black uppercase">
+                On Your Radar
+              </h2>
+            </div>
+
+            <div className="mt-2 space-y-1.5">
+              {/* Challenge status always gets the first spot */}
+              <button
+                onClick={openPicks}
+                className="flex w-full gap-1.5 text-left text-[8px] font-semibold leading-tight"
+              >
+                <span>{currentPlayerReady ? "✅" : "🏆"}</span>
+                <span>
+                  {currentPlayerReady
+                    ? "Your Challenge picks are complete."
+                    : `${Math.max(
+                        0,
+                        challengeGames.length -
+                          challengeGamesWithSavedPick,
+                      )} Challenge picks left.`}
+                </span>
+              </button>
+
+              {/* Best upcoming games based on FamBam watch scoring */}
+              {filteredGames
+                .filter((game) => {
+                  if (!game.startsAt) return false;
+
+                  return (
+                    new Date(game.startsAt).getTime() >
+                    (currentTime ?? Date.now())
+                  );
+                })
+                .sort((a, b) => {
+                  const scoreDifference =
+                    getWatchInfo(
+                      b,
+                      collegeFootballRankings,
+                    ).score -
+                    getWatchInfo(
+                      a,
+                      collegeFootballRankings,
+                    ).score;
+
+                  if (scoreDifference !== 0) {
+                    return scoreDifference;
+                  }
+
+                  return (
+                    new Date(a.startsAt!).getTime() -
+                    new Date(b.startsAt!).getTime()
+                  );
+                })
+                .slice(0, 4)
+                .map((game) => {
+                  const watchInfo = getWatchInfo(
+                    game,
+                    collegeFootballRankings,
+                  );
+
+                  return (
+                    <div
+                      key={game.id}
+                      className="flex gap-1.5 text-[8px] font-semibold leading-tight"
+                    >
+                      <span>{game.icon}</span>
+
+                      <span className="min-w-0">
+                        <span className="font-black">
+                          {watchInfo.label}
+                        </span>
+                        {" · "}
+                        {game.sport === "College Football"
+                          ? rankedTeamLabel(
+                              game.away,
+                              collegeFootballRankings,
+                            )
+                          : game.away}
+                        {" vs "}
+                        {game.sport === "College Football"
+                          ? rankedTeamLabel(
+                              game.home,
+                              collegeFootballRankings,
+                            )
+                          : game.home}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+          </section>
+        </div>
 
         {/* TODAY'S GAMES */}
         <section className="mb-2.5 overflow-hidden rounded-2xl bg-white shadow-sm">
@@ -3326,42 +3130,19 @@ export default function Home() {
               .filter((game) => {
                 if (!game.startsAt) return false;
 
-                const status = (game.status ?? "").toLowerCase();
-                const finalStatuses = [
-                  "final",
-                  "finished",
-                  "complete",
-                  "completed",
-                  "closed",
-                ];
+                const gameDate = new Date(game.startsAt);
 
-                if (
-                  finalStatuses.some((finalStatus) =>
-                    status.includes(finalStatus),
-                  )
-                ) {
-                  return false;
-                }
+                const gameDay = gameDate.toLocaleDateString("en-CA", {
+                  timeZone: "America/New_York",
+                });
 
-                const gameDay = new Date(game.startsAt).toLocaleDateString(
-                  "en-CA",
-                  { timeZone: "America/New_York" },
-                );
-
-                const todayDay = new Date(
-                  currentTime ?? Date.now(),
-                ).toLocaleDateString("en-CA", {
+                const todayDay = new Date(currentTime ?? Date.now()).toLocaleDateString("en-CA", {
                   timeZone: "America/New_York",
                 });
 
                 return gameDay === todayDay;
               })
-              .sort(
-                (a, b) =>
-                  new Date(a.startsAt!).getTime() -
-                  new Date(b.startsAt!).getTime(),
-              )
-              .slice(0, 4)
+              .slice(0, 2)
               .map((game) => (
               <article
                 key={game.id}
@@ -3376,12 +3157,6 @@ export default function Home() {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <button
-                      type="button"
-                      onClick={() => openGameRoom(game)}
-                      className="block w-full rounded-xl text-left active:bg-slate-50"
-                      aria-label={`Open game details for ${game.away} vs ${game.home}`}
-                    >
                     <div className="text-[15px] font-black leading-tight text-[#10254a]">
                       {game.sport === "College Football"
                         ? rankedTeamLabel(game.away, collegeFootballRankings)
@@ -3396,61 +3171,40 @@ export default function Home() {
                       {formatGameTime(game.startsAt, game.startTimeTbd)}
                     </div>
 
-                    {(() => {
-                      const normalizedStatus = (
-                        game.status ?? ""
-                      ).toLowerCase();
+                    <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
+                      {getGameContext(game, collegeFootballRankings)}
+                    </div>
 
-                      const isFinal = [
-                        "final",
-                        "finished",
-                        "complete",
-                        "completed",
-                        "closed",
-                      ].some((status) =>
-                        normalizedStatus.includes(status),
-                      );
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        onClick={() => toggleGameDetails(game.id)}
+                        className="rounded-lg bg-[#eef2f6] px-3 py-1.5 text-[10px] font-black text-[#06284a]"
+                      >
+                        {expandedGameIds.includes(game.id)
+                          ? "Show Less ↑"
+                          : "Tell Me More →"}
+                      </button>
 
-                      const startMs = game.startsAt
-                        ? new Date(game.startsAt).getTime()
-                        : Number.MAX_SAFE_INTEGER;
+                      <button
+                        onClick={() => openGameRoom(game)}
+                        className="ml-2 rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
+                      >
+                        Game Room 💬
+                      </button>
 
-                      const hasStarted = Date.now() >= startMs;
-
-                      const isLive =
-                        !isFinal &&
-                        hasStarted &&
-                        (normalizedStatus.includes("live") ||
-                          normalizedStatus.includes("in_progress") ||
-                          normalizedStatus.includes("in progress"));
-
-                      if (!isLive && !isFinal) {
-                        return null;
-                      }
-
-                      return (
-                        <div className="mt-2 flex items-center justify-between rounded-lg bg-[#06284a] px-3 py-2 text-white">
-                          <div>
-                            <div className="text-[9px] font-black uppercase tracking-wide text-[#f3c64f]">
-                              {isFinal ? "Final" : "🔴 Live"}
-                            </div>
-
-                            <div className="mt-0.5 text-xs font-black">
-                              {game.away} {game.awayScore ?? 0}
-                              {" · "}
-                              {game.home} {game.homeScore ?? 0}
-                            </div>
-                          </div>
-
-                          <div className="text-[9px] font-black uppercase text-slate-200">
-                            {isFinal ? "FINAL" : "LIVE"}
-                          </div>
+                      {expandedGameIds.includes(game.id) && (
+                        <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
+                          <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
+                            {getGameFacts(
+                              game,
+                              collegeFootballRankings,
+                            ).map((fact) => (
+                              <li key={fact}>• {fact}</li>
+                            ))}
+                          </ul>
                         </div>
-                      );
-                    })()}
-
-                    </button>
-
+                      )}
+                    </div>
                   </div>
                 </div>
               </article>
@@ -3460,75 +3214,11 @@ export default function Home() {
               filteredGames.filter((game) => {
                 if (!game.startsAt) return false;
 
-                const status = (game.status ?? "").toLowerCase();
-                const finalStatuses = [
-                  "final",
-                  "finished",
-                  "complete",
-                  "completed",
-                  "closed",
-                ];
-
-                if (
-                  finalStatuses.some((finalStatus) =>
-                    status.includes(finalStatus),
-                  )
-                ) {
-                  return false;
-                }
-
-                const gameDay = new Date(game.startsAt).toLocaleDateString(
-                  "en-CA",
-                  { timeZone: "America/New_York" },
-                );
-
-                const todayDay = new Date(
-                  currentTime ?? Date.now(),
-                ).toLocaleDateString("en-CA", {
+                const gameDay = new Date(game.startsAt).toLocaleDateString("en-CA", {
                   timeZone: "America/New_York",
                 });
 
-                return gameDay === todayDay;
-              }).length > 0 && (
-                <div className="py-2 text-center">
-                  <button
-                    onClick={() => setActiveSection("Games")}
-                    className="text-[11px] font-black text-[#164d9b]"
-                  >
-                    See All Today →
-                  </button>
-                </div>
-              )}
-
-            {!gamesLoading &&
-              filteredGames.filter((game) => {
-                if (!game.startsAt) return false;
-
-                const status = (game.status ?? "").toLowerCase();
-                const finalStatuses = [
-                  "final",
-                  "finished",
-                  "complete",
-                  "completed",
-                  "closed",
-                ];
-
-                if (
-                  finalStatuses.some((finalStatus) =>
-                    status.includes(finalStatus),
-                  )
-                ) {
-                  return false;
-                }
-
-                const gameDay = new Date(game.startsAt).toLocaleDateString(
-                  "en-CA",
-                  { timeZone: "America/New_York" },
-                );
-
-                const todayDay = new Date(
-                  currentTime ?? Date.now(),
-                ).toLocaleDateString("en-CA", {
+                const todayDay = new Date(currentTime ?? Date.now()).toLocaleDateString("en-CA", {
                   timeZone: "America/New_York",
                 });
 
@@ -3541,196 +3231,39 @@ export default function Home() {
           </div>
         </section>
 
-        {/* RECENT RESULTS */}
-        {recentResults.length > 0 && (
-          <section className="mb-2.5 overflow-hidden rounded-2xl bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🏁</span>
-                <h2 className="text-base font-black uppercase">
-                  Recent Results
-                </h2>
-              </div>
-
-              <div className="text-[10px] font-black uppercase text-slate-500">
-                Last 7 Days
-              </div>
-            </div>
-
-            <div className="divide-y divide-slate-200 px-3">
-              {recentResults.map((game) => {
-                const hasScore =
-                  game.awayScore !== null &&
-                  game.homeScore !== null;
-
-                const awayWon =
-                  hasScore &&
-                  game.awayScore! > game.homeScore!;
-
-                const homeWon =
-                  hasScore &&
-                  game.homeScore! > game.awayScore!;
-
-                return (
-                  <article key={game.id} className="py-3">
-                    <button
-                      type="button"
-                      onClick={() => openGameRoom(game)}
-                      className="block w-full rounded-xl text-left active:bg-slate-50"
-                      aria-label={`Open final game details for ${game.away} vs ${game.home}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex w-12 shrink-0 flex-col items-center justify-center text-center">
-                          <div className="text-2xl">{game.icon}</div>
-                          <div className="mt-1 text-[7px] font-black uppercase leading-tight text-[#10254a]">
-                            {game.competition}
-                          </div>
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-1 flex items-center gap-2">
-                            <span className="rounded-full bg-[#f7f4ec] px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-[#b28a2e]">
-                              Final
-                            </span>
-                            <span className="text-[10px] font-semibold text-slate-400">
-                              {formatGameDate(game.startsAt)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-3">
-                            <div
-                              className={`truncate text-[14px] ${
-                                awayWon
-                                  ? "font-black text-[#10254a]"
-                                  : "font-bold text-slate-600"
-                              }`}
-                            >
-                              {game.sport === "College Football"
-                                ? rankedTeamLabel(
-                                    game.away,
-                                    collegeFootballRankings,
-                                  )
-                                : game.away}
-                            </div>
-                            <div className="shrink-0 text-lg font-black text-[#10254a]">
-                              {game.awayScore ?? "—"}
-                            </div>
-                          </div>
-
-                          <div className="mt-0.5 flex items-center justify-between gap-3">
-                            <div
-                              className={`truncate text-[14px] ${
-                                homeWon
-                                  ? "font-black text-[#10254a]"
-                                  : "font-bold text-slate-600"
-                              }`}
-                            >
-                              {game.sport === "College Football"
-                                ? rankedTeamLabel(
-                                    game.home,
-                                    collegeFootballRankings,
-                                  )
-                                : game.home}
-                            </div>
-                            <div className="shrink-0 text-lg font-black text-[#10254a]">
-                              {game.homeScore ?? "—"}
-                            </div>
-                          </div>
-
-                          <div className="mt-1.5 text-[9px] font-black text-[#164d9b]">
-                            Game Details &amp; FamBam Picks →
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* THIS WEEK */}
+        {/* UP NEXT */}
         <section className="mb-2.5 overflow-hidden rounded-2xl bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
             <div className="flex items-center gap-2">
-              <span className="text-xl">🗓️</span>
+              <span className="text-xl">◷</span>
               <h2 className="text-base font-black uppercase">
-                This Week
+                Up Next
               </h2>
             </div>
 
-            <div className="text-[10px] font-black uppercase text-slate-500">
-              Next 7 Days
+            <div className="text-[10px] font-black uppercase">
+              This Week
             </div>
           </div>
 
           <div className="divide-y divide-slate-200 px-3">
-            {filteredGames
-              .filter((game) => {
-                if (!game.startsAt) return false;
-
-                const startsAtMs =
-                  new Date(game.startsAt).getTime();
-
-                const nowMs =
-                  currentTime ?? Date.now();
-
-                const gameDay =
-                  new Date(
-                    game.startsAt,
-                  ).toLocaleDateString(
-                    "en-CA",
-                    {
-                      timeZone:
-                        "America/New_York",
-                    },
-                  );
-
-                const todayDay =
-                  new Date(
-                    nowMs,
-                  ).toLocaleDateString(
-                    "en-CA",
-                    {
-                      timeZone:
-                        "America/New_York",
-                    },
-                  );
-
-                const sevenDaysFromNow =
-                  nowMs +
-                  7 * 24 * 60 * 60 * 1000;
-
-                return (
-                  gameDay > todayDay &&
-                  startsAtMs <= sevenDaysFromNow
-                );
-              })
+            {challengeGames
+              .filter((game) => !gameIsLocked(game, currentTime))
               .sort(
                 (a, b) =>
-                  new Date(
-                    a.startsAt ?? 0,
-                  ).getTime() -
-                  new Date(
-                    b.startsAt ?? 0,
-                  ).getTime(),
+                  (a.startsAt
+                    ? new Date(a.startsAt).getTime()
+                    : Number.MAX_SAFE_INTEGER) -
+                  (b.startsAt
+                    ? new Date(b.startsAt).getTime()
+                    : Number.MAX_SAFE_INTEGER),
               )
-              .slice(0, 5)
+              .slice(0, 2)
               .map((game) => (
-                <article
-                  key={game.id}
-                  onClick={() =>
-                    openGameRoom(game)
-                  }
-                  className="cursor-pointer py-3"
-                >
+                <article key={game.id} className="py-3">
                   <div className="flex gap-3">
                     <div className="flex w-12 shrink-0 flex-col items-center justify-center text-center">
-                      <div className="text-2xl">
-                        {game.icon}
-                      </div>
-
+                      <div className="text-2xl">{game.icon}</div>
                       <div className="mt-1 text-[7px] font-black uppercase leading-tight">
                         {game.competition}
                       </div>
@@ -3738,85 +3271,44 @@ export default function Home() {
 
                     <div className="min-w-0 flex-1">
                       <div className="text-[15px] font-black leading-tight">
-                        {game.sport ===
-                        "College Football"
-                          ? rankedTeamLabel(
-                              game.away,
-                              collegeFootballRankings,
-                            )
+                        {game.sport === "College Football"
+                          ? rankedTeamLabel(game.away, collegeFootballRankings)
                           : game.away}
                         {" vs "}
-                        {game.sport ===
-                        "College Football"
-                          ? rankedTeamLabel(
-                              game.home,
-                              collegeFootballRankings,
-                            )
+                        {game.sport === "College Football"
+                          ? rankedTeamLabel(game.home, collegeFootballRankings)
                           : game.home}
                       </div>
 
                       <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                        {formatGameDate(
-                          game.startsAt,
-                        )}
+                        {formatGameDate(game.startsAt)}
                         {" · "}
-                        {formatGameTime(
-                          game.startsAt,
-                          game.startTimeTbd,
-                        )}
+                        {formatGameTime(game.startsAt, game.startTimeTbd)}
                       </div>
 
+                      <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
+                        {getGameContext(game, collegeFootballRankings)}
+                      </div>
+
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button
+                          onClick={() => toggleGameDetails(game.id)}
+                          className="rounded-lg bg-[#edf5ff] px-3 py-1.5 text-[10px] font-black text-[#164d9b]"
+                        >
+                          Tell Me More →
+                        </button>
+
+                        <button
+                          onClick={() => openGameRoom(game)}
+                          className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
+                        >
+                          Game Room 💬
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </article>
               ))}
-
-            {filteredGames.filter((game) => {
-              if (!game.startsAt) return false;
-
-              const startsAtMs =
-                new Date(game.startsAt).getTime();
-
-              const nowMs =
-                currentTime ?? Date.now();
-
-              const gameDay =
-                new Date(
-                  game.startsAt,
-                ).toLocaleDateString(
-                  "en-CA",
-                  {
-                    timeZone:
-                      "America/New_York",
-                  },
-                );
-
-              const todayDay =
-                new Date(
-                  nowMs,
-                ).toLocaleDateString(
-                  "en-CA",
-                  {
-                    timeZone:
-                      "America/New_York",
-                  },
-                );
-
-              return (
-                gameDay > todayDay &&
-                startsAtMs <=
-                  nowMs +
-                    7 *
-                      24 *
-                      60 *
-                      60 *
-                      1000
-              );
-            }).length === 0 && (
-              <div className="py-5 text-center text-xs font-bold text-slate-500">
-                No games on your radar this week.
-              </div>
-            )}
           </div>
         </section>
 
@@ -3841,11 +3333,11 @@ export default function Home() {
               Games to Watch 👀
             </h1>
             <p className="mt-1 text-xs font-semibold text-slate-500">
-              Tap any game for scores, context, picks and everything you need to know.
+              Big games, FamBam teams, rivalries and matchups worth your time.
             </p>
           </div>
 
-          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
             {[
               "All",
               "Soccer",
@@ -3869,339 +3361,131 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-            {(
-              [
-                ["All", "All"],
-                ["Must Watch", "🔥 Must Watch"],
-                ["Big Game", "⭐ Big Game"],
-                ["FamBam", "💙 FamBam"],
-                ["Worth Watching", "👀 Worth Watching"],
-              ] as const
-            ).map(([filter, label]) => (
-              <button
-                key={filter}
-                onClick={() => setActiveWatchFilter(filter)}
-                className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-black transition ${
-                  activeWatchFilter === filter
-                    ? "bg-[#f3c64f] text-[#06284a] shadow-sm"
-                    : "bg-white text-[#10254a] shadow-sm"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+            <div className="divide-y divide-slate-200 px-3">
+              {filteredGames.map((game) => {
+                const watchInfo =
+                  getWatchInfo(game, collegeFootballRankings);
 
-          {(() => {
-            const sortedGames = [...filteredGames].sort((a, b) => {
-              const aTime = a.startsAt
-                ? new Date(a.startsAt).getTime()
-                : Number.MAX_SAFE_INTEGER;
+                let label = "Games to Watch";
 
-              const bTime = b.startsAt
-                ? new Date(b.startsAt).getTime()
-                : Number.MAX_SAFE_INTEGER;
+                if (watchInfo.score >= 95) {
+                  label = "Must Watch";
+                } else if (watchInfo.score >= 90) {
+                  label = "Big Game";
+                } else if (
+                  hasTeam(game, "Georgia") ||
+                  hasTeam(game, "Kentucky") ||
+                  hasTeam(game, "Arsenal") ||
+                  hasTeam(game, "Liverpool") ||
+                  hasTeam(game, "Aston Villa") ||
+                  hasTeam(game, "AFC Wimbledon")
+                ) {
+                  label = "FamBam Game";
+                }
 
-              return aTime - bTime;
-            });
+                return (
+                  <article key={game.id} className="py-4">
+                    <div className="flex gap-3">
+                      <div className="flex w-12 shrink-0 flex-col items-center justify-start text-center">
+                        <div className="text-2xl">{game.icon}</div>
+                        <div className="mt-1 text-[7px] font-black uppercase leading-tight text-[#10254a]">
+                          {game.competition}
+                        </div>
+                      </div>
 
-            const groupedGames = sortedGames.reduce<
-              Record<string, typeof sortedGames>
-            >((groups, game) => {
-              const key = game.startsAt
-                ? (() => {
-                    const gameDate = new Date(game.startsAt);
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                          <span className="rounded-full bg-[#fff3c4] px-2 py-1 text-[8px] font-black uppercase text-[#8a6618]">
+                            {label}
+                          </span>
 
-                    return `${gameDate.getFullYear()}-${String(
-                      gameDate.getMonth() + 1,
-                    ).padStart(2, "0")}-${String(
-                      gameDate.getDate(),
-                    ).padStart(2, "0")}`;
-                  })()
-                : "TBD";
-
-              if (!groups[key]) groups[key] = [];
-              groups[key].push(game);
-              return groups;
-            }, {});
-
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-
-            const getDateHeading = (dateKey: string) => {
-              if (dateKey === "TBD") {
-                return {
-                  eyebrow: "DATE TBD",
-                  title: "Start time to be announced",
-                };
-              }
-
-              const [year, month, day] = dateKey.split("-").map(Number);
-              const date = new Date(year, month - 1, day);
-
-              if (date.getTime() === today.getTime()) {
-                return {
-                  eyebrow: "TODAY",
-                  title: date.toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "short",
-                    day: "numeric",
-                  }),
-                };
-              }
-
-              if (date.getTime() === tomorrow.getTime()) {
-                return {
-                  eyebrow: "TOMORROW",
-                  title: date.toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "short",
-                    day: "numeric",
-                  }),
-                };
-              }
-
-              return {
-                eyebrow: date.toLocaleDateString("en-US", {
-                  weekday: "long",
-                }).toUpperCase(),
-                title: date.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                }),
-              };
-            };
-
-            return (
-              <div className="space-y-5">
-                {Object.entries(groupedGames).map(
-                  ([dateKey, gamesForDate]) => {
-                    const heading = getDateHeading(dateKey);
-
-                    return (
-                      <section key={dateKey}>
-                        <div className="mb-2 flex items-end gap-2 px-1">
-                          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#b28a2e]">
-                            {heading.eyebrow}
-                          </div>
-                          <div className="pb-px text-[11px] font-bold text-slate-400">
-                            {heading.title}
-                          </div>
+                          <span className="text-[9px] font-bold text-slate-400">
+                            {formatGameDate(game.startsAt)}
+                          </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-                            {gamesForDate.map((game) => {
-                              const watchInfo = getWatchInfo(
+                        <div className="text-[15px] font-black leading-tight text-[#10254a]">
+                          {game.sport === "College Football"
+                            ? rankedTeamLabel(
+                                game.away,
+                                collegeFootballRankings,
+                              )
+                            : game.away}
+                          {" vs "}
+                          {game.sport === "College Football"
+                            ? rankedTeamLabel(
+                                game.home,
+                                collegeFootballRankings,
+                              )
+                            : game.home}
+                        </div>
+
+                        <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                          {formatGameTime(
+                            game.startsAt,
+                            game.startTimeTbd,
+                          )}
+                        </div>
+
+                        <div className="mt-2 rounded-md bg-[#edf5ff] px-2 py-1 text-[10px] font-semibold text-[#284d7e]">
+                          {getGameContext(
+                            game,
+                            collegeFootballRankings,
+                          )}
+                        </div>
+
+                        <div className="mt-2 flex justify-end gap-2">
+                          <button
+                            onClick={() =>
+                              toggleGameDetails(game.id)
+                            }
+                            className="rounded-lg bg-[#eef2f6] px-3 py-1.5 text-[10px] font-black text-[#06284a]"
+                          >
+                            {expandedGameIds.includes(game.id)
+                              ? "Show Less ↑"
+                              : "Tell Me More →"}
+                          </button>
+
+                          <button
+                            onClick={() => openGameRoom(game)}
+                            className="rounded-lg bg-[#06284a] px-3 py-1.5 text-[10px] font-black text-white"
+                          >
+                            Game Room 💬
+                          </button>
+                        </div>
+
+                        {expandedGameIds.includes(game.id) && (
+                          <div className="mt-2 rounded-lg bg-[#f8f6ef] p-2.5">
+                            <ul className="space-y-1 text-[10px] font-semibold leading-snug text-slate-600">
+                              {getGameFacts(
                                 game,
                                 collegeFootballRankings,
-                              );
-
-                              const famBamGame =
-                                isFamBamGame(game);
-
-                              const watchMarkers: Array<{
-                                emoji: string;
-                                label: string;
-                              }> = [];
-
-                              if (watchInfo.score >= 95) {
-                                watchMarkers.push({
-                                  emoji: "🔥",
-                                  label: "Must Watch",
-                                });
-                              } else if (watchInfo.score >= 90) {
-                                watchMarkers.push({
-                                  emoji: "⭐",
-                                  label: "Big Game",
-                                });
-                              } else {
-                                watchMarkers.push({
-                                  emoji: "👀",
-                                  label: "Worth Watching",
-                                });
-                              }
-
-                              if (famBamGame) {
-                                watchMarkers.push({
-                                  emoji: "💙",
-                                  label: "FamBam Game",
-                                });
-                              }
-
-                              const normalizedStatus = (
-                                game.status ?? ""
-                              ).toLowerCase();
-
-                              const isFinal = [
-                                "final",
-                                "finished",
-                                "complete",
-                                "completed",
-                                "closed",
-                              ].some((status) =>
-                                normalizedStatus.includes(status),
-                              );
-
-                              const hasScore =
-                                game.homeScore != null &&
-                                game.awayScore != null;
-
-                              const startMs = game.startsAt
-                                ? new Date(game.startsAt).getTime()
-                                : Number.MAX_SAFE_INTEGER;
-
-                              const nowMs = Date.now();
-
-                              const hasStarted =
-                                nowMs >= startMs;
-
-                              const isLive =
-                                !isFinal &&
-                                hasStarted &&
-                                (normalizedStatus.includes("live") ||
-                                  normalizedStatus.includes(
-                                    "in_progress",
-                                  ) ||
-                                  normalizedStatus.includes(
-                                    "in progress",
-                                  ) ||
-                                  (hasScore &&
-                                    nowMs <=
-                                      startMs +
-                                        6 * 60 * 60 * 1000));
-
-                              return (
-                                <article
-                                  key={game.id}
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() => openGameRoom(game)}
-                                  onKeyDown={(event) => {
-                                    if (
-                                      event.key === "Enter" ||
-                                      event.key === " "
-                                    ) {
-                                      event.preventDefault();
-                                      openGameRoom(game);
-                                    }
-                                  }}
-                                  className="cursor-pointer rounded-xl bg-white px-3 py-3 shadow-sm transition active:bg-slate-50"
-                                >
-                                  <div className="flex gap-3">
-                                    <div className="flex w-12 shrink-0 flex-col items-center justify-start text-center">
-                                      <div className="text-2xl">
-                                        {game.icon}
-                                      </div>
-
-                                      <div className="mt-1 text-[7px] font-black uppercase leading-tight text-[#10254a]">
-                                        {game.competition}
-                                      </div>
-
-                                      <div className="mt-1 flex flex-wrap items-center justify-center gap-0.5">
-                                        {watchMarkers.map((marker) => (
-                                          <span
-                                            key={`${game.id}-${marker.label}`}
-                                            title={marker.label}
-                                            aria-label={marker.label}
-                                            className="text-[11px] leading-none"
-                                          >
-                                            {marker.emoji}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    <div className="min-w-0 flex-1">
-                                      <div className="mb-2 flex items-center justify-end">
-                                        <span
-                                          className={`shrink-0 text-[10px] font-black ${
-                                            isLive
-                                              ? "text-red-600"
-                                              : isFinal
-                                                ? "text-slate-500"
-                                                : "text-[#10254a]"
-                                          }`}
-                                        >
-                                          {isLive
-                                            ? "● LIVE"
-                                            : isFinal
-                                              ? "FINAL"
-                                              : formatGameTime(
-                                                  game.startsAt,
-                                                  game.startTimeTbd,
-                                                )}
-                                        </span>
-                                      </div>
-
-                                      <div className="space-y-1">
-                                        <div className="flex items-center justify-between gap-3">
-                                          <div className="min-w-0 truncate text-[14px] font-black text-[#10254a]">
-                                            {game.sport ===
-                                            "College Football"
-                                              ? rankedTeamLabel(
-                                                  game.away,
-                                                  collegeFootballRankings,
-                                                )
-                                              : game.away}
-                                          </div>
-
-                                          {hasScore &&
-                                            (isLive || isFinal) && (
-                                              <div className="shrink-0 text-lg font-black tabular-nums text-[#10254a]">
-                                                {game.awayScore}
-                                              </div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex items-center justify-between gap-3">
-                                          <div className="min-w-0 truncate text-[14px] font-black text-[#10254a]">
-                                            {game.sport ===
-                                            "College Football"
-                                              ? rankedTeamLabel(
-                                                  game.home,
-                                                  collegeFootballRankings,
-                                                )
-                                              : game.home}
-                                          </div>
-
-                                          {hasScore &&
-                                            (isLive || isFinal) && (
-                                              <div className="shrink-0 text-lg font-black tabular-nums text-[#10254a]">
-                                                {game.homeScore}
-                                              </div>
-                                            )}
-                                        </div>
-                                      </div>
-
-                                    </div>
-                                  </div>
-                                </article>
-                              );
-                            })}
-                        </div>
-                      </section>
-                    );
-                  },
-                )}
-
-                {!gamesLoading && filteredGames.length === 0 && (
-                  <div className="rounded-2xl bg-white py-8 text-center shadow-sm">
-                    <div className="text-2xl">👀</div>
-                    <div className="mt-2 text-sm font-black text-[#10254a]">
-                      Nothing major on the radar.
+                              ).map((fact) => (
+                                <li key={fact}>• {fact}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-1 text-xs font-semibold text-slate-500">
-                      Try another sport.
-                    </div>
+                  </article>
+                );
+              })}
+
+              {!gamesLoading && filteredGames.length === 0 && (
+                <div className="py-8 text-center">
+                  <div className="text-2xl">👀</div>
+                  <div className="mt-2 text-sm font-black text-[#10254a]">
+                    Nothing major on the radar.
                   </div>
-                )}
-              </div>
-            );
-          })()}
+                  <div className="mt-1 text-xs font-semibold text-slate-500">
+                    Try another sport.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       )}
 
@@ -4637,295 +3921,64 @@ export default function Home() {
 
       {activeSection === "Locker Room" && (
         <section className="mx-auto max-w-5xl px-3 py-4">
-          <div className="rounded-3xl bg-[#06284a] p-5 text-white shadow-lg">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
-              👥 Locker Room
+          <div className="mb-3">
+            <div className="text-lg font-black text-[#06284a]">
+              Locker Room
             </div>
-            <div className="mt-1 text-2xl font-black">
+            <div className="text-[10px] font-bold text-slate-500">
               {signedInPlayer?.display_name
-                ? `${signedInPlayer.display_name}'s Locker`
-                : "My Locker"}
-            </div>
-            <div className="mt-1 text-xs font-semibold text-white/70">
-              Your teams, sports and FamBam identity.
+                ? `${signedInPlayer.display_name}'s sports`
+                : "Your sports"}
             </div>
           </div>
 
-          {!signedInPlayer ? (
-            <div className="mt-3 rounded-2xl bg-white p-5 text-center shadow-sm">
-              <div className="text-sm font-black text-[#10254a]">
-                Pick a player to open your locker.
-              </div>
+          <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
+            <img
+              src="/locker-room-preview.png"
+              alt="FamBam Locker Room preview"
+              className="h-auto w-full"
+            />
+          </div>
+
+          <div className="mx-auto mt-3 max-w-md rounded-xl bg-[#fffaf0] px-4 py-3 text-center">
+            <div className="text-xs font-black text-[#06284a]">
+              👥 Your Locker Room is coming!
             </div>
-          ) : (
-            <>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                    My Sports
-                  </div>
-                  <div className="mt-2 text-3xl font-black text-[#06284a]">
-                    {profileSportChoices.length}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500">
-                    sports followed
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                    My Teams
-                  </div>
-                  <div className="mt-2 text-3xl font-black text-[#06284a]">
-                    {profileFavoriteTeamIds.length}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500">
-                    favorite teams
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                  ❤️ Sports I Follow
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {profileSportChoices.length === 0 ? (
-                    <span className="text-xs font-semibold text-slate-500">
-                      Add sports in your profile.
-                    </span>
-                  ) : (
-                    profileSportChoices.map((choice) => {
-                      const sport = profileSports.find(
-                        (item) => item.id === choice.sportId,
-                      );
-
-                      return (
-                        <span
-                          key={choice.sportId}
-                          className="rounded-full bg-[#eef4fb] px-3 py-2 text-xs font-black text-[#06284a]"
-                        >
-                          {sport?.emoji || "🏅"} {sport?.name || "Sport"}
-                        </span>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                  ⭐ Favorite Teams
-                </div>
-                <div className="mt-3 space-y-2">
-                  {profileFavoriteTeamIds.length === 0 ? (
-                    <div className="text-xs font-semibold text-slate-500">
-                      No favorite teams yet.
-                    </div>
-                  ) : (
-                    profileFavoriteTeamIds
-                      .map((teamId) =>
-                        profileTeams.find((team) => team.id === teamId),
-                      )
-                      .filter(
-                        (team): team is ProfileTeam => Boolean(team),
-                      )
-                      .map((team) => {
-                        const primary =
-                          profilePrimaryTeamIdsBySport[team.sport_id] ===
-                          team.id;
-
-                        return (
-                          <div
-                            key={team.id}
-                            className="flex items-center justify-between rounded-xl bg-[#fffaf0] px-3 py-3"
-                          >
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-black text-[#10254a]">
-                                {team.name}
-                              </div>
-                              <div className="text-[9px] font-bold text-slate-400">
-                                {profileSports.find(
-                                  (sport) => sport.id === team.sport_id,
-                                )?.name ?? "Team"}
-                              </div>
-                            </div>
-                            <div className="text-lg">
-                              {primary ? "⭐" : "❤️"}
-                            </div>
-                          </div>
-                        );
-                      })
-                  )}
-                </div>
-              </div>
-
-              <button
-                onClick={() => void openProfile()}
-                className="mt-3 w-full rounded-2xl bg-[#f3c64f] px-4 py-4 text-sm font-black text-[#06284a] shadow-sm"
-              >
-                Edit My Locker
-              </button>
-            </>
-          )}
+            <div className="mt-1 text-[10px] font-semibold text-slate-500">
+              Your teams, sports and personal FamBam setup will live here.
+            </div>
+          </div>
         </section>
       )}
 
       {activeSection === "Trophy Room" && (
         <section className="mx-auto max-w-5xl px-3 py-4">
-          <div className="rounded-3xl bg-[#06284a] p-5 text-white shadow-lg">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
-              🏆 Trophy Room
+          <div className="mb-3">
+            <div className="text-lg font-black text-[#06284a]">
+              Trophy Room
             </div>
-            <div className="mt-1 text-2xl font-black">
-              FamBam Hall of Fame
-            </div>
-            <div className="mt-1 text-xs font-semibold text-white/70">
-              Scores, wins and bragging rights.
-            </div>
-          </div>
-
-          {leaderboard.length > 0 && (
-            <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                🥇 Current Challenge
-              </div>
-              <div className="mt-1 text-lg font-black text-[#10254a]">
-                {challenge?.name ?? "FamBam Challenge"}
-              </div>
-
-              <div className="mt-3 space-y-2">
-                {[...leaderboard]
-                  .sort((a, b) => {
-                    if (b.points !== a.points) return b.points - a.points;
-                    return b.correct - a.correct;
-                  })
-                  .map((row, index) => (
-                    <div
-                      key={row.player_id}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-3 ${
-                        index === 0
-                          ? "bg-[#fff5cf]"
-                          : "bg-slate-50"
-                      }`}
-                    >
-                      <div className="w-8 text-center text-xl">
-                        {index === 0
-                          ? "🏆"
-                          : index === 1
-                            ? "🥈"
-                            : index === 2
-                              ? "🥉"
-                              : `${index + 1}`}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-black text-[#10254a]">
-                          {row.display_name}
-                        </div>
-                        <div className="text-[10px] font-bold text-slate-500">
-                          {row.correct} correct · {row.completed_picks}/{row.total_picks} scored
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xl font-black text-[#06284a]">
-                          {row.points}
-                        </div>
-                        <div className="text-[8px] font-black uppercase text-slate-400">
-                          pts
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {signedInPlayer && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              {(() => {
-                const me = leaderboard.find(
-                  (row) => row.player_id === signedInPlayer.id,
-                );
-
-                const sorted = [...leaderboard].sort((a, b) => {
-                  if (b.points !== a.points) return b.points - a.points;
-                  return b.correct - a.correct;
-                });
-
-                const place =
-                  sorted.findIndex(
-                    (row) => row.player_id === signedInPlayer.id,
-                  ) + 1;
-
-                return (
-                  <>
-                    <div className="rounded-2xl bg-white p-4 shadow-sm">
-                      <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                        My Points
-                      </div>
-                      <div className="mt-2 text-3xl font-black text-[#06284a]">
-                        {me?.points ?? 0}
-                      </div>
-                      <div className="text-[10px] font-bold text-slate-500">
-                        this challenge
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl bg-white p-4 shadow-sm">
-                      <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                        My Place
-                      </div>
-                      <div className="mt-2 text-3xl font-black text-[#06284a]">
-                        {place > 0 ? `#${place}` : "—"}
-                      </div>
-                      <div className="text-[10px] font-bold text-slate-500">
-                        current standings
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          )}
-
-          <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-            <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-              🎖️ Trophy Cabinet
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl bg-[#fffaf0] p-3">
-                <div className="text-3xl">🏆</div>
-                <div className="mt-1 text-[9px] font-black text-[#10254a]">
-                  Weekly Champ
-                </div>
-              </div>
-              <div className="rounded-xl bg-[#fffaf0] p-3">
-                <div className="text-3xl">🎯</div>
-                <div className="mt-1 text-[9px] font-black text-[#10254a]">
-                  Pick Master
-                </div>
-              </div>
-              <div className="rounded-xl bg-[#fffaf0] p-3">
-                <div className="text-3xl">🔥</div>
-                <div className="mt-1 text-[9px] font-black text-[#10254a]">
-                  Hot Streak
-                </div>
-              </div>
-            </div>
-            <div className="mt-2 text-center text-[9px] font-semibold text-slate-400">
-              Trophy history and earned badges will fill this cabinet as challenges finish.
+            <div className="text-[10px] font-bold text-slate-500">
+              {signedInPlayer?.display_name
+                ? `${signedInPlayer.display_name}'s achievements`
+                : "FamBam achievements"}
             </div>
           </div>
 
-          <div className="mt-3 rounded-2xl bg-[#eef4fb] p-4 shadow-sm">
-            <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#06284a]">
-              🛂 Sports Passport
-            </div>
-            <div className="mt-1 text-sm font-black text-[#10254a]">
-              Your sports memories belong here.
+          <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
+            <img
+              src="/trophy-room-preview.png"
+              alt="FamBam Trophy Room preview"
+              className="h-auto w-full"
+            />
+          </div>
+
+          <div className="mx-auto mt-3 max-w-md rounded-xl bg-[#fffaf0] px-4 py-3 text-center">
+            <div className="text-xs font-black text-[#06284a]">
+              🏆 Trophy Room is coming to life!
             </div>
             <div className="mt-1 text-[10px] font-semibold text-slate-500">
-              Games attended, stadiums visited, photos and family sports memories.
+              Your real trophies, records, streaks and Sports Passport
+              will live here.
             </div>
           </div>
         </section>
@@ -5007,7 +4060,7 @@ export default function Home() {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
-                    {gameRoomGame.icon} Game Details
+                    {gameRoomGame.icon} Game Room
                   </div>
 
                   <h2 className="mt-1 text-xl font-black leading-tight">
@@ -5029,7 +4082,7 @@ export default function Home() {
                 <button
                   onClick={closeGameRoom}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-lg font-black"
-                  aria-label="Close Game Details"
+                  aria-label="Close Game Room"
                 >
                   ×
                 </button>
@@ -5037,6 +4090,13 @@ export default function Home() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <div className="mb-4 rounded-2xl bg-[#edf5ff] p-3 text-xs font-semibold text-[#284d7e]">
+                {getGameContext(
+                  gameRoomGame,
+                  collegeFootballRankings,
+                )}
+              </div>
+
               {/* FAMBAM SPORTS DESK */}
               <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8dba8] bg-white shadow-sm">
                 <div className="flex items-center justify-between gap-3 bg-[#06284a] px-3 py-2 text-white">
@@ -5046,9 +4106,10 @@ export default function Home() {
                     </div>
 
                     <div className="mt-0.5 text-xs font-black">
-                      {getStatusLabel(gameRoomGame) === "FINAL"
+                      {gameRoomGame.status === "final"
                         ? "🏁 Final"
-                        : getStatusLabel(gameRoomGame) === "LIVE"
+                        : gameRoomGame.homeScore !== null ||
+                            gameRoomGame.awayScore !== null
                           ? "🔴 Live Update"
                           : isTomorrowGame(
                                 gameRoomGame,
@@ -5065,24 +4126,11 @@ export default function Home() {
                 </div>
 
                 <div className="p-3">
-                  {(["LIVE", "FINAL"].includes(
-                    getStatusLabel(gameRoomGame),
-                  )) && (
+                  {(gameRoomGame.homeScore !== null ||
+                    gameRoomGame.awayScore !== null) && (
                     <div className="rounded-xl bg-[#f7f4ec] px-3 py-3 text-center">
                       <div className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-                        {[
-                          "final",
-                          "finished",
-                          "complete",
-                          "completed",
-                          "closed",
-                        ].some((status) =>
-                          String(
-                            gameRoomGame.status ?? "",
-                          )
-                            .toLowerCase()
-                            .includes(status),
-                        )
+                        {gameRoomGame.status === "final"
                           ? "Final Score"
                           : "Current Score"}
                       </div>
@@ -5097,9 +4145,8 @@ export default function Home() {
                     </div>
                   )}
 
-                  {!["LIVE", "FINAL"].includes(
-                    getStatusLabel(gameRoomGame),
-                  ) && (
+                  {gameRoomGame.homeScore === null &&
+                    gameRoomGame.awayScore === null && (
                       <div className="text-xs font-semibold leading-relaxed text-slate-600">
                         {getWatchInfo(
                           gameRoomGame,
@@ -5129,106 +4176,6 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-
-              {gameRoomLoading && (
-                <div className="py-10 text-center text-sm font-bold text-slate-500">
-                  Loading game details…
-                </div>
-              )}
-
-              {!gameRoomLoading && (
-                <>
-                  <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
-                    <div className="border-b border-slate-100 px-3 py-2.5">
-                      <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
-                        📣 Game Updates
-                      </div>
-                    </div>
-
-                    {gameRoomLiveEvents.length > 0 ? (
-                      <div className="space-y-2 p-3">
-                        {[...gameRoomLiveEvents]
-                          .sort(
-                            (a, b) =>
-                              new Date(b.created_at).getTime() -
-                              new Date(a.created_at).getTime(),
-                          )
-                          .map((event) => (
-                            <div
-                              key={event.id}
-                              className="rounded-xl border border-[#f3c64f]/50 bg-[#fff8dc] px-3 py-2"
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="text-xs font-black text-[#06284a]">
-                                  {event.message}
-                                </div>
-
-                                <div className="shrink-0 text-[9px] font-semibold text-slate-400">
-                                  {new Date(
-                                    event.created_at,
-                                  ).toLocaleTimeString([], {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    ) : (
-                      <div className="px-3 py-4 text-xs font-semibold text-slate-500">
-                        Live scoring updates will appear here as the game happens.
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
-                    <div className="border-b border-slate-100 px-3 py-2.5">
-                      <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
-                        📊 About This Game
-                      </div>
-                    </div>
-
-                    <div className="p-3">
-                      {gameInsightsLoading ? (
-                        <div className="py-3 text-center text-xs font-semibold text-slate-500">
-                          Checking the matchup…
-                        </div>
-                      ) : gameInsights.length > 0 ? (
-                        <div className="space-y-3">
-                          {gameInsights.map((insight, index) => (
-                            <div
-                              key={`${insight.type}-${index}`}
-                              className="rounded-xl bg-[#f7f4ec] px-3 py-2.5"
-                            >
-                              <div className="text-[10px] font-black uppercase tracking-wide text-[#06284a]">
-                                {insight.title}
-                              </div>
-
-                              <div className="mt-1 whitespace-pre-line text-xs font-semibold leading-relaxed text-slate-600">
-                                {insight.text}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : gameRoomGame.sport ===
-                        "College Football" ? (
-                        <div className="rounded-xl bg-[#edf5ff] px-3 py-2.5 text-xs font-semibold leading-relaxed text-[#284d7e]">
-                          {getGameContext(
-                            gameRoomGame,
-                            collegeFootballRankings,
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-xs font-semibold leading-relaxed text-slate-500">
-                          No extra matchup insights are available yet.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                </>
-              )}
 
               {challengeGameIds.includes(
                 gameRoomGame.id,
@@ -5306,6 +4253,170 @@ export default function Home() {
                 </div>
               )}
 
+              {gameRoomLoading && (
+                <div className="py-10 text-center text-sm font-bold text-slate-500">
+                  Opening the Game Room…
+                </div>
+              )}
+
+              {!gameRoomLoading &&
+                gameRoomMessages.length === 0 &&
+                gameRoomLiveEvents.length === 0 && (
+                  <div className="py-10 text-center">
+                    <div className="text-3xl">🛋️</div>
+                    <div className="mt-2 text-sm font-black text-[#06284a]">
+                      The couch is empty!
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-slate-500">
+                      Be the first to say something about this game.
+                    </div>
+                  </div>
+                )}
+
+              <div className="space-y-3">
+                {[
+                  ...gameRoomMessages.map(
+                    (message) => ({
+                      kind: "message" as const,
+                      created_at:
+                        message.created_at,
+                      message,
+                    }),
+                  ),
+                  ...gameRoomLiveEvents.map(
+                    (event) => ({
+                      kind: "live" as const,
+                      created_at:
+                        event.created_at,
+                      event,
+                    }),
+                  ),
+                ]
+                  .sort(
+                    (a, b) =>
+                      new Date(
+                        a.created_at,
+                      ).getTime() -
+                      new Date(
+                        b.created_at,
+                      ).getTime(),
+                  )
+                  .map((item) => {
+                    if (item.kind === "live") {
+                      return (
+                        <div
+                          key={item.event.id}
+                          className="flex justify-center py-1"
+                        >
+                          <div className="max-w-[92%] rounded-2xl border border-[#f3c64f]/50 bg-[#fff8dc] px-3 py-2 text-center shadow-sm">
+                            <div className="text-[9px] font-black uppercase tracking-[0.15em] text-[#9a7414]">
+                              FamBam Live
+                            </div>
+
+                            <div className="mt-0.5 text-xs font-black text-[#06284a]">
+                              {item.event.message}
+                            </div>
+
+                            <div className="mt-1 text-[9px] font-semibold text-slate-400">
+                              {new Date(
+                                item.event.created_at,
+                              ).toLocaleTimeString(
+                                [],
+                                {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const message =
+                      item.message;
+
+                    const mine =
+                      message.player_id ===
+                      signedInPlayer.id;
+
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex ${
+                          mine
+                            ? "justify-end"
+                            : "justify-start"
+                        }`}
+                      >
+                        <div
+                          className={`max-w-[82%] ${
+                            mine
+                              ? "text-right"
+                              : "text-left"
+                          }`}
+                        >
+                          <div
+                            className={`mb-1 flex items-center gap-1.5 ${
+                              mine
+                                ? "justify-end"
+                                : "justify-start"
+                            }`}
+                          >
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f3c64f] text-[9px] font-black text-[#06284a]">
+                              {
+                                message.player_initials
+                              }
+                            </div>
+
+                            <span className="text-[10px] font-black text-slate-500">
+                              {
+                                message.player_name
+                              }
+                            </span>
+                          </div>
+
+                          <div
+                            className={`inline-block rounded-2xl px-3 py-2 text-sm font-semibold ${
+                              mine
+                                ? "rounded-br-md bg-[#06284a] text-white"
+                                : "rounded-bl-md bg-white text-slate-800 shadow-sm"
+                            }`}
+                          >
+                            {message.message}
+                          </div>
+
+                          <div className="mt-1 text-[9px] font-semibold text-slate-400">
+                            {new Date(
+                              message.created_at,
+                            ).toLocaleTimeString(
+                              [],
+                              {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              },
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                {gameRoomTypingName && (
+                  <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <span>
+                      {gameRoomTypingName} is typing
+                    </span>
+                    <span className="inline-flex gap-0.5">
+                      <span className="animate-pulse">•</span>
+                      <span className="animate-pulse">•</span>
+                      <span className="animate-pulse">•</span>
+                    </span>
+                  </div>
+                )}
+
+                <div ref={gameRoomBottomRef} />
+              </div>
+
               {gameRoomError && (
                 <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">
                   {gameRoomError}
@@ -5313,6 +4424,62 @@ export default function Home() {
               )}
             </div>
 
+            <div
+              className="shrink-0 border-t border-slate-200 bg-white px-3 pt-2"
+              style={{
+                paddingBottom:
+                  "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+              }}
+            >
+              <div className="mb-2 flex justify-center gap-2">
+                {["😱", "🔥", "👀", "🙌", "😂"].map(
+                  (reaction) => (
+                    <button
+                      key={reaction}
+                      onClick={() =>
+                        sendGameRoomMessage(reaction)
+                      }
+                      disabled={gameRoomSending}
+                      className="flex h-9 w-11 items-center justify-center rounded-full bg-[#f7f4ec] text-lg active:scale-95 disabled:opacity-50"
+                    >
+                      {reaction}
+                    </button>
+                  ),
+                )}
+              </div>
+
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={gameRoomMessage}
+                  onChange={(event) => {
+                    const value =
+                      event.target.value.slice(0, 500);
+
+                    setGameRoomMessage(value);
+
+                    if (value.trim()) {
+                      void signalGameRoomTyping();
+                    }
+                  }}
+                  placeholder={`Message the FamBam…`}
+                  rows={1}
+                  className="min-h-11 max-h-28 flex-1 resize-none rounded-2xl border border-slate-200 bg-[#f7f4ec] px-3 py-3 text-base font-semibold text-slate-900 outline-none focus:border-[#f3c64f]"
+                />
+
+                <button
+                  onClick={() =>
+                    sendGameRoomMessage()
+                  }
+                  disabled={
+                    gameRoomSending ||
+                    !gameRoomMessage.trim()
+                  }
+                  className="h-11 rounded-2xl bg-[#f3c64f] px-4 text-xs font-black text-[#06284a] disabled:opacity-40"
+                >
+                  {gameRoomSending ? "…" : "Send"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -5330,78 +4497,6 @@ export default function Home() {
                   <h2 className="mt-1 text-2xl font-black tracking-tight">
                     {signedInPlayer.display_name}&apos;s Picks
                   </h2>
-                </div>
-              </div>
-
-              {/* WHO'S READY */}
-              <div className="border-b border-[#e5dcc5] bg-white px-4 py-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm">👥</span>
-                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#06284a]">
-                      Who&apos;s Ready?
-                    </div>
-                  </div>
-
-                  <div className="text-[9px] font-bold text-slate-400">
-                    {challengeGames.length} picks this week
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-5 gap-2">
-                  {players.map((player) => {
-                    const count =
-                      challengePickStatus[player.id] ?? 0;
-
-                    const ready =
-                      challengeGames.length > 0 &&
-                      count >= challengeGames.length;
-
-                    const isYou =
-                      player.id === signedInPlayer.id;
-
-                    return (
-                      <div
-                        key={player.id}
-                        className="min-w-0 text-center"
-                      >
-                        <div
-                          className={`relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-[9px] font-black ${
-                            isYou
-                              ? "bg-[#06284a] text-white"
-                              : "bg-[#f7f4ec] text-[#10254a] ring-1 ring-[#e5dcc5]"
-                          }`}
-                        >
-                          {player.initials ?? "?"}
-
-                          {ready && (
-                            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[8px] font-black text-white ring-2 ring-white">
-                              ✓
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="mt-1 truncate text-[8px] font-black text-[#10254a]">
-                          {player.display_name}
-                        </div>
-
-                        <div
-                          className={`mt-0.5 text-[7px] font-black ${
-                            ready
-                              ? "text-green-600"
-                              : "text-slate-400"
-                          }`}
-                        >
-                          {ready
-                            ? "Ready!"
-                            : `${Math.max(
-                                0,
-                                challengeGames.length - count,
-                              )} left`}
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
 
@@ -5444,90 +4539,6 @@ export default function Home() {
                   )}
                 </div>              ) : (
                 <div className="p-5">
-                  {leaderboard.length > 0 && (
-                    <div className="mb-4 rounded-2xl border border-[#e5dcc5] bg-white p-3 shadow-sm">
-                      <div className="mb-2 flex items-center justify-between">
-                        <div>
-                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b28a2e]">
-                            Challenge Scoreboard
-                          </div>
-                          <div className="text-sm font-black text-[#06284a]">
-                            This Week 🏆
-                          </div>
-                        </div>
-
-                        <div className="text-[9px] font-black uppercase text-slate-400">
-                          Points
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {[...leaderboard]
-                          .sort((a, b) => {
-                            if (b.points !== a.points) {
-                              return b.points - a.points;
-                            }
-
-                            if (b.correct !== a.correct) {
-                              return b.correct - a.correct;
-                            }
-
-                            return b.accuracy - a.accuracy;
-                          })
-                          .map((row, index) => {
-                            const isYou =
-                              row.player_id === signedInPlayer.id;
-
-                            return (
-                              <div
-                                key={row.player_id}
-                                className={`flex items-center gap-2 rounded-xl px-2.5 py-2 ${
-                                  isYou
-                                    ? "bg-[#edf5ff] ring-1 ring-[#bdd7f4]"
-                                    : "bg-[#f8f6ef]"
-                                }`}
-                              >
-                                <div className="w-6 text-center text-sm font-black text-[#b28a2e]">
-                                  {index === 0
-                                    ? "🥇"
-                                    : index === 1
-                                      ? "🥈"
-                                      : index === 2
-                                        ? "🥉"
-                                        : `${index + 1}.`}
-                                </div>
-
-                                <div className="min-w-0 flex-1">
-                                  <div className="truncate text-xs font-black text-[#06284a]">
-                                    {row.display_name}
-                                    {isYou ? " · YOU" : ""}
-                                  </div>
-
-                                  <div className="text-[9px] font-semibold text-slate-500">
-                                    {row.correct} correct
-                                    {" · "}
-                                    {row.completed_picks}/{row.total_picks} scored
-                                    {row.completed_picks > 0
-                                      ? ` · ${Math.round(row.accuracy)}%`
-                                      : ""}
-                                  </div>
-                                </div>
-
-                                <div className="shrink-0 text-right">
-                                  <div className="text-lg font-black leading-none text-[#06284a]">
-                                    {row.points}
-                                  </div>
-                                  <div className="mt-0.5 text-[8px] font-black uppercase text-slate-400">
-                                    pts
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
-
                   <div className="space-y-4">
                     {challengeGames.map(
                       (game) => {
@@ -5541,37 +4552,6 @@ export default function Home() {
                           savedPickGameIds.includes(
                             game.id,
                           );
-
-                        const isFinal =
-                          [
-                            "final",
-                            "finished",
-                            "complete",
-                            "completed",
-                            "closed",
-                          ].includes(
-                            game.status.toLowerCase(),
-                          ) &&
-                          game.homeScore !== null &&
-                          game.awayScore !== null;
-
-                        const winningChoice =
-                          isFinal
-                            ? game.homeScore! >
-                              game.awayScore!
-                              ? "home"
-                              : game.awayScore! >
-                                  game.homeScore!
-                                ? "away"
-                                : "draw"
-                            : null;
-
-                        const winningTeam =
-                          winningChoice === "home"
-                            ? game.home
-                            : winningChoice === "away"
-                              ? game.away
-                              : null;
 
                         return (
                           <div
@@ -5613,54 +4593,52 @@ export default function Home() {
                               </div>
                             ) : locked ? (
                               <>
-                                <button
-                                  type="button"
-                                  onClick={() => openGameRoom(game)}
-                                  className="mt-3 block w-full rounded-xl text-left active:bg-slate-50"
-                                  aria-label={`Open game details for ${game.away} vs ${game.home}`}
-                                >
-                                  <div className="text-lg font-black text-slate-950">
-                                    {game.sport === "College Football"
-                                      ? rankedTeamLabel(
-                                          game.away,
-                                          collegeFootballRankings,
-                                        )
-                                      : game.away}
-                                    {" at "}
-                                    {game.sport === "College Football"
-                                      ? rankedTeamLabel(
-                                          game.home,
-                                          collegeFootballRankings,
-                                        )
-                                      : game.home}
-                                  </div>
+                                <div className="mt-3 text-lg font-black text-slate-950">
+                                  {game.sport === "College Football"
+                                    ? rankedTeamLabel(
+                                        game.away,
+                                        collegeFootballRankings,
+                                      )
+                                    : game.away}
+                                  {" at "}
+                                  {game.sport === "College Football"
+                                    ? rankedTeamLabel(
+                                        game.home,
+                                        collegeFootballRankings,
+                                      )
+                                    : game.home}
+                                </div>
 
-                                  <div className="mt-1 text-[10px] font-bold text-[#164d75]">
-                                    Tap matchup for game details →
-                                  </div>
+                                <p className="mt-1 text-sm font-semibold leading-snug text-slate-600">
+                                  {getGameContext(
+                                    game,
+                                    collegeFootballRankings,
+                                  )}
+                                </p>
+
+                                <button
+                                  onClick={() =>
+                                    toggleGameDetails(game.id)
+                                  }
+                                  className="mt-2 text-xs font-black text-[#164d75]"
+                                >
+                                  {expandedGameIds.includes(game.id)
+                                    ? "Show Less ↑"
+                                    : "Tell Me More →"}
                                 </button>
 
-                                {isFinal && (
-                                  <div className="mt-3 rounded-2xl border border-[#e3dccd] bg-[#f8f6ef] p-3">
-                                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">
-                                      FINAL
-                                    </div>
-
-                                    <div className="mt-1 text-base font-black text-[#06284a]">
-                                      {game.away} {game.awayScore}
-                                      {" — "}
-                                      {game.home} {game.homeScore}
-                                    </div>
-
-                                    <div className="mt-1 text-sm font-black text-slate-700">
-                                      {winningTeam
-                                        ? `🏆 ${winningTeam} wins`
-                                        : "🤝 Draw"}
-                                    </div>
+                                {expandedGameIds.includes(game.id) && (
+                                  <div className="mt-2 rounded-xl bg-[#f8f6ef] p-3">
+                                    <ul className="space-y-1.5 text-xs font-semibold text-slate-600">
+                                      {getGameFacts(
+                                        game,
+                                        collegeFootballRankings,
+                                      ).map((fact) => (
+                                        <li key={fact}>• {fact}</li>
+                                      ))}
+                                    </ul>
                                   </div>
                                 )}
-
-
 
                                 {challengeRevealedPicks[game.id] && (
                                   <div className="mt-3 rounded-2xl border border-[#e3dccd] bg-[#f8f6ef] p-3">
@@ -5708,12 +4686,6 @@ export default function Home() {
                                           pick.player_id ===
                                           signedInPlayer.id;
 
-                                        const pickCorrect =
-                                          isFinal &&
-                                          winningChoice !== null &&
-                                          pick.pick_choice ===
-                                            winningChoice;
-
                                         return (
                                           <div
                                             key={pick.player_id}
@@ -5739,25 +4711,8 @@ export default function Home() {
                                                     : ""}
                                                 </div>
 
-                                                <div className="mt-0.5 flex items-center gap-2">
-                                                  <div className="min-w-0 truncate text-xs font-black text-[#10254a]">
-                                                    {pickLabel}
-                                                  </div>
-
-                                                  {isFinal &&
-                                                    pick.pick_choice && (
-                                                      <div
-                                                        className={`shrink-0 text-[10px] font-black ${
-                                                          pickCorrect
-                                                            ? "text-emerald-600"
-                                                            : "text-rose-500"
-                                                        }`}
-                                                      >
-                                                        {pickCorrect
-                                                          ? "✓ +1"
-                                                          : "✗ 0"}
-                                                      </div>
-                                                    )}
+                                                <div className="mt-0.5 truncate text-xs font-black text-[#10254a]">
+                                                  {pickLabel}
                                                 </div>
                                               </div>
                                             </div>
@@ -5770,34 +4725,52 @@ export default function Home() {
                               </>
                             ) : (
                               <>
-                                <button
-                                  type="button"
-                                  onClick={() => openGameRoom(game)}
-                                  className="mt-3 block w-full rounded-xl text-left active:bg-slate-50"
-                                  aria-label={`Open game details for ${game.away} vs ${game.home}`}
-                                >
-                                  <div className="text-lg font-black text-slate-950">
-                                    {game.sport === "College Football"
-                                      ? rankedTeamLabel(
-                                          game.away,
-                                          collegeFootballRankings,
-                                        )
-                                      : game.away}
-                                    {" at "}
-                                    {game.sport === "College Football"
-                                      ? rankedTeamLabel(
-                                          game.home,
-                                          collegeFootballRankings,
-                                        )
-                                      : game.home}
-                                  </div>
+                                <div className="mt-3 text-lg font-black text-slate-950">
+                                  {game.sport === "College Football"
+                                    ? rankedTeamLabel(
+                                        game.away,
+                                        collegeFootballRankings,
+                                      )
+                                    : game.away}
+                                  {" at "}
+                                  {game.sport === "College Football"
+                                    ? rankedTeamLabel(
+                                        game.home,
+                                        collegeFootballRankings,
+                                      )
+                                    : game.home}
+                                </div>
 
-                                  <div className="mt-1 text-[10px] font-bold text-[#164d75]">
-                                    Tap matchup for game details →
-                                  </div>
+                                <p className="mt-1 text-sm font-semibold leading-snug text-slate-600">
+                                  {getGameContext(
+                                    game,
+                                    collegeFootballRankings,
+                                  )}
+                                </p>
+
+                                <button
+                                  onClick={() =>
+                                    toggleGameDetails(game.id)
+                                  }
+                                  className="mt-2 text-xs font-black text-[#164d75]"
+                                >
+                                  {expandedGameIds.includes(game.id)
+                                    ? "Show Less ↑"
+                                    : "Tell Me More →"}
                                 </button>
 
-
+                                {expandedGameIds.includes(game.id) && (
+                                  <div className="mt-2 rounded-xl bg-[#f8f6ef] p-3">
+                                    <ul className="space-y-1.5 text-xs font-semibold text-slate-600">
+                                      {getGameFacts(
+                                        game,
+                                        collegeFootballRankings,
+                                      ).map((fact) => (
+                                        <li key={fact}>• {fact}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
 
                                 <div
                                   className={`mt-4 grid gap-2 ${

@@ -1,0 +1,183 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+type SyncResult = {
+  name: string;
+  ok: boolean;
+  status: number;
+  data: unknown;
+};
+
+async function callInternalRoute(
+  request: NextRequest,
+  path: string,
+): Promise<SyncResult> {
+  const url = new URL(path, request.url);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  let data: unknown = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = await response.text();
+  }
+
+  return {
+    name: path,
+    ok: response.ok,
+    status: response.status,
+    data,
+  };
+}
+
+async function runSync(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+
+  const authorization =
+    request.headers.get("authorization");
+
+  if (
+    !cronSecret ||
+    authorization !== `Bearer ${cronSecret}`
+  ) {
+    return NextResponse.json(
+      { error: "Unauthorized." },
+      { status: 401 },
+    );
+  }
+
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  const supabasePublishableKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabasePublishableKey) {
+    return NextResponse.json(
+      {
+        error: "Missing Supabase configuration.",
+      },
+      { status: 500 },
+    );
+  }
+
+  const results: SyncResult[] = [];
+
+  /*
+   * Soccer can happen throughout the week, so refresh
+   * both supported soccer competitions every sync.
+   */
+  results.push(
+    await callInternalRoute(
+      request,
+      "/api/soccer/premier-league/import?season=2026",
+    ),
+  );
+
+  results.push(
+    await callInternalRoute(
+      request,
+      "/api/soccer/league-one/import?season=2026",
+    ),
+  );
+
+  /*
+   * Grade every currently open Challenge after the
+   * provider results have been refreshed.
+   */
+  const supabase = createClient(
+    supabaseUrl,
+    supabasePublishableKey,
+  );
+
+  const {
+    data: openChallenges,
+    error: challengeError,
+  } = await supabase
+    .from("challenges")
+    .select("id, name")
+    .eq("status", "open");
+
+  if (challengeError) {
+    return NextResponse.json(
+      {
+        error: "Sports imports ran, but open Challenges could not be loaded.",
+        details: challengeError.message,
+        results,
+      },
+      { status: 500 },
+    );
+  }
+
+  const gradingResults: SyncResult[] = [];
+
+  for (const challenge of openChallenges ?? []) {
+    const gradeResponse = await fetch(
+      new URL("/api/challenge/grade", request.url),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          challengeId: challenge.id,
+        }),
+        cache: "no-store",
+      },
+    );
+
+    let gradeData: unknown = null;
+
+    try {
+      gradeData = await gradeResponse.json();
+    } catch {
+      gradeData = await gradeResponse.text();
+    }
+
+    gradingResults.push({
+      name: `Grade ${challenge.name}`,
+      ok: gradeResponse.ok,
+      status: gradeResponse.status,
+      data: gradeData,
+    });
+  }
+
+  const allResults = [
+    ...results,
+    ...gradingResults,
+  ];
+
+  const failures = allResults.filter(
+    (result) => !result.ok,
+  );
+
+  return NextResponse.json(
+    {
+      success: failures.length === 0,
+      syncedAt: new Date().toISOString(),
+      imports: results,
+      grading: gradingResults,
+      failures: failures.length,
+    },
+    {
+      status:
+        failures.length === 0 ? 200 : 207,
+    },
+  );
+}
+
+export async function POST(request: NextRequest) {
+  return runSync(request);
+}
+
+export async function GET(request: NextRequest) {
+  return runSync(request);
+}

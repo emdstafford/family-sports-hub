@@ -4712,15 +4712,28 @@ export default function Home() {
 
       {activeSection === "Locker Room" && (
         <section className="bg-[#031d35]">
-          <div className="mx-auto min-h-[calc(100vh-112px)] max-w-[1500px] bg-[#031d35]">
-            <div className="relative hidden overflow-hidden md:block">
+          <div className="mx-auto min-h-[calc(100vh-64px)] max-w-[1500px] bg-[#031d35]">
+            <div className="relative overflow-hidden">
               <img
                 src="/locker-room-preview.png"
-                alt={`${signedInPlayer?.display_name ?? "My"}'s FamBam locker`}
-                className="block w-full object-cover object-top"
+                alt={`${signedInPlayer?.display_name ?? "My"}'s Locker Room`}
+                className="block h-auto w-full object-cover object-top"
               />
 
-              <div className="absolute left-4 top-5 z-10 flex max-w-[68%] flex-wrap gap-1.5">
+              <div className="absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/65 via-black/20 to-transparent px-4 pb-10 pt-4 text-center">
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
+                  FamBam
+                </div>
+                <div className="mt-1 text-2xl font-black text-white drop-shadow sm:text-3xl">
+                  {signedInPlayer?.display_name
+                    ? `${signedInPlayer.display_name}'s Locker Room`
+                    : "My Locker Room"}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 bg-[#031d35] px-3 py-3">
+              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {[
                   "All",
                   ...Array.from(
@@ -4735,213 +4748,117 @@ export default function Home() {
                     key={sport}
                     type="button"
                     onClick={() => setLockerSportFilter(sport)}
-                    className={`rounded-full border px-3 py-2 text-[9px] font-black shadow-lg backdrop-blur ${
+                    className={`shrink-0 rounded-full border px-3 py-2 text-[10px] font-black ${
                       lockerSportFilter === sport
                         ? "border-[#f3c64f] bg-[#f3c64f] text-[#06284a]"
-                        : "border-white/20 bg-[#031d35]/82 text-white"
+                        : "border-white/15 bg-white/5 text-white"
                     }`}
                   >
                     {sport}
                   </button>
                 ))}
               </div>
+            </div>
 
-              <div className="absolute right-4 top-5 z-10 w-[28%] max-w-[260px] rounded-2xl border border-white/15 bg-[#031d35]/88 p-4 text-white shadow-2xl backdrop-blur-md">
-                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
-                  {signedInPlayer?.display_name ?? "My"}'s Teams
-                </div>
-                <div className="mt-1 text-[9px] font-semibold text-white/60">
-                  {lockerSportFilter === "All" ? "All sports" : lockerSportFilter}
-                </div>
-
-                <div className="mt-2 space-y-1.5">
-                  {(lockerPlayers
-                    .find((player) => player.id === signedInPlayer?.id)
-                    ?.teams.filter(
-                      (team) =>
-                        lockerSportFilter === "All" ||
-                        team.sport === lockerSportFilter,
-                    ) ?? [])
-                    .slice(0, 10)
-                    .map((team) => (
-                      <div
-                        key={team.id}
-                        className="flex items-center gap-2 rounded-lg bg-white/8 px-2 py-2"
-                      >
-                        {team.logo_url ? (
-                          <img
-                            src={team.logo_url}
-                            alt=""
-                            className="h-6 w-6 shrink-0 object-contain"
-                          />
-                        ) : (
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[8px] font-black">
-                            {team.name.slice(0, 1)}
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1 truncate text-[10px] font-black">
-                          {team.short_name ?? team.name}
-                        </div>
-                        {team.is_primary && (
-                          <span className="text-[#f3c64f]">★</span>
-                        )}
-                      </div>
-                    ))}
+            <div className="px-3 pb-5 pt-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
+                    My Teams
+                  </div>
+                  <div className="mt-0.5 text-sm font-bold text-white/65">
+                    {lockerSportFilter === "All"
+                      ? "Everything I follow"
+                      : lockerSportFilter}
+                  </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => void openProfile()}
-                  className="mt-3 w-full rounded-xl bg-[#f3c64f] px-3 py-2.5 text-[10px] font-black text-[#06284a]"
+                  className="shrink-0 rounded-xl border border-[#f3c64f] px-3 py-2 text-[10px] font-black text-[#f3c64f]"
                 >
-                  + Edit My Teams
+                  + Edit
                 </button>
               </div>
-            </div>
 
-            <div className="md:hidden">
-              <div className="relative overflow-hidden border-b border-white/10">
-                <img
-                  src="/locker-room-preview.png"
-                  alt={`${signedInPlayer?.display_name ?? "My"}'s FamBam locker`}
-                  className="h-[210px] w-full object-cover object-center"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#031d35] via-transparent to-black/20" />
-                <div className="absolute inset-x-0 bottom-0 px-4 pb-4">
-                  <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
-                    My Locker
-                  </div>
-                  <div className="mt-0.5 text-2xl font-black text-white">
-                    {signedInPlayer?.display_name
-                      ? `${signedInPlayer.display_name}'s Teams`
-                      : "My Teams"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="sticky top-0 z-20 border-b border-white/10 bg-[#031d35]/95 px-3 py-3 backdrop-blur">
-                <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {[
-                    "All",
-                    ...Array.from(
-                      new Set(
-                        lockerPlayers
-                          .find((player) => player.id === signedInPlayer?.id)
-                          ?.teams.map((team) => team.sport) ?? [],
-                      ),
-                    ),
-                  ].map((sport) => (
+              <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {(lockerPlayers
+                  .find((player) => player.id === signedInPlayer?.id)
+                  ?.teams.filter(
+                    (team) =>
+                      lockerSportFilter === "All" ||
+                      team.sport === lockerSportFilter,
+                  ) ?? [])
+                  .map((team) => (
                     <button
-                      key={sport}
+                      key={team.id}
                       type="button"
-                      onClick={() => setLockerSportFilter(sport)}
-                      className={`shrink-0 rounded-full border px-3 py-2 text-[10px] font-black ${
-                        lockerSportFilter === sport
-                          ? "border-[#f3c64f] bg-[#f3c64f] text-[#06284a]"
-                          : "border-white/15 bg-white/5 text-white"
-                      }`}
+                      className="w-[78vw] max-w-[310px] shrink-0 snap-center overflow-hidden rounded-2xl border border-[#8b6235] bg-gradient-to-b from-[#4b2d18] to-[#1f140d] text-left shadow-2xl"
                     >
-                      {sport}
+                      <div className="border-b border-[#8b6235] bg-[#2b190e] px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-[#f3c64f]">
+                        {team.short_name ?? team.name}
+                      </div>
+
+                      <div className="flex min-h-[190px] flex-col items-center justify-center px-5 py-5">
+                        {team.logo_url ? (
+                          <img
+                            src={team.logo_url}
+                            alt={team.name}
+                            className="h-24 w-24 object-contain drop-shadow-xl"
+                          />
+                        ) : (
+                          <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/10 bg-white/5 text-4xl font-black text-white">
+                            {team.name.slice(0, 1)}
+                          </div>
+                        )}
+
+                        <div className="mt-4 text-center text-lg font-black text-white">
+                          {team.name}
+                        </div>
+
+                        <div className="mt-1 text-center text-[10px] font-bold text-white/50">
+                          {team.sport}
+                          {team.is_primary ? " · ⭐ Favorite" : ""}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-[#8b6235] bg-black/20 px-4 py-3 text-center text-[9px] font-black uppercase tracking-wide text-white/55">
+                        My Team
+                      </div>
                     </button>
                   ))}
-                </div>
-              </div>
 
-              <div className="px-3 py-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
-                      My Teams
-                    </div>
-                    <div className="mt-0.5 text-sm font-bold text-white/65">
-                      {lockerSportFilter === "All"
-                        ? "Everything I follow"
-                        : lockerSportFilter}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void openProfile()}
-                    className="shrink-0 rounded-xl border border-[#f3c64f] px-3 py-2 text-[10px] font-black text-[#f3c64f]"
-                  >
-                    + Edit
-                  </button>
-                </div>
-
-                <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {(lockerPlayers
+                {!lockerLoading &&
+                  (lockerPlayers
                     .find((player) => player.id === signedInPlayer?.id)
                     ?.teams.filter(
                       (team) =>
                         lockerSportFilter === "All" ||
                         team.sport === lockerSportFilter,
-                    ) ?? [])
-                    .map((team) => (
-                      <button
-                        key={team.id}
-                        type="button"
-                        className="w-[78vw] max-w-[310px] shrink-0 snap-center overflow-hidden rounded-2xl border border-[#8b6235] bg-gradient-to-b from-[#4b2d18] to-[#1f140d] text-left shadow-2xl"
-                      >
-                        <div className="border-b border-[#8b6235] bg-[#2b190e] px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-[#f3c64f]">
-                          {team.short_name ?? team.name}
-                        </div>
-                        <div className="flex min-h-[190px] flex-col items-center justify-center px-5 py-5">
-                          {team.logo_url ? (
-                            <img
-                              src={team.logo_url}
-                              alt={team.name}
-                              className="h-24 w-24 object-contain drop-shadow-xl"
-                            />
-                          ) : (
-                            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/10 bg-white/5 text-4xl font-black text-white">
-                              {team.name.slice(0, 1)}
-                            </div>
-                          )}
-                          <div className="mt-4 text-center text-lg font-black text-white">
-                            {team.name}
-                          </div>
-                          <div className="mt-1 text-center text-[10px] font-bold text-white/50">
-                            {team.sport}
-                            {team.is_primary ? " · ⭐ Favorite" : ""}
-                          </div>
-                        </div>
-                        <div className="border-t border-[#8b6235] bg-black/20 px-4 py-3 text-center text-[9px] font-black uppercase tracking-wide text-white/55">
-                          My Team
-                        </div>
-                      </button>
-                    ))}
-
-                  {!lockerLoading &&
-                    (lockerPlayers
-                      .find((player) => player.id === signedInPlayer?.id)
-                      ?.teams.filter(
-                        (team) =>
-                          lockerSportFilter === "All" ||
-                          team.sport === lockerSportFilter,
-                      ).length ?? 0) === 0 && (
-                      <div className="w-full rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-center">
-                        <div className="text-3xl">🏟️</div>
-                        <div className="mt-2 text-sm font-black text-white">
-                          No teams here yet
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => void openProfile()}
-                          className="mt-3 rounded-xl bg-[#f3c64f] px-4 py-2.5 text-[10px] font-black text-[#06284a]"
-                        >
-                          Add a Team
-                        </button>
+                    ).length ?? 0) === 0 && (
+                    <div className="w-full rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-center">
+                      <div className="text-3xl">🏟️</div>
+                      <div className="mt-2 text-sm font-black text-white">
+                        No teams here yet
                       </div>
-                    )}
-                </div>
+                      <button
+                        type="button"
+                        onClick={() => void openProfile()}
+                        className="mt-3 rounded-xl bg-[#f3c64f] px-4 py-2.5 text-[10px] font-black text-[#06284a]"
+                      >
+                        Add a Team
+                      </button>
+                    </div>
+                  )}
+              </div>
 
-                <div className="mt-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-center">
-                  <div className="text-sm font-black text-white">
-                    Good teams make great memories. 💛
-                  </div>
-                  <div className="mt-1 text-[10px] font-semibold text-white/45">
-                    Play · Explore · Remember · Together
-                  </div>
+              <div className="mt-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-center">
+                <div className="text-sm font-black text-white">
+                  Good teams make great memories. 💛
+                </div>
+                <div className="mt-1 text-[10px] font-semibold text-white/45">
+                  Play · Explore · Remember · Together
                 </div>
               </div>
             </div>

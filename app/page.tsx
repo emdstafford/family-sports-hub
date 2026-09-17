@@ -51,6 +51,22 @@ type ProfileSportChoice = {
   interestType: "follow" | "play_follow";
 };
 
+type LockerTeam = {
+  id: string;
+  name: string;
+  short_name: string | null;
+  logo_url: string | null;
+  sport: string;
+  is_primary: boolean;
+};
+
+type LockerPlayer = {
+  id: string;
+  display_name: string;
+  initials: string | null;
+  teams: LockerTeam[];
+};
+
 type ApiGame = {
   id: string;
   sport: string;
@@ -769,6 +785,18 @@ export default function Home() {
 
   const [profileAddingTeam, setProfileAddingTeam] =
     useState(false);
+
+  const [lockerPlayers, setLockerPlayers] =
+    useState<LockerPlayer[]>([]);
+
+  const [lockerSportFilter, setLockerSportFilter] =
+    useState("All");
+
+  const [lockerLoading, setLockerLoading] =
+    useState(false);
+
+  const [trophyRoomPanel, setTrophyRoomPanel] =
+    useState<null | "records" | "passport" | "memories">(null);
 
   const [activeSection, setActiveSection] =
     useState<"Home" | "Challenge" | "Games" | "Locker Room" | "Trophy Room">("Home");
@@ -1698,7 +1726,54 @@ export default function Home() {
     ) {
       void openProfile(false);
     }
+
+    if (
+      activeSection === "Locker Room" &&
+      signedInPlayer
+    ) {
+      void loadLockerRoom();
+    }
   }, [activeSection, signedInPlayer?.id]);
+
+  async function loadLockerRoom() {
+    if (!signedInPlayer) return;
+
+    const sessionToken =
+      window.localStorage.getItem(
+        "fambam_session_token",
+      );
+
+    if (!sessionToken) return;
+
+    try {
+      setLockerLoading(true);
+
+      const response = await fetch(
+        `/api/locker-room?playerId=${encodeURIComponent(
+          signedInPlayer.id,
+        )}`,
+        {
+          headers: {
+            "x-fambam-session": sessionToken,
+          },
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ?? "Unable to load the Locker Room.",
+        );
+      }
+
+      setLockerPlayers(data.players ?? []);
+    } catch (error) {
+      console.error("Locker Room load error:", error);
+    } finally {
+      setLockerLoading(false);
+    }
+  }
 
   async function openProfile(showModal = true) {
     if (!signedInPlayer) return;
@@ -4636,298 +4711,570 @@ export default function Home() {
       )}
 
       {activeSection === "Locker Room" && (
-        <section className="mx-auto max-w-5xl px-3 py-4">
-          <div className="rounded-3xl bg-[#06284a] p-5 text-white shadow-lg">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
-              👥 Locker Room
+        <section className="bg-[#031d35]">
+          <div className="mx-auto min-h-[calc(100vh-112px)] max-w-[1500px] bg-[#031d35]">
+            <div className="relative hidden overflow-hidden md:block">
+              <img
+                src="/locker-room-preview.png"
+                alt={`${signedInPlayer?.display_name ?? "My"}'s FamBam locker`}
+                className="block w-full object-cover object-top"
+              />
+
+              <div className="absolute left-4 top-5 z-10 flex max-w-[68%] flex-wrap gap-1.5">
+                {[
+                  "All",
+                  ...Array.from(
+                    new Set(
+                      lockerPlayers
+                        .find((player) => player.id === signedInPlayer?.id)
+                        ?.teams.map((team) => team.sport) ?? [],
+                    ),
+                  ),
+                ].map((sport) => (
+                  <button
+                    key={sport}
+                    type="button"
+                    onClick={() => setLockerSportFilter(sport)}
+                    className={`rounded-full border px-3 py-2 text-[9px] font-black shadow-lg backdrop-blur ${
+                      lockerSportFilter === sport
+                        ? "border-[#f3c64f] bg-[#f3c64f] text-[#06284a]"
+                        : "border-white/20 bg-[#031d35]/82 text-white"
+                    }`}
+                  >
+                    {sport}
+                  </button>
+                ))}
+              </div>
+
+              <div className="absolute right-4 top-5 z-10 w-[28%] max-w-[260px] rounded-2xl border border-white/15 bg-[#031d35]/88 p-4 text-white shadow-2xl backdrop-blur-md">
+                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
+                  {signedInPlayer?.display_name ?? "My"}'s Teams
+                </div>
+                <div className="mt-1 text-[9px] font-semibold text-white/60">
+                  {lockerSportFilter === "All" ? "All sports" : lockerSportFilter}
+                </div>
+
+                <div className="mt-2 space-y-1.5">
+                  {(lockerPlayers
+                    .find((player) => player.id === signedInPlayer?.id)
+                    ?.teams.filter(
+                      (team) =>
+                        lockerSportFilter === "All" ||
+                        team.sport === lockerSportFilter,
+                    ) ?? [])
+                    .slice(0, 10)
+                    .map((team) => (
+                      <div
+                        key={team.id}
+                        className="flex items-center gap-2 rounded-lg bg-white/8 px-2 py-2"
+                      >
+                        {team.logo_url ? (
+                          <img
+                            src={team.logo_url}
+                            alt=""
+                            className="h-6 w-6 shrink-0 object-contain"
+                          />
+                        ) : (
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[8px] font-black">
+                            {team.name.slice(0, 1)}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1 truncate text-[10px] font-black">
+                          {team.short_name ?? team.name}
+                        </div>
+                        {team.is_primary && (
+                          <span className="text-[#f3c64f]">★</span>
+                        )}
+                      </div>
+                    ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void openProfile()}
+                  className="mt-3 w-full rounded-xl bg-[#f3c64f] px-3 py-2.5 text-[10px] font-black text-[#06284a]"
+                >
+                  + Edit My Teams
+                </button>
+              </div>
             </div>
-            <div className="mt-1 text-2xl font-black">
-              {signedInPlayer?.display_name
-                ? `${signedInPlayer.display_name}'s Locker`
-                : "My Locker"}
-            </div>
-            <div className="mt-1 text-xs font-semibold text-white/70">
-              Your teams, sports and FamBam identity.
+
+            <div className="md:hidden">
+              <div className="relative overflow-hidden border-b border-white/10">
+                <img
+                  src="/locker-room-preview.png"
+                  alt={`${signedInPlayer?.display_name ?? "My"}'s FamBam locker`}
+                  className="h-[210px] w-full object-cover object-center"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#031d35] via-transparent to-black/20" />
+                <div className="absolute inset-x-0 bottom-0 px-4 pb-4">
+                  <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
+                    My Locker
+                  </div>
+                  <div className="mt-0.5 text-2xl font-black text-white">
+                    {signedInPlayer?.display_name
+                      ? `${signedInPlayer.display_name}'s Teams`
+                      : "My Teams"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="sticky top-0 z-20 border-b border-white/10 bg-[#031d35]/95 px-3 py-3 backdrop-blur">
+                <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {[
+                    "All",
+                    ...Array.from(
+                      new Set(
+                        lockerPlayers
+                          .find((player) => player.id === signedInPlayer?.id)
+                          ?.teams.map((team) => team.sport) ?? [],
+                      ),
+                    ),
+                  ].map((sport) => (
+                    <button
+                      key={sport}
+                      type="button"
+                      onClick={() => setLockerSportFilter(sport)}
+                      className={`shrink-0 rounded-full border px-3 py-2 text-[10px] font-black ${
+                        lockerSportFilter === sport
+                          ? "border-[#f3c64f] bg-[#f3c64f] text-[#06284a]"
+                          : "border-white/15 bg-white/5 text-white"
+                      }`}
+                    >
+                      {sport}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="px-3 py-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
+                      My Teams
+                    </div>
+                    <div className="mt-0.5 text-sm font-bold text-white/65">
+                      {lockerSportFilter === "All"
+                        ? "Everything I follow"
+                        : lockerSportFilter}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void openProfile()}
+                    className="shrink-0 rounded-xl border border-[#f3c64f] px-3 py-2 text-[10px] font-black text-[#f3c64f]"
+                  >
+                    + Edit
+                  </button>
+                </div>
+
+                <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {(lockerPlayers
+                    .find((player) => player.id === signedInPlayer?.id)
+                    ?.teams.filter(
+                      (team) =>
+                        lockerSportFilter === "All" ||
+                        team.sport === lockerSportFilter,
+                    ) ?? [])
+                    .map((team) => (
+                      <button
+                        key={team.id}
+                        type="button"
+                        className="w-[78vw] max-w-[310px] shrink-0 snap-center overflow-hidden rounded-2xl border border-[#8b6235] bg-gradient-to-b from-[#4b2d18] to-[#1f140d] text-left shadow-2xl"
+                      >
+                        <div className="border-b border-[#8b6235] bg-[#2b190e] px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-[#f3c64f]">
+                          {team.short_name ?? team.name}
+                        </div>
+                        <div className="flex min-h-[190px] flex-col items-center justify-center px-5 py-5">
+                          {team.logo_url ? (
+                            <img
+                              src={team.logo_url}
+                              alt={team.name}
+                              className="h-24 w-24 object-contain drop-shadow-xl"
+                            />
+                          ) : (
+                            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/10 bg-white/5 text-4xl font-black text-white">
+                              {team.name.slice(0, 1)}
+                            </div>
+                          )}
+                          <div className="mt-4 text-center text-lg font-black text-white">
+                            {team.name}
+                          </div>
+                          <div className="mt-1 text-center text-[10px] font-bold text-white/50">
+                            {team.sport}
+                            {team.is_primary ? " · ⭐ Favorite" : ""}
+                          </div>
+                        </div>
+                        <div className="border-t border-[#8b6235] bg-black/20 px-4 py-3 text-center text-[9px] font-black uppercase tracking-wide text-white/55">
+                          My Team
+                        </div>
+                      </button>
+                    ))}
+
+                  {!lockerLoading &&
+                    (lockerPlayers
+                      .find((player) => player.id === signedInPlayer?.id)
+                      ?.teams.filter(
+                        (team) =>
+                          lockerSportFilter === "All" ||
+                          team.sport === lockerSportFilter,
+                      ).length ?? 0) === 0 && (
+                      <div className="w-full rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-center">
+                        <div className="text-3xl">🏟️</div>
+                        <div className="mt-2 text-sm font-black text-white">
+                          No teams here yet
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void openProfile()}
+                          className="mt-3 rounded-xl bg-[#f3c64f] px-4 py-2.5 text-[10px] font-black text-[#06284a]"
+                        >
+                          Add a Team
+                        </button>
+                      </div>
+                    )}
+                </div>
+
+                <div className="mt-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-center">
+                  <div className="text-sm font-black text-white">
+                    Good teams make great memories. 💛
+                  </div>
+                  <div className="mt-1 text-[10px] font-semibold text-white/45">
+                    Play · Explore · Remember · Together
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-
-          {!signedInPlayer ? (
-            <div className="mt-3 rounded-2xl bg-white p-5 text-center shadow-sm">
-              <div className="text-sm font-black text-[#10254a]">
-                Pick a player to open your locker.
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                    My Sports
-                  </div>
-                  <div className="mt-2 text-3xl font-black text-[#06284a]">
-                    {profileSportChoices.length}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500">
-                    sports followed
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                    My Teams
-                  </div>
-                  <div className="mt-2 text-3xl font-black text-[#06284a]">
-                    {profileFavoriteTeamIds.length}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500">
-                    favorite teams
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                  ❤️ Sports I Follow
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {profileSportChoices.length === 0 ? (
-                    <span className="text-xs font-semibold text-slate-500">
-                      Add sports in your profile.
-                    </span>
-                  ) : (
-                    profileSportChoices.map((choice) => {
-                      const sport = profileSports.find(
-                        (item) => item.id === choice.sportId,
-                      );
-
-                      return (
-                        <span
-                          key={choice.sportId}
-                          className="rounded-full bg-[#eef4fb] px-3 py-2 text-xs font-black text-[#06284a]"
-                        >
-                          {sport?.emoji || "🏅"} {sport?.name || "Sport"}
-                        </span>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                  ⭐ Favorite Teams
-                </div>
-                <div className="mt-3 space-y-2">
-                  {profileFavoriteTeamIds.length === 0 ? (
-                    <div className="text-xs font-semibold text-slate-500">
-                      No favorite teams yet.
-                    </div>
-                  ) : (
-                    profileFavoriteTeamIds
-                      .map((teamId) =>
-                        profileTeams.find((team) => team.id === teamId),
-                      )
-                      .filter(
-                        (team): team is ProfileTeam => Boolean(team),
-                      )
-                      .map((team) => {
-                        const primary =
-                          profilePrimaryTeamIdsBySport[team.sport_id] ===
-                          team.id;
-
-                        return (
-                          <div
-                            key={team.id}
-                            className="flex items-center justify-between rounded-xl bg-[#fffaf0] px-3 py-3"
-                          >
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-black text-[#10254a]">
-                                {team.name}
-                              </div>
-                              <div className="text-[9px] font-bold text-slate-400">
-                                {profileSports.find(
-                                  (sport) => sport.id === team.sport_id,
-                                )?.name ?? "Team"}
-                              </div>
-                            </div>
-                            <div className="text-lg">
-                              {primary ? "⭐" : "❤️"}
-                            </div>
-                          </div>
-                        );
-                      })
-                  )}
-                </div>
-              </div>
-
-              <button
-                onClick={() => void openProfile()}
-                className="mt-3 w-full rounded-2xl bg-[#f3c64f] px-4 py-4 text-sm font-black text-[#06284a] shadow-sm"
-              >
-                Edit My Locker
-              </button>
-            </>
-          )}
         </section>
       )}
 
       {activeSection === "Trophy Room" && (
-        <section className="mx-auto max-w-5xl px-3 py-4">
-          <div className="rounded-3xl bg-[#06284a] p-5 text-white shadow-lg">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
-              🏆 Trophy Room
-            </div>
-            <div className="mt-1 text-2xl font-black">
-              FamBam Hall of Fame
-            </div>
-            <div className="mt-1 text-xs font-semibold text-white/70">
-              Scores, wins and bragging rights.
-            </div>
-          </div>
+        <section className="bg-[#031d35]">
+          <div className="relative mx-auto min-h-[calc(100vh-112px)] max-w-[1500px] overflow-hidden bg-[#031d35]">
+            <img
+              src="/trophy-room-preview.png"
+              alt="FamBam Trophy Room"
+              className="h-auto min-h-[520px] w-full object-cover object-top"
+            />
 
-          {leaderboard.length > 0 && (
-            <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                🥇 Current Challenge
-              </div>
-              <div className="mt-1 text-lg font-black text-[#10254a]">
-                {challenge?.name ?? "FamBam Challenge"}
-              </div>
+            <div className="absolute left-2 top-3 z-10 flex flex-wrap gap-1.5 sm:left-4 sm:top-5">
+              <button
+                type="button"
+                onClick={() => setTrophyRoomPanel("records")}
+                className="rounded-full border border-[#f3c64f]/50 bg-[#031d35]/88 px-3 py-2 text-[9px] font-black text-white shadow-xl backdrop-blur"
+              >
+                📖 Record Book
+              </button>
+              <button
+                type="button"
+                onClick={() => setTrophyRoomPanel("passport")}
+                className="rounded-full border border-[#f3c64f]/50 bg-[#031d35]/88 px-3 py-2 text-[9px] font-black text-white shadow-xl backdrop-blur"
+              >
+                🛂 Sports Passport
+              </button>
+              <button
+                type="button"
+                onClick={() => setTrophyRoomPanel("memories")}
+                className="rounded-full border border-[#f3c64f]/50 bg-[#031d35]/88 px-3 py-2 text-[9px] font-black text-white shadow-xl backdrop-blur"
+              >
+                📸 Memories
+              </button>
+            </div>
 
-              <div className="mt-3 space-y-2">
-                {[...leaderboard]
-                  .sort((a, b) => {
-                    if (b.points !== a.points) return b.points - a.points;
-                    return b.correct - a.correct;
-                  })
-                  .map((row, index) => (
-                    <div
-                      key={row.player_id}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-3 ${
-                        index === 0
-                          ? "bg-[#fff5cf]"
-                          : "bg-slate-50"
-                      }`}
+            <div className="absolute inset-x-2 bottom-3 z-10 sm:inset-x-4 sm:bottom-5">
+              <div className="rounded-2xl border border-white/15 bg-[#160f09]/88 p-2.5 shadow-2xl backdrop-blur-md sm:p-4">
+                <div className="text-[8px] font-black uppercase tracking-[0.16em] text-[#f3c64f] sm:text-[10px]">
+                  🏆 Trophy Shelves
+                </div>
+                <div className="mt-0.5 text-[7px] font-semibold text-white/55 sm:text-[9px]">
+                  Locked trophies stay on display until somebody earns them.
+                </div>
+
+                <div className="mt-2 grid grid-cols-6 gap-1.5 sm:gap-3">
+                  {[
+                    ["🏆", "Weekly Champ", "Win a weekly challenge"],
+                    ["🎯", "Pick Master", "Perfect challenge card"],
+                    ["🔥", "Hot Streak", "Build a winning streak"],
+                    ["⚽", "Soccer Star", "Soccer achievement"],
+                    ["🏈", "Gridiron Guru", "Football achievement"],
+                    ["👑", "FamBam Legend", "Family milestone"],
+                    ["🧠", "Upset Genius", "Call a big upset"],
+                    ["💯", "Perfect 10", "Go 10-for-10"],
+                    ["🥇", "Back-to-Back", "Win two weeks in a row"],
+                    ["🌎", "World Traveler", "Passport milestone"],
+                    ["🏟️", "Stadium Hopper", "Visit multiple venues"],
+                    ["❤️", "FamBam Forever", "Shared family milestone"],
+                  ].map(([icon, title, note]) => (
+                    <button
+                      key={title}
+                      type="button"
+                      title={`${title}: ${note}`}
+                      className="relative min-w-0 rounded-xl border border-white/10 bg-black/30 px-1 py-2 text-center shadow-inner sm:px-2 sm:py-3"
                     >
-                      <div className="w-8 text-center text-xl">
-                        {index === 0
-                          ? "🏆"
-                          : index === 1
-                            ? "🥈"
-                            : index === 2
-                              ? "🥉"
-                              : `${index + 1}`}
+                      <div className="absolute right-1 top-1 text-[8px] opacity-80 sm:text-[10px]">
+                        🔒
                       </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-black text-[#10254a]">
-                          {row.display_name}
-                        </div>
-                        <div className="text-[10px] font-bold text-slate-500">
-                          {row.correct} correct · {row.completed_picks}/{row.total_picks} scored
-                        </div>
+                      <div className="text-xl grayscale opacity-30 sm:text-3xl">
+                        {icon}
                       </div>
-                      <div className="text-right">
-                        <div className="text-xl font-black text-[#06284a]">
-                          {row.points}
-                        </div>
-                        <div className="text-[8px] font-black uppercase text-slate-400">
-                          pts
-                        </div>
+                      <div className="mt-1 truncate text-[6px] font-black text-white/50 sm:text-[8px]">
+                        {title}
                       </div>
-                    </div>
+                    </button>
                   ))}
-              </div>
-            </div>
-          )}
-
-          {signedInPlayer && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              {(() => {
-                const me = leaderboard.find(
-                  (row) => row.player_id === signedInPlayer.id,
-                );
-
-                const sorted = [...leaderboard].sort((a, b) => {
-                  if (b.points !== a.points) return b.points - a.points;
-                  return b.correct - a.correct;
-                });
-
-                const place =
-                  sorted.findIndex(
-                    (row) => row.player_id === signedInPlayer.id,
-                  ) + 1;
-
-                return (
-                  <>
-                    <div className="rounded-2xl bg-white p-4 shadow-sm">
-                      <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                        My Points
-                      </div>
-                      <div className="mt-2 text-3xl font-black text-[#06284a]">
-                        {me?.points ?? 0}
-                      </div>
-                      <div className="text-[10px] font-bold text-slate-500">
-                        this challenge
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl bg-white p-4 shadow-sm">
-                      <div className="text-[9px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-                        My Place
-                      </div>
-                      <div className="mt-2 text-3xl font-black text-[#06284a]">
-                        {place > 0 ? `#${place}` : "—"}
-                      </div>
-                      <div className="text-[10px] font-bold text-slate-500">
-                        current standings
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          )}
-
-          <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-            <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b68718]">
-              🎖️ Trophy Cabinet
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl bg-[#fffaf0] p-3">
-                <div className="text-3xl">🏆</div>
-                <div className="mt-1 text-[9px] font-black text-[#10254a]">
-                  Weekly Champ
                 </div>
               </div>
-              <div className="rounded-xl bg-[#fffaf0] p-3">
-                <div className="text-3xl">🎯</div>
-                <div className="mt-1 text-[9px] font-black text-[#10254a]">
-                  Pick Master
-                </div>
-              </div>
-              <div className="rounded-xl bg-[#fffaf0] p-3">
-                <div className="text-3xl">🔥</div>
-                <div className="mt-1 text-[9px] font-black text-[#10254a]">
-                  Hot Streak
-                </div>
-              </div>
-            </div>
-            <div className="mt-2 text-center text-[9px] font-semibold text-slate-400">
-              Trophy history and earned badges will fill this cabinet as challenges finish.
             </div>
           </div>
 
-          <div className="mt-3 rounded-2xl bg-[#eef4fb] p-4 shadow-sm">
-            <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#06284a]">
-              🛂 Sports Passport
+          {trophyRoomPanel && (
+            <div
+              className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center"
+              onClick={() => setTrophyRoomPanel(null)}
+            >
+              <div
+                className="max-h-[86vh] w-full max-w-2xl overflow-y-auto rounded-[1.75rem] border border-[#d9b85b] bg-[#f7f0df] shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#d9c89c] bg-[#efe1bd] px-4 py-3">
+                  <div className="font-black text-[#3d2b17]">
+                    {trophyRoomPanel === "records"
+                      ? "📖 FamBam Record Book"
+                      : trophyRoomPanel === "passport"
+                        ? "🛂 FamBam Sports Passport"
+                        : "📸 FamBam Memories"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTrophyRoomPanel(null)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3d2b17] text-sm font-black text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {trophyRoomPanel === "records" && (
+                  <div className="p-4">
+                    <div className="rounded-2xl border border-[#d9c89c] bg-[#fffaf0] p-4 shadow-inner">
+                      <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#9a6d16]">
+                        ⭐ Personal Records
+                      </div>
+                      <div className="mt-1 text-xl font-black text-[#3d2b17]">
+                        {signedInPlayer?.display_name ?? "My"}'s Record Page
+                      </div>
+
+                      {signedInPlayer && leaderboard.length > 0 && (() => {
+                        const me = leaderboard.find(
+                          (row) => row.player_id === signedInPlayer.id,
+                        );
+
+                        if (!me) {
+                          return (
+                            <div className="mt-3 text-xs font-semibold text-[#76634b]">
+                              No scored Challenge records yet.
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="mt-3 grid grid-cols-3 gap-2">
+                            <div className="rounded-xl border border-[#e4d5b2] bg-white p-3 text-center">
+                              <div className="text-2xl font-black text-[#3d2b17]">
+                                {me.points}
+                              </div>
+                              <div className="text-[7px] font-black uppercase text-[#9a876c]">
+                                Current Points
+                              </div>
+                            </div>
+                            <div className="rounded-xl border border-[#e4d5b2] bg-white p-3 text-center">
+                              <div className="text-2xl font-black text-[#3d2b17]">
+                                {me.correct}
+                              </div>
+                              <div className="text-[7px] font-black uppercase text-[#9a876c]">
+                                Correct
+                              </div>
+                            </div>
+                            <div className="rounded-xl border border-[#e4d5b2] bg-white p-3 text-center">
+                              <div className="text-2xl font-black text-[#3d2b17]">
+                                {me.completed_picks > 0
+                                  ? `${Math.round(me.accuracy)}%`
+                                  : "—"}
+                              </div>
+                              <div className="text-[7px] font-black uppercase text-[#9a876c]">
+                                Accuracy
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="mt-4 grid grid-cols-2 gap-2 text-[9px] font-bold text-[#76634b]">
+                        {[
+                          "Best Week",
+                          "Longest Streak",
+                          "Best Accuracy",
+                          "Biggest Upset Pick",
+                          "Most Correct Picks",
+                          "Challenge Wins",
+                        ].map((record) => (
+                          <div
+                            key={record}
+                            className="flex items-center justify-between rounded-lg border border-dashed border-[#d9c89c] px-3 py-2"
+                          >
+                            <span>{record}</span>
+                            <span className="text-[#ad9a76]">—</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-[#d9c89c] bg-[#fffaf0] p-4 shadow-inner">
+                      <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#9a6d16]">
+                        👑 FamBam Records
+                      </div>
+                      <div className="mt-1 text-xl font-black text-[#3d2b17]">
+                        The Family Record Book
+                      </div>
+
+                      {leaderboard.length > 0 ? (
+                        <div className="mt-3 space-y-2">
+                          {[...leaderboard]
+                            .sort((a, b) => {
+                              if (b.points !== a.points) {
+                                return b.points - a.points;
+                              }
+                              return b.correct - a.correct;
+                            })
+                            .map((row, index) => (
+                              <div
+                                key={row.player_id}
+                                className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+                                  index === 0
+                                    ? "border-[#d8b84f] bg-[#fff1b8]"
+                                    : "border-[#eadfc5] bg-white"
+                                }`}
+                              >
+                                <div className="w-7 text-center text-lg">
+                                  {index === 0
+                                    ? "🏆"
+                                    : index === 1
+                                      ? "🥈"
+                                      : index === 2
+                                        ? "🥉"
+                                        : `${index + 1}`}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate text-xs font-black text-[#3d2b17]">
+                                    {row.display_name}
+                                  </div>
+                                  <div className="text-[8px] font-semibold text-[#8b785e]">
+                                    {row.correct} correct · {row.completed_picks}/{row.total_picks} scored
+                                  </div>
+                                </div>
+                                <div className="text-lg font-black text-[#3d2b17]">
+                                  {row.points}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="mt-3 text-xs font-semibold text-[#76634b]">
+                          The record book will fill as Challenges are scored.
+                        </div>
+                      )}
+
+                      <div className="mt-4 grid grid-cols-2 gap-2 text-[9px] font-bold text-[#76634b]">
+                        {[
+                          "Most Challenge Wins",
+                          "Highest Weekly Score",
+                          "Longest Family Streak",
+                          "Best Pick %",
+                          "Most Correct Picks",
+                          "First Perfect Week",
+                        ].map((record) => (
+                          <div
+                            key={record}
+                            className="flex items-center justify-between rounded-lg border border-dashed border-[#d9c89c] px-3 py-2"
+                          >
+                            <span>{record}</span>
+                            <span className="text-[#ad9a76]">—</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {trophyRoomPanel === "passport" && (
+                  <div className="p-4">
+                    <div className="rounded-2xl border border-[#c8b17c] bg-[#fffaf0] p-5 shadow-inner">
+                      <div className="text-center text-4xl">🛂</div>
+                      <div className="mt-2 text-center text-2xl font-black text-[#3d2b17]">
+                        Sports Passport
+                      </div>
+                      <div className="mx-auto mt-1 max-w-md text-center text-xs font-semibold leading-5 text-[#76634b]">
+                        Every stadium, arena, match and game can become a FamBam passport stamp with the date, opponent, score, photos and memories from the day.
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-3 gap-2">
+                        {[
+                          ["🏟️", "Venues"],
+                          ["🎟️", "Games"],
+                          ["🌎", "Places"],
+                        ].map(([icon, label]) => (
+                          <div
+                            key={label}
+                            className="rounded-xl border-2 border-dashed border-[#c8b17c] bg-[#f5ead0] p-4 text-center"
+                          >
+                            <div className="text-3xl opacity-50">{icon}</div>
+                            <div className="mt-1 text-[8px] font-black uppercase text-[#8b785e]">
+                              {label}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-4 rounded-xl bg-[#efe1bd] p-3 text-center text-[10px] font-bold text-[#76634b]">
+                        Passport entries will use real FamBam trips and games — no fake stamps.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {trophyRoomPanel === "memories" && (
+                  <div className="p-4">
+                    <div className="rounded-2xl border border-[#d9c89c] bg-[#fffaf0] p-5 shadow-inner">
+                      <div className="text-center text-4xl">📸</div>
+                      <div className="mt-2 text-center text-2xl font-black text-[#3d2b17]">
+                        FamBam Memory Book
+                      </div>
+                      <div className="mx-auto mt-1 max-w-md text-center text-xs font-semibold leading-5 text-[#76634b]">
+                        First games, favorite trips, stadium photos, funny moments and the stories that make the sports experience worth remembering.
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-3 gap-2">
+                        {[1, 2, 3, 4, 5, 6].map((slot) => (
+                          <div
+                            key={slot}
+                            className="aspect-square rounded-xl border-2 border-dashed border-[#d9c89c] bg-[#f5ead0] p-2"
+                          >
+                            <div className="flex h-full items-center justify-center text-2xl opacity-30">
+                              📷
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-4 rounded-xl bg-[#efe1bd] p-3 text-center text-[10px] font-bold text-[#76634b]">
+                        We will connect real photos and notes here when we build the Memory Book.
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="mt-1 text-sm font-black text-[#10254a]">
-              Your sports memories belong here.
-            </div>
-            <div className="mt-1 text-[10px] font-semibold text-slate-500">
-              Games attended, stadiums visited, photos and family sports memories.
-            </div>
-          </div>
+          )}
         </section>
       )}
 

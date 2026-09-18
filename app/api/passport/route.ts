@@ -154,6 +154,54 @@ export async function POST(request: Request) {
     if (!(await verify(playerId, token))) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
     const db = admin();
 
+    if (body.action === "createFamilyEvent") {
+      const event = body.event ?? {};
+      const title = String(event.title ?? "").trim();
+      const category = String(event.category ?? "Other").trim() || "Other";
+      const milestone = String(event.milestone ?? "").trim();
+      const location = String(event.location ?? "").trim() || "Family Event";
+      const attendees = Array.from(new Set((body.attendeeIds ?? []).map(String)));
+      if (!attendees.includes(playerId)) attendees.push(playerId);
+
+      if (!event.date || !title) {
+        return NextResponse.json({ error: "Date and event title are required." }, { status: 400 });
+      }
+
+      const marker = `__FAMILY_EVENT__|${category.replaceAll("|", "-")}|${milestone.replaceAll("|", "-")}`;
+      const { data: created, error } = await db.from("passport_events").insert({
+        game_id: null,
+        created_by_player_id: playerId,
+        sport: "Football",
+        event_date: event.date,
+        away_team: marker,
+        home_team: title,
+        venue_name: location,
+        city: null,
+        state_code: null,
+        away_score: null,
+        home_score: null,
+        result: null,
+      }).select("id").single();
+      if (error) throw error;
+
+      const { error: attendeeError } = await db.from("passport_event_attendees")
+        .insert(attendees.map((id) => ({ event_id: created.id, player_id: id })));
+      if (attendeeError) throw attendeeError;
+
+      const note = String(body.myNote ?? "").trim();
+      if (note) {
+        const { error: memoryError } = await db.from("passport_memories").insert({
+          event_id: created.id,
+          player_id: playerId,
+          note,
+          updated_at: new Date().toISOString(),
+        });
+        if (memoryError) throw memoryError;
+      }
+
+      return NextResponse.json({ ok: true, eventId: created.id });
+    }
+
     if (body.action === "createEvent") {
       const d = body.event ?? {};
       const attendees = Array.from(new Set((body.attendeeIds ?? []).map(String)));

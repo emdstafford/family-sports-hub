@@ -59,3 +59,10 @@ update public.teams
 set logo_url = 'https://www.mlbstatic.com/team-logos/' || external_id || '.svg'
 where external_provider = 'mlb'
   and external_id is not null;
+
+
+-- Repair NHL logos already in the teams table.
+update public.teams
+set logo_url = 'https://assets.nhle.com/logos/nhl/svg/' || upper(abbreviation) || '_light.svg'
+where external_provider = 'nhl'
+  and abbreviation is not null;

@@ -5020,7 +5020,7 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="divide-y divide-slate-200 px-3">
+          <div className="grid grid-cols-2 gap-2 p-3">
             {filteredGames
               .filter((game) => {
                 if (!game.startsAt) return false;
@@ -5071,28 +5071,28 @@ export default function Home() {
                     b.startsAt ?? 0,
                   ).getTime(),
               )
-              .slice(0, 5)
+              .slice(0, 6)
               .map((game) => (
                 <article
                   key={game.id}
                   onClick={() =>
                     openGameRoom(game)
                   }
-                  className="cursor-pointer py-3"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-[#f9fafb] p-3 shadow-sm transition active:scale-[0.98]"
                 >
-                  <div className="flex gap-3">
-                    <div className="flex w-12 shrink-0 flex-col items-center justify-center text-center">
+                  <div className="flex h-full flex-col">
+                    <div className="flex min-w-0 items-center gap-2 border-b border-slate-200 pb-2">
                       <div className="text-2xl">
                         {game.icon}
                       </div>
 
-                      <div className="mt-1 text-[7px] font-black uppercase leading-tight">
+                      <div className="min-w-0 truncate text-[7px] font-black uppercase leading-tight text-[#765800]">
                         {game.competition}
                       </div>
                     </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[15px] font-black leading-tight">
+                    <div className="mt-2 min-w-0 flex-1">
+                      <div className="text-[12px] font-black leading-tight text-[#10254a]">
                         {game.sport ===
                         "College Football"
                           ? rankedTeamLabel(
@@ -5110,7 +5110,7 @@ export default function Home() {
                           : game.home}
                       </div>
 
-                      <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                      <div className="mt-1 text-[9px] font-semibold text-slate-500">
                         {formatGameDate(
                           game.startsAt,
                         )}
@@ -5168,7 +5168,7 @@ export default function Home() {
                       1000
               );
             }).length === 0 && (
-              <div className="py-5 text-center text-xs font-bold text-slate-500">
+              <div className="col-span-2 py-5 text-center text-xs font-bold text-slate-500">
                 No games on your radar this week.
               </div>
             )}

@@ -3806,7 +3806,7 @@ export default function Home() {
                 className="py-3"
               >
                 <div className="flex gap-3">
-                  <div className="flex w-12 shrink-0 flex-col items-center justify-center text-center">
+                  <div className="flex w-9 shrink-0 flex-col items-center justify-center text-center">
                     <div className="text-2xl">{game.icon}</div>
                     <div className="mt-0.5 line-clamp-2 text-[6px] font-black uppercase leading-tight text-[#10254a]">
                       {game.competition}
@@ -4010,7 +4010,7 @@ export default function Home() {
                   game.homeScore! > game.awayScore!;
 
                 return (
-                  <article key={game.id} className="py-3">
+                  <article key={game.id} className="py-1.5">
                     <button
                       type="button"
                       onClick={() => openGameRoom(game)}
@@ -5169,22 +5169,34 @@ export default function Home() {
                               {team.is_primary ? " · ⭐ Favorite" : ""}
                             </div>
 
-                            <div className="relative mt-3 border-y border-[#8b6235]/60 bg-black/10 px-2 py-2.5">
-                              <div className="mb-2 text-center text-[7px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">Locker Memorabilia</div>
-                              <div className="flex items-end justify-center gap-3 text-center">
-                                <div>
-                                  <div className="text-3xl drop-shadow-lg">{team.sport === "Soccer" ? "🧣" : team.sport === "College Football" ? "🏈" : team.sport === "College Basketball" ? "🏀" : team.sport === "Hockey" ? "🏒" : team.sport === "Baseball" ? "⚾" : team.sport === "Volleyball" ? "🏐" : team.sport === "Cheerleading" ? "📣" : "🎟️"}</div>
-                                  <div className="mt-1 text-[7px] font-bold text-[#d7c2a7]">{team.sport === "Soccer" ? "Scarf" : team.sport === "Hockey" ? "Puck" : team.sport === "Baseball" ? "Game Ball" : team.sport === "Volleyball" ? "Game Ball" : team.sport === "Cheerleading" ? "Pom Poms" : "Game Ball"}</div>
-                                </div>
-                                <div>
-                                  <div className="text-3xl drop-shadow-lg">{team.sport === "Soccer" ? "👕" : team.sport === "College Football" ? "🏟️" : team.sport === "College Basketball" ? "👟" : team.sport === "Hockey" ? "🏒" : team.sport === "Baseball" ? "🧢" : team.sport === "Volleyball" ? "👕" : team.sport === "Cheerleading" ? "🎀" : "📸"}</div>
-                                  <div className="mt-1 text-[7px] font-bold text-[#d7c2a7]">{team.sport === "Soccer" ? "Kit" : team.sport === "College Football" ? "Stadium" : team.sport === "College Basketball" ? "Court Gear" : team.sport === "Hockey" ? "Stick" : team.sport === "Baseball" ? "Cap" : team.sport === "Volleyball" ? "Jersey" : team.sport === "Cheerleading" ? "Bow" : "Keepsake"}</div>
-                                </div>
-                                <div>
-                                  <div className="text-3xl drop-shadow-lg">🎟️</div>
-                                  <div className="mt-1 text-[7px] font-bold text-[#d7c2a7]">Tickets</div>
-                                </div>
-                              </div>
+                            <div className="relative mt-3 min-h-[126px] overflow-hidden border-y border-[#8b6235]/60 bg-black/10 px-2 py-2.5">
+                              {(() => {
+                                const colors = lockerTeamColors(team);
+                                return (
+                                  <div className="relative mx-auto h-[102px] max-w-[220px]">
+                                    <div className="absolute left-1/2 top-0 h-3 w-px -translate-x-1/2 bg-[#b88a58]" />
+                                    <div className="absolute left-1/2 top-2 h-3 w-8 -translate-x-1/2 rounded-t-full border border-[#b88a58]" />
+                                    <div
+                                      className="absolute left-1/2 top-4 h-[70px] w-[76px] -translate-x-1/2 rounded-b-xl border-2 shadow-lg"
+                                      style={{ backgroundColor: colors.primary, borderColor: colors.secondary }}
+                                    >
+                                      <div className="mt-2 text-center text-[7px] font-black uppercase" style={{ color: colors.secondary }}>
+                                        {team.short_name ?? team.name}
+                                      </div>
+                                      <div className="mx-auto mt-2 h-5 w-5 rounded-full border" style={{ borderColor: colors.accent }} />
+                                    </div>
+                                    {team.sport === "Soccer" && (
+                                      <div className="absolute bottom-1 left-1/2 flex h-4 w-[150px] -translate-x-1/2 items-center justify-center -rotate-3 rounded-sm border border-white/30 text-[6px] font-black uppercase shadow-md" style={{ backgroundColor: colors.secondary, color: colors.primary }}>
+                                        {team.short_name ?? team.name} scarf
+                                      </div>
+                                    )}
+                                    {team.sport === "Baseball" && <><div className="absolute bottom-0 left-2 h-7 w-12 rounded-t-full border-2 shadow-md" style={{ backgroundColor: colors.primary, borderColor: colors.secondary }} /><div className="absolute bottom-1 right-3 text-2xl">⚾</div></>}
+                                    {team.sport === "Hockey" && <><div className="absolute bottom-0 left-3 h-2 w-20 -rotate-[58deg] rounded-full bg-[#c9a56f]" /><div className="absolute bottom-0 right-5 h-3 w-6 rounded-full bg-black" /></>}
+                                    {team.sport === "Cheerleading" && <><div className="absolute bottom-0 left-2 text-3xl">🎀</div><div className="absolute bottom-0 right-1 text-3xl">📣</div></>}
+                                    {["College Football","College Basketball","Volleyball"].includes(team.sport) && <div className="absolute bottom-0 right-3 text-3xl">{team.sport === "College Football" ? "🏈" : team.sport === "College Basketball" ? "🏀" : "🏐"}</div>}
+                                  </div>
+                                );
+                              })()}
                             </div>
 
                             <div className="relative mt-3 min-h-[92px] border-t border-[#8b6235]/80 pt-3">

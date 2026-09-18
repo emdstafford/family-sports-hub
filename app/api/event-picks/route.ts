@@ -93,15 +93,50 @@ export async function GET(request: NextRequest) {
     }
 
     const picks = await readPicks(supabase, eventId);
+    const gameIds = [...new Set(picks.map((pick) => pick.gameId))];
+    const { data: games, error: gamesError } = gameIds.length
+      ? await supabase
+          .from("games")
+          .select("id, status, home_score, away_score")
+          .in("id", gameIds)
+      : { data: [], error: null };
+    if (gamesError) throw gamesError;
+
+    const gameById = new Map((games ?? []).map((game) => [game.id, game]));
+    const playerPicks = picks.filter((pick) => pick.playerId === playerId);
+    let completed = 0;
+    let correct = 0;
+
+    for (const pick of playerPicks) {
+      const game = gameById.get(pick.gameId);
+      if (!game || game.home_score === null || game.away_score === null) continue;
+      const status = String(game.status ?? "").toLowerCase();
+      const final = ["final", "finished", "complete", "completed", "closed"]
+        .some((value) => status.includes(value));
+      if (!final) continue;
+      completed += 1;
+      const winner = Number(game.home_score) > Number(game.away_score) ? "home" : "away";
+      if (pick.pickChoice === winner) correct += 1;
+    }
+
     return NextResponse.json({
       eventId,
-      picks: picks
-        .filter((pick) => pick.playerId === playerId)
-        .map((pick) => ({
-          gameId: pick.gameId,
-          pickChoice: pick.pickChoice,
-          submittedAt: pick.submittedAt,
-        })),
+      picks: playerPicks.map((pick) => ({
+        gameId: pick.gameId,
+        pickChoice: pick.pickChoice,
+        submittedAt: pick.submittedAt,
+      })),
+      progress: {
+        made: playerPicks.length,
+        completed,
+        correct,
+        accuracy: completed > 0 ? Math.round((correct / completed) * 100) : 0,
+      },
+      trophies: {
+        firstEventPick: playerPicks.length > 0,
+        cupExpert: correct >= 3,
+        perfectRound: completed >= 3 && correct === completed,
+      },
     });
   } catch (error) {
     console.error("Event picks GET failed:", error);

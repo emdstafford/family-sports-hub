@@ -309,7 +309,13 @@ export async function GET(
       throw favoriteTeamsResult.error;
     }
 
-    const recordBookLeaderboard = await getRecordBookLeaderboard(supabase);
+    const [recordBookLeaderboard, { data: playerAvatars, error: playerAvatarsError }] = await Promise.all([
+      getRecordBookLeaderboard(supabase),
+      supabase.from("players").select("id, avatar_url"),
+    ]);
+    if (playerAvatarsError) {
+      console.error("Player avatar list failed:", playerAvatarsError.message);
+    }
 
     return NextResponse.json({
       player: playerResult.data,
@@ -320,6 +326,7 @@ export async function GET(
       favoriteTeams:
         favoriteTeamsResult.data ?? [],
       recordBookLeaderboard,
+      playerAvatars: playerAvatars ?? [],
     });
   } catch (error) {
     console.error(

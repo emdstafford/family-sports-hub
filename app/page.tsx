@@ -2036,10 +2036,16 @@ export default function Home() {
   }
 
   useEffect(() => {
+    if (signedInPlayer) {
+      void openProfile(false);
+    }
+  }, [signedInPlayer?.id]);
+
+  useEffect(() => {
     if (
-      (activeSection === "Locker Room" || activeSection === "Trophy Room") &&
+      activeSection === "Trophy Room" &&
       signedInPlayer &&
-      profileSports.length === 0 &&
+      trophyRoomPanel === "records" &&
       !profileLoading
     ) {
       void openProfile(false);
@@ -2051,7 +2057,7 @@ export default function Home() {
     ) {
       void loadLockerRoom();
     }
-  }, [activeSection, signedInPlayer?.id]);
+  }, [activeSection, signedInPlayer?.id, trophyRoomPanel]);
 
   async function loadLockerRoom() {
     if (!signedInPlayer) return;
@@ -2230,6 +2236,28 @@ export default function Home() {
       setProfileAvatarUrl(
         data.player?.avatar_url ?? null,
       );
+
+      const avatarByPlayer = new Map<string, string | null>(
+        (Array.isArray(data.playerAvatars) ? data.playerAvatars : []).map(
+          (row: { id: string; avatar_url: string | null }) => [row.id, row.avatar_url],
+        ),
+      );
+
+      setPlayers((current) => current.map((player) => ({
+        ...player,
+        avatar_url: avatarByPlayer.has(player.id)
+          ? avatarByPlayer.get(player.id) ?? null
+          : player.avatar_url,
+      })));
+
+      if (data.player) {
+        setSignedInPlayer((current) => current ? {
+          ...current,
+          display_name: data.player.display_name ?? current.display_name,
+          initials: data.player.initials ?? current.initials,
+          avatar_url: data.player.avatar_url ?? null,
+        } : current);
+      }
 
       setRecordBookLeaderboard(
         Array.isArray(data.recordBookLeaderboard)

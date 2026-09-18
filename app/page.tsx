@@ -5445,27 +5445,27 @@ export default function Home() {
                         ],
                       ].map((shelf, shelfIndex) => (
                         <div key={shelfIndex}>
-                          <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                          <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[46%] gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:auto-cols-[31%] lg:grid-flow-row lg:grid-cols-4 lg:overflow-visible lg:pb-0">
                             {shelf.map((trophy) => (
                               <button
                                 key={trophy.title}
                                 type="button"
                                 title={`${trophy.title}: ${trophy.note}`}
                                 onClick={() => setSelectedTrophy(trophy)}
-                                className="group relative min-w-0 overflow-hidden rounded-t-lg border border-[#8a6139] border-b-0 bg-[#21140c] bg-cover bg-top px-1.5 pb-2 pt-7 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.08),0_8px_18px_rgba(0,0,0,.28)] sm:px-3 sm:pb-3 sm:pt-9"
-                                style={{ backgroundImage: "linear-gradient(180deg,rgba(8,5,3,.04)_0%,rgba(8,5,3,.08)_58%,rgba(8,5,3,.58)_100%),url('/trophy-bay-realistic.webp')" }}
+                                className="group relative aspect-[2/3] min-w-0 snap-start overflow-hidden rounded-t-xl border border-[#9b6a3b] border-b-0 bg-[#21140c] bg-[length:100%_100%] bg-top bg-no-repeat px-2 pb-3 pt-10 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.1),0_10px_22px_rgba(0,0,0,.38)] sm:px-3 sm:pt-12"
+                                style={{ backgroundImage: "linear-gradient(180deg,rgba(8,5,3,0)_0%,rgba(8,5,3,.02)_55%,rgba(8,5,3,.76)_100%),url('/trophy-bay-realistic.webp')" }}
                               >
                                 <div className={`absolute right-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[8px] font-black ${trophy.earned ? "bg-[#f3c64f] text-[#33200f]" : "bg-black/40 text-white"}`}>{trophy.earned ? "✓" : "🔒"}</div>
                                 {trophy.repeatable && (
                                   <div className="absolute left-1.5 top-1.5 rounded-full border border-[#7f6c4a] bg-[#21150d] px-1.5 py-0.5 text-[7px] font-black uppercase text-[#f3c64f]">Repeat</div>
                                 )}
-                                <div className={`relative z-10 mx-auto flex h-14 items-end justify-center text-3xl transition sm:h-20 sm:text-5xl ${trophy.earned ? "drop-shadow-[0_0_12px_rgba(243,198,79,.55)]" : "grayscale opacity-30 group-hover:opacity-45"}`}>
+                                <div className={`relative z-10 mx-auto flex h-[48%] items-end justify-center pb-1 text-5xl transition sm:text-6xl ${trophy.earned ? "drop-shadow-[0_8px_12px_rgba(0,0,0,.75)]" : "grayscale opacity-30 group-hover:opacity-45"}`}>
                                   {trophy.icon}
                                 </div>
-                                <div className="mt-1 line-clamp-1 text-[7px] font-black uppercase tracking-wide text-[#cdb89e] sm:text-[9px]">
+                                <div className="relative z-10 mt-1 line-clamp-1 text-[9px] font-black uppercase tracking-wide text-[#f4e6d2] sm:text-[10px]">
                                   {trophy.title}
                                 </div>
-                                <div className="mt-1 rounded-full bg-black/30 px-1 py-1 text-[6px] font-black text-[#e6c774] sm:text-[8px]">
+                                <div className="relative z-10 mt-2 rounded-full border border-[#6f4b2d]/60 bg-black/55 px-1 py-1.5 text-[7px] font-black text-[#f2cf70] sm:text-[8px]">
                                   {trophy.progress}
                                 </div>
                               </button>

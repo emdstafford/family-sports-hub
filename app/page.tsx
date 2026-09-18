@@ -5368,27 +5368,16 @@ export default function Home() {
       {activeSection === "Trophy Room" && (
         <section className="min-h-[calc(100vh-96px)] bg-[#eef1f4] pb-28 text-[#10254a]">
           <div className="mx-auto max-w-[1500px] overflow-hidden bg-[#eef1f4]">
-            <div className="relative overflow-hidden border-b border-[#9a6727] bg-[linear-gradient(180deg,#123754_0%,#0b2942_100%)] px-4 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9">
-              <div className="absolute inset-0 opacity-20 [background-image:repeating-linear-gradient(90deg,transparent_0,transparent_149px,#9ec1d8_150px)]" />
-              <div className="absolute left-[28%] top-2 h-2 w-2 rounded-full bg-[#f6c64c] shadow-[0_0_18px_6px_rgba(246,198,76,.35)]" />
-              <div className="absolute right-[28%] top-2 h-2 w-2 rounded-full bg-[#f6c64c] shadow-[0_0_18px_6px_rgba(246,198,76,.35)]" />
-
-              <div className="relative mx-auto max-w-4xl rounded-md border-4 border-[#7b4d21] bg-[linear-gradient(180deg,#7d542d_0%,#563217_100%)] px-4 py-4 text-center shadow-[0_10px_20px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.15)] sm:px-8 sm:py-5">
-                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-[#f5ca55] sm:text-[11px]">
-                  FAMBAM
+            <div className="border-b border-[#8b5c2d] bg-[linear-gradient(180deg,#302016_0%,#1d120c_100%)] px-3 pb-3 pt-4 sm:px-6 sm:pt-5">
+              <div className="mb-3 flex items-end justify-between gap-3 px-1">
+                <div>
+                  <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">FamBam Trophy Room</div>
+                  <h2 className="mt-0.5 text-xl font-black text-[#fff7e8] sm:text-2xl">
+                    {signedInPlayer?.display_name ? `${signedInPlayer.display_name}'s Collection` : "My Collection"}
+                  </h2>
                 </div>
-                <h2 className="mt-1 text-2xl font-black uppercase tracking-tight text-[#fff7e8] drop-shadow-[0_3px_0_rgba(55,31,14,.65)] sm:text-4xl">
-                  {signedInPlayer?.display_name
-                    ? `${signedInPlayer.display_name}'s Trophy Room`
-                    : "My Trophy Room"}
-                </h2>
-                <div className="mt-2 text-[8px] font-black uppercase tracking-[0.22em] text-[#ffe1a0] sm:text-[10px]">
-                  Earn · Remember · Celebrate · Together
-                </div>
+                <div className="hidden text-[8px] font-black uppercase tracking-[0.16em] text-[#cdb89e] sm:block">Earn · Remember · Celebrate</div>
               </div>
-            </div>
-
-            <div className="border-b border-[#8b5c2d] bg-[#24170f] px-3 py-3 sm:px-6">
               <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                 {[
                   [null, "🏆", "Trophies"],
@@ -5417,7 +5406,7 @@ export default function Home() {
             </div>
 
             {trophyRoomPanel === null && (
-              <div className="bg-[linear-gradient(180deg,#563720_0%,#342116_100%)] px-3 py-5 sm:px-6 sm:py-7">
+              <div className="bg-[radial-gradient(circle_at_50%_0%,#694522_0%,#342116_46%,#1d120c_100%)] px-3 py-5 sm:px-6 sm:py-7">
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
                   <div>
                     <div className="mb-3 flex items-end justify-between gap-3">
@@ -5463,13 +5452,14 @@ export default function Home() {
                                 type="button"
                                 title={`${trophy.title}: ${trophy.note}`}
                                 onClick={() => setSelectedTrophy(trophy)}
-                                className="group relative min-w-0 rounded-t-lg border border-[#8a6139] border-b-0 bg-[linear-gradient(180deg,#3c281a_0%,#25160e_100%)] px-1.5 pb-2 pt-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.05)] sm:px-3 sm:pb-3"
+                                className="group relative min-w-0 overflow-hidden rounded-t-lg border border-[#8a6139] border-b-0 bg-[#21140c] bg-cover bg-top px-1.5 pb-2 pt-7 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.08),0_8px_18px_rgba(0,0,0,.28)] sm:px-3 sm:pb-3 sm:pt-9"
+                                style={{ backgroundImage: "linear-gradient(180deg,rgba(8,5,3,.04)_0%,rgba(8,5,3,.08)_58%,rgba(8,5,3,.58)_100%),url('/trophy-bay-realistic.webp')" }}
                               >
                                 <div className={`absolute right-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[8px] font-black ${trophy.earned ? "bg-[#f3c64f] text-[#33200f]" : "bg-black/40 text-white"}`}>{trophy.earned ? "✓" : "🔒"}</div>
                                 {trophy.repeatable && (
                                   <div className="absolute left-1.5 top-1.5 rounded-full border border-[#7f6c4a] bg-[#21150d] px-1.5 py-0.5 text-[7px] font-black uppercase text-[#f3c64f]">Repeat</div>
                                 )}
-                                <div className={`mx-auto flex h-14 items-end justify-center text-3xl transition sm:h-20 sm:text-5xl ${trophy.earned ? "drop-shadow-[0_0_12px_rgba(243,198,79,.45)]" : "grayscale opacity-25 group-hover:opacity-40"}`}>
+                                <div className={`relative z-10 mx-auto flex h-14 items-end justify-center text-3xl transition sm:h-20 sm:text-5xl ${trophy.earned ? "drop-shadow-[0_0_12px_rgba(243,198,79,.55)]" : "grayscale opacity-30 group-hover:opacity-45"}`}>
                                   {trophy.icon}
                                 </div>
                                 <div className="mt-1 line-clamp-1 text-[7px] font-black uppercase tracking-wide text-[#cdb89e] sm:text-[9px]">

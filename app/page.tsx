@@ -2059,6 +2059,16 @@ export default function Home() {
     }
   }, [activeSection, signedInPlayer?.id, trophyRoomPanel]);
 
+  useEffect(() => {
+    if (activeSection !== "Trophy Room" || trophyRoomPanel !== "records" || !signedInPlayer) return;
+
+    const interval = window.setInterval(() => {
+      void openProfile(false);
+    }, 60_000);
+
+    return () => window.clearInterval(interval);
+  }, [activeSection, trophyRoomPanel, signedInPlayer?.id]);
+
   async function loadLockerRoom() {
     if (!signedInPlayer) return;
 

@@ -55,22 +55,29 @@ async function verifySession(
 }
 
 async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClient>) {
+  // The real FamBam weekly competition began Sep. 7, 2026.
+  // Older rows are setup/test Challenges and must never count in the Record Book.
+  const recordBookStart = "2026-09-07T00:00:00.000Z";
   const [
     { data: players, error: playerError },
+    { data: challenges, error: challengesError },
     { data: challengeGames, error: challengeGamesError },
     { data: picks, error: picksError },
   ] = await Promise.all([
     supabase.from("players").select("id, display_name, initials, sort_order").order("sort_order"),
+    supabase.from("challenges").select("id, starts_at").gte("starts_at", recordBookStart),
     supabase.from("challenge_games").select("challenge_id, game_id"),
     supabase.from("player_picks").select("challenge_id, game_id, player_id, pick_choice"),
   ]);
 
-  if (playerError || challengeGamesError || picksError) {
-    console.error("Record Book setup failed:", playerError?.message ?? challengeGamesError?.message ?? picksError?.message);
+  if (playerError || challengesError || challengeGamesError || picksError) {
+    console.error("Record Book setup failed:", playerError?.message ?? challengesError?.message ?? challengeGamesError?.message ?? picksError?.message);
     return [];
   }
 
-  const gameIds = [...new Set((challengeGames ?? []).map((row) => row.game_id))];
+  const eligibleChallengeIds = new Set((challenges ?? []).map((challenge) => challenge.id));
+  const eligibleChallengeGames = (challengeGames ?? []).filter((row) => eligibleChallengeIds.has(row.challenge_id));
+  const gameIds = [...new Set(eligibleChallengeGames.map((row) => row.game_id))];
   const { data: games, error: gamesError } = gameIds.length
     ? await supabase.from("games").select("id, status, home_score, away_score").in("id", gameIds)
     : { data: [], error: null };
@@ -78,6 +85,18 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
     console.error("Record Book games failed:", gamesError.message);
     return [];
   }
+
+  const isFinalGame = (game: { status: string | null; home_score: number | null; away_score: number | null }) => {
+    const status = String(game.status ?? "").toLowerCase();
+    return ["final", "finished", "complete", "completed", "closed"].some((value) => status.includes(value))
+      && game.home_score != null
+      && game.away_score != null;
+  };
+  const gameById = new Map((games ?? []).map((game) => [game.id, game]));
+  const scoredGameCount = eligibleChallengeGames.filter((row) => {
+    const game = gameById.get(row.game_id);
+    return Boolean(game && isFinalGame(game));
+  }).length;
 
   const totals = new Map<string, {
     player_id: string;
@@ -98,13 +117,12 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
       points: 0,
       correct: 0,
       completed_picks: 0,
-      total_picks: (challengeGames ?? []).length,
+      total_picks: scoredGameCount,
       accuracy: 0,
     });
   }
 
-  const gameById = new Map((games ?? []).map((game) => [game.id, game]));
-  const includedPickKeys = new Set((challengeGames ?? []).map((row) => `${row.challenge_id}:${row.game_id}`));
+  const includedPickKeys = new Set(eligibleChallengeGames.map((row) => `${row.challenge_id}:${row.game_id}`));
 
   for (const pick of picks ?? []) {
     if (!includedPickKeys.has(`${pick.challenge_id}:${pick.game_id}`)) continue;
@@ -112,14 +130,14 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
     const game = gameById.get(pick.game_id);
     if (!total || !game) continue;
 
-    const finalStatus = String(game.status ?? "").toLowerCase();
-    const isFinal = ["final", "finished", "complete", "completed", "closed"].some((value) => finalStatus.includes(value));
-    if (!isFinal || game.home_score == null || game.away_score == null) continue;
+    if (!isFinalGame(game)) continue;
 
     total.completed_picks += 1;
-    const winningChoice = game.home_score > game.away_score
+    const homeScore = Number(game.home_score);
+    const awayScore = Number(game.away_score);
+    const winningChoice = homeScore > awayScore
       ? "home"
-      : game.away_score > game.home_score
+      : awayScore > homeScore
         ? "away"
         : "draw";
     if (pick.pick_choice === winningChoice) {

@@ -56,29 +56,28 @@ async function verifySession(
 
 async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClient>) {
   const [
-    { data: challenges, error: challengeError },
     { data: players, error: playerError },
     { data: challengeGames, error: challengeGamesError },
+    { data: picks, error: picksError },
   ] = await Promise.all([
-    supabase.from("challenges").select("id"),
     supabase.from("players").select("id, display_name, initials, sort_order").order("sort_order"),
     supabase.from("challenge_games").select("challenge_id, game_id"),
+    supabase.from("player_picks").select("challenge_id, game_id, player_id, pick_choice"),
   ]);
 
-  if (challengeError || playerError || challengeGamesError) {
-    console.error("Record Book setup failed:", challengeError?.message ?? playerError?.message ?? challengeGamesError?.message);
+  if (playerError || challengeGamesError || picksError) {
+    console.error("Record Book setup failed:", playerError?.message ?? challengeGamesError?.message ?? picksError?.message);
     return [];
   }
 
-  const gameCounts = new Map<string, number>();
-  for (const row of challengeGames ?? []) {
-    gameCounts.set(row.challenge_id, (gameCounts.get(row.challenge_id) ?? 0) + 1);
+  const gameIds = [...new Set((challengeGames ?? []).map((row) => row.game_id))];
+  const { data: games, error: gamesError } = gameIds.length
+    ? await supabase.from("games").select("id, status, home_score, away_score").in("id", gameIds)
+    : { data: [], error: null };
+  if (gamesError) {
+    console.error("Record Book games failed:", gamesError.message);
+    return [];
   }
-
-  const results = await Promise.all((challenges ?? []).map(async (challenge) => ({
-    challengeId: challenge.id,
-    result: await supabase.rpc("get_challenge_leaderboard", { target_challenge_id: challenge.id }),
-  })));
 
   const totals = new Map<string, {
     player_id: string;
@@ -99,28 +98,33 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
       points: 0,
       correct: 0,
       completed_picks: 0,
-      total_picks: 0,
+      total_picks: (challengeGames ?? []).length,
       accuracy: 0,
     });
   }
 
-  for (const { challengeId, result } of results) {
-    if (result.error) {
-      console.error("Record Book challenge total failed:", result.error.message);
-      continue;
-    }
-    const cardSize = gameCounts.get(challengeId) ?? 0;
-    if (cardSize === 0) continue;
-    for (const row of result.data ?? []) {
-      const total = totals.get(row.player_id);
-      if (!total) continue;
-      const completed = Math.min(Number(row.completed_picks) || 0, cardSize);
-      const correct = Math.min(Number(row.correct) || 0, completed);
-      const points = completed > 0 ? Math.min(Number(row.points) || 0, completed) : 0;
-      total.points += points;
-      total.correct += correct;
-      total.completed_picks += completed;
-      total.total_picks += cardSize;
+  const gameById = new Map((games ?? []).map((game) => [game.id, game]));
+  const includedPickKeys = new Set((challengeGames ?? []).map((row) => `${row.challenge_id}:${row.game_id}`));
+
+  for (const pick of picks ?? []) {
+    if (!includedPickKeys.has(`${pick.challenge_id}:${pick.game_id}`)) continue;
+    const total = totals.get(pick.player_id);
+    const game = gameById.get(pick.game_id);
+    if (!total || !game) continue;
+
+    const finalStatus = String(game.status ?? "").toLowerCase();
+    const isFinal = ["final", "finished", "complete", "completed", "closed"].some((value) => finalStatus.includes(value));
+    if (!isFinal || game.home_score == null || game.away_score == null) continue;
+
+    total.completed_picks += 1;
+    const winningChoice = game.home_score > game.away_score
+      ? "home"
+      : game.away_score > game.home_score
+        ? "away"
+        : "draw";
+    if (pick.pick_choice === winningChoice) {
+      total.correct += 1;
+      total.points += 1;
     }
   }
 

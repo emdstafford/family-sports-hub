@@ -6254,8 +6254,8 @@ export default function Home() {
               <div className="bg-[#eef1f4] px-3 py-5 sm:px-6 sm:py-7">
                 <div className="grid gap-4 lg:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-lg sm:p-5">
-                    <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#06284a]">⭐ Personal Records</div>
-                    <div className="mt-1 text-xl font-black text-[#10254a]">{signedInPlayer?.display_name ?? "My"}'s Record Book</div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#06284a]">⭐ Personal Records</div>
+                    <div className="mt-1 text-2xl font-black text-[#10254a]">{signedInPlayer?.display_name ?? "My"}'s Record Book</div>
                     {signedInPlayer && recordBookRows.length > 0 && (() => {
                       const me = recordBookRows.find((row) => row.player_id === signedInPlayer.id);
                       if (!me) return <div className="mt-3 text-xs font-semibold text-[#c3ad90]">No scored Challenge records yet.</div>;
@@ -6268,7 +6268,7 @@ export default function Home() {
                           ].map(([value, label]) => (
                             <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
                               <div className="text-2xl font-black text-[#06284a]">{value}</div>
-                              <div className="mt-1 text-[7px] font-black uppercase text-[#bca78d]">{label}</div>
+                              <div className="mt-1 text-[9px] font-black uppercase text-[#846f59]">{label}</div>
                             </div>
                           ))}
                         </div>
@@ -6276,7 +6276,7 @@ export default function Home() {
                     })()}
                     <div className="mt-4 grid grid-cols-2 gap-2">
                       {["Best Week","Longest Streak","Best Accuracy","Biggest Upset Pick","Most Correct Picks","Challenge Wins"].map((record) => (
-                        <div key={record} className="flex items-center justify-between rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-[9px] font-bold text-slate-600">
+                        <div key={record} className="flex items-center justify-between rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-slate-600">
                           <span>{record}</span><span className="text-[#846f59]">—</span>
                         </div>
                       ))}
@@ -6284,8 +6284,8 @@ export default function Home() {
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-lg sm:p-5">
-                    <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#06284a]">👑 FamBam Records</div>
-                    <div className="mt-1 text-xl font-black text-[#10254a]">Family Record Book</div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#06284a]">👑 FamBam Records</div>
+                    <div className="mt-1 text-2xl font-black text-[#10254a]">Family Record Book</div>
                     {recordBookRows.length > 0 ? (
                       <div className="mt-4 space-y-2">
                         {[...recordBookRows]
@@ -6294,8 +6294,8 @@ export default function Home() {
                             <div key={row.player_id} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${index === 0 ? "border-[#f3c64f] bg-[#fffaf0]" : "border-slate-200 bg-slate-50"}`}>
                               <div className="w-7 text-center text-lg">{index === 0 ? "🏆" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`}</div>
                               <div className="min-w-0 flex-1">
-                                <div className="truncate text-xs font-black text-[#10254a]">{row.display_name}</div>
-                                <div className="text-[8px] font-semibold text-slate-500">{row.correct} correct · {row.completed_picks}/{row.total_picks} scored</div>
+                                <div className="truncate text-sm font-black text-[#10254a]">{row.display_name}</div>
+                                <div className="text-[10px] font-semibold text-slate-500">{row.correct} correct · {row.completed_picks}/{row.total_picks} scored</div>
                               </div>
                               <div className="text-lg font-black text-[#06284a]">{row.points}</div>
                             </div>
@@ -6975,11 +6975,6 @@ export default function Home() {
                             player.initials ?? "?"
                           )}
 
-                          {ready && (
-                            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[8px] font-black text-white ring-2 ring-white">
-                              ✓
-                            </span>
-                          )}
                         </div>
 
                         <div className="mt-1 truncate text-[8px] font-black text-[#10254a]">

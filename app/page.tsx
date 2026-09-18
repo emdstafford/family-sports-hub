@@ -5411,12 +5411,12 @@ export default function Home() {
             <div className="border-b border-[#8b5c2d] bg-[linear-gradient(180deg,#302016_0%,#1d120c_100%)] px-3 pb-3 pt-4 sm:px-6 sm:pt-5">
               <div className="mb-3 flex items-end justify-between gap-3 px-1">
                 <div>
-                  <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">FamBam Trophy Room</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">FamBam Trophy Room</div>
                   <h2 className="mt-0.5 text-xl font-black text-[#fff7e8] sm:text-2xl">
                     {signedInPlayer?.display_name ? `${signedInPlayer.display_name}'s Collection` : "My Collection"}
                   </h2>
                 </div>
-                <div className="hidden text-[8px] font-black uppercase tracking-[0.16em] text-[#cdb89e] sm:block">Earn · Remember · Celebrate</div>
+                <div className="hidden text-[10px] font-black uppercase tracking-[0.14em] text-[#cdb89e] sm:block">Earn · Remember · Celebrate</div>
               </div>
               <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                 {[
@@ -5431,7 +5431,7 @@ export default function Home() {
                       key={label}
                       type="button"
                       onClick={() => setTrophyRoomPanel(panel as null | "records" | "passport" | "memories")}
-                      className={`min-w-0 rounded-xl border px-1 py-2 text-[7px] font-black uppercase tracking-tight transition sm:px-3 sm:text-[9px] sm:tracking-wide ${
+                      className={`min-w-0 rounded-xl border px-1 py-2.5 text-[9px] font-black uppercase tracking-tight transition sm:px-3 sm:text-[10px] sm:tracking-wide ${
                         selected
                           ? "border-[#f3c64f] bg-[#f3c64f] text-[#33200f]"
                           : "border-[#9a6a38] bg-[#321e12] text-[#f7ead8] hover:border-[#d5a43d]"
@@ -5451,14 +5451,14 @@ export default function Home() {
                   <div>
                     <div className="mb-3 flex items-end justify-between gap-3">
                       <div>
-                        <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
+                        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
                           Trophy Shelves
                         </div>
                         <div className="mt-1 text-sm font-bold text-[#f6e8d4]">
                           Every trophy has a place before it is earned.
                         </div>
                       </div>
-                      <div className="hidden rounded-full border border-[#8f6336] bg-black/20 px-3 py-1.5 text-[8px] font-black uppercase text-[#d7b98f] sm:block">
+                      <div className="hidden rounded-full border border-[#8f6336] bg-black/20 px-3 py-1.5 text-[10px] font-black uppercase text-[#d7b98f] sm:block">
                         Real achievements only
                       </div>
                     </div>
@@ -5515,7 +5515,7 @@ export default function Home() {
                         <div key={shelfIndex}>
                           {shelf.label && (
                             <div className="mb-2 mt-6 flex items-center gap-3 first:mt-0">
-                              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f] sm:text-xs">{shelf.label}</div>
+                              <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#f3c64f] sm:text-xs">{shelf.label}</div>
                               <div className="h-px flex-1 bg-[#8f6336]" />
                             </div>
                           )}
@@ -5535,17 +5535,17 @@ export default function Home() {
                                   className="absolute inset-0 h-full w-full object-cover object-top"
                                 />
                                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,5,3,0)_0%,rgba(8,5,3,.02)_52%,rgba(8,5,3,.82)_100%)]" />
-                                <div className={`absolute right-1.5 top-1.5 z-20 rounded-full px-1.5 py-0.5 text-[8px] font-black ${trophy.earned ? "bg-[#f3c64f] text-[#33200f]" : "bg-black/55 text-white"}`}>{trophy.earned ? "✓" : "🔒"}</div>
+                                <div className={`absolute right-1.5 top-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] font-black ${trophy.earned ? "bg-[#f3c64f] text-[#33200f]" : "bg-black/55 text-white"}`}>{trophy.earned ? "✓" : "🔒"}</div>
                                 {"repeatable" in trophy && trophy.repeatable && (
-                                  <div className="absolute left-1.5 top-1.5 z-20 rounded-full border border-[#a47a42] bg-[#21150d]/90 px-1.5 py-0.5 text-[7px] font-black uppercase text-[#f3c64f]">Repeat</div>
+                                  <div className="absolute left-1.5 top-1.5 z-20 rounded-full border border-[#a47a42] bg-[#21150d]/90 px-1.5 py-0.5 text-[8px] font-black uppercase text-[#f3c64f]">Repeat</div>
                                 )}
                                 <div className={`absolute inset-x-0 top-[35%] z-10 flex justify-center text-4xl transition sm:text-5xl ${trophy.earned ? "drop-shadow-[0_8px_12px_rgba(0,0,0,.75)]" : "grayscale opacity-30 group-hover:opacity-45"}`}>
                                   {trophy.icon}
                                 </div>
-                                <div className="absolute inset-x-1 bottom-10 z-10 line-clamp-1 text-[7px] font-black uppercase tracking-wide text-[#fff2dc] sm:bottom-11 sm:text-[9px]">
+                                <div className="absolute inset-x-1 bottom-10 z-10 line-clamp-2 text-[9px] font-black uppercase leading-tight tracking-wide text-[#fff2dc] sm:bottom-11 sm:text-[10px]">
                                   {trophy.title}
                                 </div>
-                                <div className="absolute inset-x-1.5 bottom-2 z-10 truncate rounded-full border border-[#8a6035]/70 bg-black/65 px-1 py-1 text-[6px] font-black text-[#f2cf70] sm:inset-x-2 sm:text-[8px]">
+                                <div className="absolute inset-x-1.5 bottom-1.5 z-10 truncate rounded-full border border-[#8a6035]/70 bg-black/65 px-1 py-1.5 text-[8px] font-black text-[#f2cf70] sm:inset-x-2 sm:text-[9px]">
                                   {trophy.progress}
                                 </div>
                               </button>
@@ -5563,7 +5563,7 @@ export default function Home() {
                       const me = leaderboard.find((row) => row.player_id === signedInPlayer.id);
                       return (
                         <div className="rounded-xl border border-[#8a6139] bg-[#17100b] p-4 shadow-inner">
-                          <div className="text-[8px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
+                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
                             Current Challenge
                           </div>
                           <div className="mt-1 text-lg font-black text-white">
@@ -5578,7 +5578,7 @@ export default function Home() {
                               ].map(([value, label]) => (
                                 <div key={label} className="rounded-lg border border-[#6d4b2d] bg-[#2a1a10] p-2 text-center">
                                   <div className="text-xl font-black text-[#f6d36f]">{value}</div>
-                                  <div className="text-[7px] font-black uppercase text-slate-500">{label}</div>
+                                  <div className="text-[9px] font-black uppercase text-slate-400">{label}</div>
                                 </div>
                               ))}
                             </div>
@@ -5752,19 +5752,19 @@ export default function Home() {
                   <div className="relative flex items-start gap-4 pr-11">
                     <div className={`text-5xl ${selectedTrophy.earned ? "drop-shadow-[0_0_14px_rgba(243,198,79,.5)]" : "grayscale opacity-40"}`}>{selectedTrophy.icon}</div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">{selectedTrophy.earned ? "🏆 Earned" : "🔒 How to earn it"}</div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">{selectedTrophy.earned ? "🏆 Earned" : "🔒 How to earn it"}</div>
                       <div className="mt-1 text-2xl font-black text-white">{selectedTrophy.title}</div>
                     </div>
                   </div>
                   <div className="relative mt-5 text-sm font-semibold leading-6 text-[#ead8bf]">{selectedTrophy.note}.</div>
                   {selectedTrophy.progress && (
-                    <div className="relative mt-4 rounded-xl border border-[#6f5031] bg-black/30 px-4 py-3 text-xs font-black text-[#f3c64f]">Progress: {selectedTrophy.progress}</div>
+                    <div className="relative mt-4 rounded-xl border border-[#6f5031] bg-black/30 px-4 py-3 text-sm font-black text-[#f3c64f]">Progress: {selectedTrophy.progress}</div>
                   )}
                   {selectedTrophy.milestone && (
-                    <div className="relative mt-3 text-[11px] font-bold leading-5 text-[#cbb79b]">Next milestone: {selectedTrophy.milestone}</div>
+                    <div className="relative mt-3 text-xs font-bold leading-5 text-[#cbb79b]">Next milestone: {selectedTrophy.milestone}</div>
                   )}
                   {selectedTrophy.repeatable && (
-                    <div className="relative mt-3 inline-flex rounded-full border border-[#8f6336] bg-[#321e12] px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-[#f6d36f]">Repeatable achievement</div>
+                    <div className="relative mt-3 inline-flex rounded-full border border-[#8f6336] bg-[#321e12] px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#f6d36f]">Repeatable achievement</div>
                   )}
                 </div>
               </div>

@@ -5111,8 +5111,7 @@ export default function Home() {
             <div className="relative overflow-hidden border-x border-[#7b542e] bg-[#1b110b] shadow-2xl sm:rounded-[1.75rem] sm:border">
               <div className="bg-gradient-to-b from-[#15110f] via-[#2a1b12] to-[#100c0a] p-2 sm:p-5">
                 <div
-                  className="relative flex min-h-[610px] snap-x snap-mandatory gap-0 overflow-x-auto rounded-xl border border-[#8b6235] bg-[#17110d] bg-cover bg-center pb-3 pr-[18vw] pt-2 shadow-[inset_0_0_55px_rgba(0,0,0,.55)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:pr-[8vw]"
-                  style={{ backgroundImage: "linear-gradient(180deg,rgba(4,8,13,.08),rgba(7,5,3,.32)),url('/locker-room-realistic.png')" }}
+                  className="relative flex min-h-[610px] snap-x snap-mandatory gap-0 overflow-x-auto rounded-xl border border-[#8b6235] bg-[#17110d] pb-3 pr-[18vw] pt-2 shadow-[inset_0_0_55px_rgba(0,0,0,.55)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:pr-[8vw]"
                 >
                   {(lockerPlayers
                     .find((player) => player.id === signedInPlayer?.id)
@@ -5142,7 +5141,11 @@ export default function Home() {
                               setActiveSection("Games");
                             }
                           }}
-                          className="group w-[72vw] min-w-[260px] max-w-[320px] shrink-0 snap-start overflow-hidden border-r border-white/10 bg-black/10 text-left backdrop-blur-[.35px] transition hover:bg-black/5 sm:w-[40vw] sm:min-w-[280px] sm:max-w-[330px] lg:w-[24vw] lg:max-w-[340px]"
+                          className="group w-[72vw] min-w-[260px] max-w-[320px] shrink-0 snap-start overflow-hidden border-r border-[#714b2b] bg-[#28180e] bg-cover bg-top text-left transition sm:w-[40vw] sm:min-w-[280px] sm:max-w-[330px] lg:w-[24vw] lg:max-w-[340px]"
+                          style={{
+                            backgroundImage:
+                              "linear-gradient(180deg,rgba(8,5,3,.06),rgba(6,4,3,.42)),url('/locker-bay-realistic.webp')",
+                          }}
                         >
                           <div className="relative mx-3 mt-2 flex h-12 items-center justify-center rounded-sm border border-[#b8874f] bg-[linear-gradient(180deg,rgba(92,55,29,.96),rgba(40,23,13,.96))] px-2 text-center shadow-[0_5px_12px_rgba(0,0,0,.55),inset_0_1px_0_rgba(255,255,255,.13)]">
                             <div className="absolute left-2 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[#a77843] shadow-inner" />
@@ -5249,7 +5252,7 @@ export default function Home() {
                               })()}
                             </div>
 
-                            <div className="relative mt-2 min-h-[112px] border-t border-[#8b6235]/80 pt-3">
+                            <div className="relative mx-3 mt-2 min-h-[112px] border-t border-[#8b6235]/80 px-3 pt-3">
                               <div className="mb-1 text-[10px] font-black uppercase tracking-[0.1em] text-[#f3c64f]">
                                 {nextGame ? "Next Game" : "Team Locker"}
                               </div>
@@ -5272,7 +5275,7 @@ export default function Home() {
                               )}
                             </div>
 
-                            <div className="relative mt-auto flex items-center justify-between border-t border-[#8b6235]/60 pt-2 text-[10px] font-black uppercase tracking-wide text-[#d7c2a7]">
+                            <div className="relative mx-3 mt-auto flex items-center justify-between border-t border-[#8b6235]/60 px-3 pt-2 text-[10px] font-black uppercase tracking-wide text-[#d7c2a7]">
                               <span>{nextGame ? "Open Matchup" : "Browse Games"}</span>
                               <span className="text-[#f3c64f] transition group-hover:translate-x-1">→</span>
                             </div>

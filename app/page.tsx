@@ -6440,9 +6440,13 @@ export default function Home() {
                                   src="/trophy-bay-realistic.webp"
                                   alt=""
                                   aria-hidden="true"
-                                  className="absolute inset-0 h-full w-full object-cover object-top"
+                                  className={`absolute inset-0 h-full w-full object-cover object-top transition ${"earned" in trophy && trophy.earned ? "brightness-110 saturate-110" : "brightness-[.28] saturate-[.35]"}`}
                                 />
-                                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,5,3,0)_0%,rgba(8,5,3,.02)_52%,rgba(8,5,3,.82)_100%)]" />
+                                {"earned" in trophy && trophy.earned ? (
+                                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_22%,rgba(255,218,137,.20)_0%,rgba(255,190,82,.08)_34%,transparent_60%),linear-gradient(180deg,rgba(8,5,3,0)_0%,rgba(8,5,3,.02)_52%,rgba(8,5,3,.82)_100%)]" />
+                                ) : (
+                                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,3,2,.68)_0%,rgba(7,4,3,.52)_52%,rgba(8,5,3,.88)_100%)]" />
+                                )}
                                 <div className={`absolute right-1.5 top-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] font-black ${"earned" in trophy && trophy.earned ? "bg-[#f3c64f] text-[#33200f]" : "bg-black/55 text-white"}`}>{"earned" in trophy && trophy.earned ? "✓" : "🔒"}</div>
                                 {"repeatable" in trophy && trophy.repeatable && (
                                   <div className="absolute left-1.5 top-1.5 z-20 rounded-full border border-[#a47a42] bg-[#21150d]/90 px-1.5 py-0.5 text-[8px] font-black uppercase text-[#f3c64f]">Repeat</div>

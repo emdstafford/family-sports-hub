@@ -11,6 +11,8 @@ type NhlTeam = {
   };
   abbrev: string;
   score?: number;
+  logo?: string;
+  darkLogo?: string;
 };
 
 type NhlGame = {
@@ -193,6 +195,9 @@ export async function POST(request: Request) {
               null,
             abbreviation:
               team.abbrev ?? null,
+            logo_url:
+              team.logo ?? team.darkLogo ??
+              `https://assets.nhle.com/logos/nhl/svg/${team.abbrev}_light.svg`,
             external_provider: "nhl",
             external_id: externalId,
           },

@@ -2198,6 +2198,15 @@ export default function Home() {
               team !== null,
           );
 
+      const savedLockerOrder = Array.isArray(data.lockerTeamOrder)
+        ? data.lockerTeamOrder.filter((teamId: unknown): teamId is string => typeof teamId === "string")
+        : [];
+      const lockerPosition = new Map<string, number>(savedLockerOrder.map((teamId: string, index: number) => [teamId, index]));
+      lockerTeams.sort((a, b) =>
+        (lockerPosition.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (lockerPosition.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+      );
+
       setLockerPlayers([
         {
           id: signedInPlayer.id,
@@ -2349,8 +2358,17 @@ export default function Home() {
           }) => row.team_id,
         );
 
+      const savedLockerOrder = Array.isArray(data.lockerTeamOrder)
+        ? data.lockerTeamOrder.filter((teamId: unknown): teamId is string => typeof teamId === "string")
+        : [];
+
+      const orderedFavorites = [
+        ...savedLockerOrder.filter((teamId: string) => favorites.includes(teamId)),
+        ...favorites.filter((teamId: string) => !savedLockerOrder.includes(teamId)),
+      ];
+
       setProfileFavoriteTeamIds(
-        favorites,
+        orderedFavorites,
       );
 
       const primaryBySport: Record<string, string> = {};
@@ -2575,6 +2593,17 @@ export default function Home() {
     );
   }
 
+  function moveFavoriteTeam(teamId: string, direction: -1 | 1) {
+    setProfileFavoriteTeamIds((current) => {
+      const from = current.indexOf(teamId);
+      const to = from + direction;
+      if (from < 0 || to < 0 || to >= current.length) return current;
+      const next = [...current];
+      [next[from], next[to]] = [next[to], next[from]];
+      return next;
+    });
+  }
+
   async function saveProfile() {
     if (!signedInPlayer) return;
 
@@ -2628,6 +2657,8 @@ export default function Home() {
               Object.values(
                 profilePrimaryTeamIdsBySport,
               ),
+            lockerTeamOrder:
+              profileFavoriteTeamIds,
           }),
         },
       );
@@ -5833,6 +5864,7 @@ export default function Home() {
                             profilePrimaryTeamIdsBySport[
                               team.sport_id
                             ] === team.id;
+                          const lockerIndex = profileFavoriteTeamIds.indexOf(team.id);
 
                           return (
                             <div
@@ -5861,7 +5893,29 @@ export default function Home() {
                                   </div>
                                 </div>
 
-                                <div className="flex shrink-0 items-center gap-2">
+                                <div className="flex max-w-[180px] shrink-0 flex-wrap items-center justify-end gap-1.5">
+                                  <div className="flex overflow-hidden rounded-lg border border-slate-200 bg-white">
+                                    <button
+                                      type="button"
+                                      aria-label={`Move ${team.name} earlier`}
+                                      title="Move earlier"
+                                      disabled={lockerIndex <= 0}
+                                      onClick={() => moveFavoriteTeam(team.id, -1)}
+                                      className="min-h-9 min-w-9 border-r border-slate-200 text-sm font-black text-[#10254a] disabled:text-slate-200"
+                                    >
+                                      ←
+                                    </button>
+                                    <button
+                                      type="button"
+                                      aria-label={`Move ${team.name} later`}
+                                      title="Move later"
+                                      disabled={lockerIndex >= profileFavoriteTeamIds.length - 1}
+                                      onClick={() => moveFavoriteTeam(team.id, 1)}
+                                      className="min-h-9 min-w-9 text-sm font-black text-[#10254a] disabled:text-slate-200"
+                                    >
+                                      →
+                                    </button>
+                                  </div>
                                   <button
                                     onClick={() =>
                                       setProfilePrimaryTeamIdsBySport(
@@ -6100,7 +6154,7 @@ export default function Home() {
                               setActiveSection("Games");
                             }
                           }}
-                          className="group w-[64vw] min-w-[225px] max-w-[270px] shrink-0 snap-start overflow-hidden border-r border-[#714b2b] bg-[#28180e] bg-cover bg-top text-left transition sm:w-[34vw] sm:min-w-[240px] sm:max-w-[285px] lg:w-[20vw] lg:max-w-[300px]"
+                          className="group w-[56vw] min-w-[205px] max-w-[240px] shrink-0 snap-start overflow-hidden border-r border-[#714b2b] bg-[#28180e] bg-cover bg-top text-left transition sm:w-[29vw] sm:min-w-[215px] sm:max-w-[250px] lg:w-[17vw] lg:max-w-[260px]"
                           style={{
                             backgroundImage:
                               "linear-gradient(180deg,rgba(8,5,3,.06),rgba(6,4,3,.42)),url('/locker-bay-realistic.webp')",
@@ -6348,20 +6402,6 @@ export default function Home() {
               <div className="bg-[radial-gradient(circle_at_50%_0%,#694522_0%,#342116_46%,#1d120c_100%)] px-3 py-5 sm:px-6 sm:py-7">
                 <div>
                   <div>
-                    <div className="mb-3 flex items-end justify-between gap-3">
-                      <div>
-                        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
-                          Trophy Shelves
-                        </div>
-                        <div className="mt-1 text-sm font-bold text-[#f6e8d4]">
-                          Every trophy has a place before it is earned.
-                        </div>
-                      </div>
-                      <div className="hidden rounded-full border border-[#8f6336] bg-black/20 px-3 py-1.5 text-[10px] font-black uppercase text-[#d7b98f] sm:block">
-                        Real achievements only
-                      </div>
-                    </div>
-
                     <div className="space-y-4">
                       {[
                         {

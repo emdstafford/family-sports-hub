@@ -1,6 +1,39 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+const profileSettingsBucket = "fambam-profile-settings";
+
+async function ensureProfileSettingsBucket(supabase: ReturnType<typeof getAdminClient>) {
+  const { data } = await supabase.storage.getBucket(profileSettingsBucket);
+  if (data) return;
+  const { error } = await supabase.storage.createBucket(profileSettingsBucket, { public: false });
+  if (error && !error.message.toLowerCase().includes("already exists")) throw error;
+}
+
+async function readLockerOrder(supabase: ReturnType<typeof getAdminClient>, playerId: string) {
+  await ensureProfileSettingsBucket(supabase);
+  const { data, error } = await supabase.storage.from(profileSettingsBucket).download(`${playerId}.json`);
+  if (error || !data) return [];
+  try {
+    const parsed = JSON.parse(await data.text());
+    return Array.isArray(parsed.lockerTeamOrder)
+      ? parsed.lockerTeamOrder.filter((value: unknown) => typeof value === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeLockerOrder(supabase: ReturnType<typeof getAdminClient>, playerId: string, lockerTeamOrder: string[]) {
+  await ensureProfileSettingsBucket(supabase);
+  const { error } = await supabase.storage.from(profileSettingsBucket).upload(
+    `${playerId}.json`,
+    JSON.stringify({ lockerTeamOrder, updatedAt: new Date().toISOString() }),
+    { contentType: "application/json", upsert: true },
+  );
+  if (error) throw error;
+}
+
 function getAdminClient() {
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -378,8 +411,9 @@ export async function GET(
       throw favoriteTeamsResult.error;
     }
 
-    const [recordBook, { data: playerAvatars, error: playerAvatarsError }] = await Promise.all([
+    const [recordBook, lockerTeamOrder, { data: playerAvatars, error: playerAvatarsError }] = await Promise.all([
       getRecordBookLeaderboard(supabase),
+      readLockerOrder(supabase, playerId),
       supabase.from("players").select("id, avatar_url"),
     ]);
     if (playerAvatarsError) {
@@ -394,6 +428,7 @@ export async function GET(
         playerSportsResult.data ?? [],
       favoriteTeams:
         favoriteTeamsResult.data ?? [],
+      lockerTeamOrder,
       recordBookLeaderboard: recordBook.leaderboard,
       recordBookAchievements: recordBook.achievements,
       playerAvatars: playerAvatars ?? [],
@@ -461,6 +496,10 @@ export async function POST(
         : typeof body.primaryTeamId === "string"
           ? [body.primaryTeamId]
           : [];
+
+    const lockerTeamOrder = Array.isArray(body.lockerTeamOrder)
+      ? body.lockerTeamOrder.filter((value: unknown) => typeof value === "string")
+      : favoriteTeamIds;
 
     const sessionToken =
       request.headers.get(
@@ -646,6 +685,12 @@ export async function POST(
         throw insertTeamsError;
       }
     }
+
+    await writeLockerOrder(
+      supabase,
+      playerId,
+      lockerTeamOrder.filter((teamId: string) => favoriteTeamIds.includes(teamId)),
+    );
 
     return NextResponse.json({
       ok: true,

@@ -9,6 +9,7 @@ type Player = {
   initials: string | null;
   is_admin: boolean;
   sort_order: number;
+  avatar_url?: string | null;
 };
 
 type Challenge = {
@@ -272,6 +273,9 @@ function lockerUniformAsset(team: LockerTeam) {
   }
   if (name.includes("kentucky") && team.sport === "Volleyball") {
     return "/uniforms/kentucky-volleyball.webp";
+  }
+  if (name.includes("georgia") && team.sport === "College Football") {
+    return "/uniforms/georgia-football.webp";
   }
   if (name.includes("atlanta braves") || name === "braves") {
     return "/uniforms/atlanta-braves.webp";
@@ -816,8 +820,10 @@ function getGameContext(
 type PassportMemory = { playerId: string; playerName: string; note: string };
 type PassportEntry = {
   id: string;
+  createdByPlayerId?: string;
   gameId?: string;
-  sport: "Football" | "MLB";
+  sport: "Football" | "MLB" | "Tour";
+  visitType?: "game" | "tour";
   date: string;
   away: string;
   home: string;
@@ -830,6 +836,7 @@ type PassportEntry = {
   attendeeIds: string[];
   attendeeNames: string[];
   memories: PassportMemory[];
+  photos: string[];
 };
 
 const US_STATES = [
@@ -839,6 +846,39 @@ const US_STATES = [
 const STATE_NAMES: Record<string,string> = {
   AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"
 };
+
+function passportEntryTitle(entry: PassportEntry) {
+  return entry.visitType === "tour" || entry.sport === "Tour"
+    ? `${entry.venue} Stadium Tour`
+    : `${entry.away} at ${entry.home}`;
+}
+
+async function preparePhotoForUpload(file: File) {
+  const image = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const maxEdge = 1600;
+  const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.width * scale));
+  canvas.height = Math.max(1, Math.round(image.height * scale));
+  const context = canvas.getContext("2d");
+
+  if (!context) throw new Error("This device could not prepare the picture.");
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  image.close();
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (result) => result ? resolve(result) : reject(new Error("This picture could not be prepared.")),
+      "image/jpeg",
+      0.84,
+    );
+  });
+
+  return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "photo"}.jpg`, {
+    type: "image/jpeg",
+  });
+}
 
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -921,6 +961,12 @@ export default function Home() {
   const [profileInitials, setProfileInitials] =
     useState("");
 
+  const [profileAvatarUrl, setProfileAvatarUrl] =
+    useState<string | null>(null);
+
+  const [profilePhotoUploading, setProfilePhotoUploading] =
+    useState(false);
+
   const [profileSports, setProfileSports] =
     useState<ProfileSport[]>([]);
 
@@ -973,17 +1019,19 @@ export default function Home() {
   const [passportEntries, setPassportEntries] = useState<PassportEntry[]>([]);
   const [visitedStates, setVisitedStates] = useState<string[]>([]);
   const [passportAddOpen, setPassportAddOpen] = useState(false);
+  const [passportEditingId, setPassportEditingId] = useState<string | null>(null);
   const [passportLoading, setPassportLoading] = useState(false);
   const [passportSaving, setPassportSaving] = useState(false);
+  const [passportPhotoUploadingId, setPassportPhotoUploadingId] = useState<string | null>(null);
   const [passportError, setPassportError] = useState<string | null>(null);
-  const [stadiumSportFilter, setStadiumSportFilter] = useState<"All" | "Football" | "MLB">("All");
+  const [stadiumSportFilter, setStadiumSportFilter] = useState<"All" | "Football" | "MLB" | "Tour">("All");
   const [passportAddMode, setPassportAddMode] = useState<"search" | "manual">("search");
   const [passportGameSearch, setPassportGameSearch] = useState("");
   const [passportAttendeeIds, setPassportAttendeeIds] = useState<string[]>([]);
   const [passportMyNote, setPassportMyNote] = useState("");
   const [passportMemoryEvent, setPassportMemoryEvent] = useState<PassportEntry | null>(null);
   const [passportMemoryNote, setPassportMemoryNote] = useState("");
-  const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", date:"", away:"", home:"", venue:"", city:"", state:"", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[] });
+  const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
     useState<"Home" | "Challenge" | "Games" | "Locker Room" | "Trophy Room">("Home");
@@ -2096,6 +2144,10 @@ export default function Home() {
           "",
       );
 
+      setProfileAvatarUrl(
+        data.player?.avatar_url ?? null,
+      );
+
       setProfileSports(
         data.sports ?? [],
       );
@@ -2346,6 +2398,46 @@ export default function Home() {
       );
     } finally {
       setProfileSaving(false);
+    }
+  }
+
+  async function uploadProfilePhoto(file: File) {
+    if (!signedInPlayer) return;
+
+    const sessionToken = window.localStorage.getItem("fambam_session_token");
+    if (!sessionToken) {
+      setProfileError("Your FamBam session has expired.");
+      return;
+    }
+
+    setProfilePhotoUploading(true);
+    setProfileError(null);
+
+    try {
+      const preparedFile = await preparePhotoForUpload(file);
+      const form = new FormData();
+      form.append("playerId", signedInPlayer.id);
+      form.append("purpose", "profile");
+      form.append("file", preparedFile);
+
+      const response = await fetch("/api/photo-upload", {
+        method: "POST",
+        headers: { "x-fambam-session": sessionToken },
+        body: form,
+      });
+      const body = await response.json();
+
+      if (!response.ok) throw new Error(body.error || "Could not upload picture.");
+
+      setProfileAvatarUrl(body.url);
+      setPlayers((current) => current.map((player) =>
+        player.id === signedInPlayer.id ? { ...player, avatar_url: body.url } : player,
+      ));
+      setSignedInPlayer((current) => current ? { ...current, avatar_url: body.url } : current);
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Could not upload picture.");
+    } finally {
+      setProfilePhotoUploading(false);
     }
   }
 
@@ -3645,13 +3737,16 @@ export default function Home() {
       if (!response.ok) throw new Error(body.error || `Could not load Passport (${response.status}).`);
       const attendees = body.attendees ?? [];
       const memories = body.memories ?? [];
+      const photos = body.photos ?? {};
       const mapped: PassportEntry[] = (body.events ?? []).map((event: any) => ({
         id: event.id,
+        createdByPlayerId: event.created_by_player_id || undefined,
         gameId: event.game_id || undefined,
-        sport: event.sport === "MLB" ? "MLB" : "Football",
+        sport: event.sport === "Tour" ? "Tour" : event.sport === "MLB" ? "MLB" : "Football",
+        visitType: event.sport === "Tour" ? "tour" : "game",
         date: event.event_date,
-        away: event.away_team,
-        home: event.home_team,
+        away: event.sport === "Tour" ? "Stadium Tour" : event.away_team,
+        home: event.sport === "Tour" ? event.venue_name : event.home_team,
         venue: event.venue_name,
         city: event.city || "",
         state: event.state_code || "",
@@ -3661,6 +3756,7 @@ export default function Home() {
         attendeeIds: attendees.filter((a: any) => a.event_id === event.id).map((a: any) => a.player_id),
         attendeeNames: attendees.filter((a: any) => a.event_id === event.id).map((a: any) => Array.isArray(a.players) ? a.players[0]?.display_name : a.players?.display_name).filter(Boolean),
         memories: memories.filter((m: any) => m.event_id === event.id).map((m: any) => ({ playerId: m.player_id, playerName: (Array.isArray(m.players) ? m.players[0]?.display_name : m.players?.display_name) || "FamBam", note: m.note || "" })),
+        photos: Array.isArray(photos[event.id]) ? photos[event.id] : [],
       }));
       setPassportEntries(mapped);
       setVisitedStates(Array.isArray(body.visitedStates) ? body.visitedStates : []);
@@ -3706,7 +3802,20 @@ export default function Home() {
     setPassportMyNote("");
     setPassportGameSearch("");
     setPassportAddMode("search");
-    setPassportDraft({ id:"", sport:"Football", date:"", away:"", home:"", venue:"", city:"", state:"", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[] });
+    setPassportEditingId(null);
+    setPassportDraft({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
+    setPassportAddOpen(true);
+  }
+
+  function openPassportEdit(entry: PassportEntry) {
+    if (!signedInPlayer) return;
+    setPassportEditingId(entry.id);
+    setPassportAttendeeIds(entry.attendeeIds);
+    setPassportMyNote(entry.memories.find((memory) => memory.playerId === signedInPlayer.id)?.note ?? "");
+    setPassportGameSearch("");
+    setPassportAddMode("manual");
+    setPassportDraft({ ...entry, photos: [...entry.photos], memories: [...entry.memories] });
+    setPassportError(null);
     setPassportAddOpen(true);
   }
 
@@ -3751,15 +3860,23 @@ export default function Home() {
   );
 
   async function savePassportEntry() {
-    if (!passportDraft.date || !passportDraft.venue || !passportDraft.state || !passportDraft.home || !passportDraft.away) {
-      setPassportError("Date, teams, stadium and state are required.");
+    const isTour = passportDraft.visitType === "tour";
+    if (!passportDraft.date || !passportDraft.venue || !passportDraft.state || (!isTour && (!passportDraft.home || !passportDraft.away))) {
+      setPassportError(isTour ? "Date, stadium and state are required." : "Date, teams, stadium and state are required.");
       return;
     }
     setPassportSaving(true);
     setPassportError(null);
     try {
-      await passportPost({ action: "createEvent", event: passportDraft, attendeeIds: passportAttendeeIds, myNote: passportMyNote });
+      await passportPost({
+        action: passportEditingId ? "updateEvent" : "createEvent",
+        eventId: passportEditingId,
+        event: passportDraft,
+        attendeeIds: passportAttendeeIds,
+        myNote: passportMyNote,
+      });
       setPassportAddOpen(false);
+      setPassportEditingId(null);
       await loadPassport();
     } catch (error) {
       setPassportError(error instanceof Error ? error.message : "Could not save stamp.");
@@ -3775,6 +3892,38 @@ export default function Home() {
       await loadPassport();
     } catch (error) { setPassportError(error instanceof Error ? error.message : "Could not save memory."); }
     finally { setPassportSaving(false); }
+  }
+
+  async function uploadPassportPhoto(eventId: string, file: File) {
+    if (!signedInPlayer) return;
+    const token = window.localStorage.getItem("fambam_session_token");
+    if (!token) {
+      setPassportError("Your FamBam session has expired.");
+      return;
+    }
+
+    setPassportPhotoUploadingId(eventId);
+    setPassportError(null);
+    try {
+      const preparedFile = await preparePhotoForUpload(file);
+      const form = new FormData();
+      form.append("playerId", signedInPlayer.id);
+      form.append("purpose", "passport");
+      form.append("eventId", eventId);
+      form.append("file", preparedFile);
+      const response = await fetch("/api/photo-upload", {
+        method: "POST",
+        headers: { "x-fambam-session": token },
+        body: form,
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Could not upload picture.");
+      await loadPassport();
+    } catch (error) {
+      setPassportError(error instanceof Error ? error.message : "Could not upload picture.");
+    } finally {
+      setPassportPhotoUploadingId(null);
+    }
   }
 
 
@@ -3805,8 +3954,10 @@ export default function Home() {
               onClick={() => void openProfile()}
               className="flex shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 text-left"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/70 bg-[#f3c64f] text-[10px] font-black text-[#06284a]">
-                {signedInPlayer.initials}
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-white/70 bg-[#f3c64f] text-[10px] font-black text-[#06284a]">
+                {signedInPlayer.avatar_url ? (
+                  <img src={signedInPlayer.avatar_url} alt="" className="h-full w-full object-cover" />
+                ) : signedInPlayer.initials}
               </div>
 
               <div>
@@ -4891,11 +5042,27 @@ export default function Home() {
 
                 <section className="rounded-2xl bg-[#06284a] p-4 text-white shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-white/70 bg-[#f3c64f] text-sm font-black text-[#06284a]">
-                      {profileInitials ||
-                        signedInPlayer.initials ||
-                        "FB"}
-                    </div>
+                    <label className="relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-white/70 bg-[#f3c64f] text-sm font-black text-[#06284a]">
+                      {profileAvatarUrl ? (
+                        <img src={profileAvatarUrl} alt={`${profileDisplayName || signedInPlayer.display_name} profile`} className="h-full w-full object-cover" />
+                      ) : (
+                        profileInitials || signedInPlayer.initials || "FB"
+                      )}
+                      <span className="absolute inset-x-0 bottom-0 bg-black/65 py-1 text-center text-[7px] font-black uppercase text-white">
+                        {profilePhotoUploading ? "Uploading…" : "Photo"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                        className="sr-only"
+                        disabled={profilePhotoUploading}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void uploadProfilePhoto(file);
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
 
                     <div className="min-w-0 flex-1">
                       <label className="text-[9px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
@@ -5758,8 +5925,8 @@ export default function Home() {
                 <div className="mx-auto max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white text-[#10254a] shadow-sm">
                   <div className="bg-[#06284a] p-5 text-white sm:p-7">
                     <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div><div className="text-[9px] font-black uppercase tracking-[0.28em] text-[#f3c64f]">FamBam United States of Sports</div><div className="mt-1 text-2xl font-black">{signedInPlayer?.display_name ?? "My"}'s Passport</div><div className="mt-1 text-[10px] font-semibold text-[#c9d5df]">Games · Stadiums · States · Memories</div></div>
-                      <button type="button" onClick={openPassportAdd} className="rounded-full bg-[#f3c64f] px-5 py-2.5 text-[9px] font-black uppercase tracking-wide text-[#06284a] shadow">+ Add Game/Match</button>
+                      <div><div className="text-[9px] font-black uppercase tracking-[0.28em] text-[#f3c64f]">FamBam United States of Sports</div><div className="mt-1 text-2xl font-black">{signedInPlayer?.display_name ?? "My"}'s Passport</div><div className="mt-1 text-[10px] font-semibold text-[#c9d5df]">Games · Tours · Stadiums · States · Memories</div></div>
+                      <button type="button" onClick={openPassportAdd} className="rounded-full bg-[#f3c64f] px-5 py-2.5 text-[9px] font-black uppercase tracking-wide text-[#06284a] shadow">+ Add Visit</button>
                     </div>
                   </div>
                   <div className="border-b border-slate-200 bg-white px-4 py-3">
@@ -5769,7 +5936,7 @@ export default function Home() {
                   </div>
                   <div className="p-4 sm:p-6">
                     <div className="mb-5 grid grid-cols-3 gap-2">
-                      {[[passportEntries.length,'Games'],[new Set(passportEntries.map(x=>x.venue)).size,'Stadiums'],[new Set([...visitedStates,...passportEntries.map(x=>x.state).filter(Boolean)]).size,'States']].map(([v,l])=><div key={String(l)} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center"><div className="text-2xl font-black">{v}</div><div className="text-[8px] font-black uppercase text-slate-500">{l}</div></div>)}
+                      {[[passportEntries.length,'Visits'],[new Set(passportEntries.map(x=>x.venue)).size,'Stadiums'],[new Set([...visitedStates,...passportEntries.map(x=>x.state).filter(Boolean)]).size,'States']].map(([v,l])=><div key={String(l)} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center"><div className="text-2xl font-black">{v}</div><div className="text-[8px] font-black uppercase text-slate-500">{l}</div></div>)}
                     </div>
                     {passportView === 'year' && <div className="space-y-5">{passportEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center"><div className="text-5xl">🛂</div><div className="mt-3 font-black">Your first stamp is waiting.</div><button onClick={openPassportAdd} className="mt-4 rounded-full bg-[#77511f] px-4 py-2 text-[9px] font-black uppercase text-white">+ Add Game/Match</button></div>:Object.entries(passportEntries.reduce<Record<string,PassportEntry[]>>((a,e)=>{const y=e.date.slice(0,4)||'Undated';(a[y]??=[]).push(e);return a;},{})).sort(([a],[b])=>b.localeCompare(a)).map(([year,entries])=><div key={year}><div className="mb-3 text-xl font-black">{year}</div><div className="grid gap-3 md:grid-cols-2">{entries.map(e=><div key={e.id} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4"><div className="absolute right-3 top-3 rotate-[-10deg] rounded-full border-4 border-double border-[#a35b48] px-3 py-2 text-[8px] font-black uppercase text-[#a35b48] opacity-75">{e.sport==='MLB'?'⚾':'🏈'}<br/>VISITED</div><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{e.date} · {e.result||'Attended'}</div><div className="mt-2 pr-20 text-base font-black">{e.away} at {e.home}</div><div className="mt-1 text-xs font-bold">{e.awayScore||e.homeScore?`${e.awayScore||'–'} – ${e.homeScore||'–'}`:''}</div><div className="mt-3 text-[10px] font-semibold">🏟️ {e.venue}{e.city?` · ${e.city}, ${e.state}`:` · ${e.state}`}</div>{e.attendeeNames.length>0&&<div className="mt-1 text-[10px]">👨‍👩‍👧‍👦 {e.attendeeNames.join(" · ")}</div>}{e.memories.length>0&&<div className="mt-2 space-y-1 border-t border-[#d7c39b] pt-2">{e.memories.map(m=><div key={m.playerId} className="text-[10px] italic"><span className="font-black not-italic">{m.playerName}:</span> “{m.note}”</div>)}</div>}{signedInPlayer&&e.attendeeIds.includes(signedInPlayer.id)&&<button type="button" onClick={()=>{setPassportMemoryEvent(e);setPassportMemoryNote(e.memories.find(m=>m.playerId===signedInPlayer.id)?.note||"")}} className="mt-3 rounded-full border border-[#b99d68] bg-[#fff7e6] px-3 py-1.5 text-[8px] font-black uppercase text-[#77511f]">{e.memories.some(m=>m.playerId===signedInPlayer.id)?"Edit My Memory":"+ Add My Memory"}</button>}</div>)}</div></div>)}</div>}
                     {passportView === 'venue' && <div><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">Stadium Collection</div><div className="text-xl font-black">All Your Stadiums</div></div><div className="flex flex-wrap gap-2">{(["All","Football","MLB"] as const).map(f=><button key={f} type="button" onClick={()=>setStadiumSportFilter(f)} className={`rounded-full px-3 py-2 text-[8px] font-black uppercase ${stadiumSportFilter===f?'bg-[#77511f] text-white':'border border-[#b99d68] bg-[#f7ebcd] text-[#77511f]'}`}>{f==='Football'?'🏈 Football':f==='MLB'?'⚾ MLB':'All'}</button>)}</div></div>{passportEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center text-sm font-bold">Add a game/match to start your stadium collection.</div>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(passportEntries.filter(e=>stadiumSportFilter==='All'||e.sport===stadiumSportFilter).reduce<Record<string,PassportEntry[]>>((a,e)=>{(a[e.venue]??=[]).push(e);return a;},{})).map(([venue,entries])=><div key={venue} className="rounded-xl border border-slate-200 bg-white p-4"><div className="text-4xl">🏟️</div><div className="mt-2 text-lg font-black">{venue}</div><div className="text-[9px] font-bold text-slate-500">{entries[0].city}{entries[0].city?', ':''}{entries[0].state}</div><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#77511f] px-2 py-1 text-[8px] font-black text-white">{entries.length} VISIT{entries.length===1?'':'S'}</span><span className="rounded-full border border-[#b99d68] px-2 py-1 text-[8px] font-black">{[...new Set(entries.map(e=>e.sport))].join(' · ')}</span></div><div className="mt-3 space-y-1 border-t border-[#d7c39b] pt-2">{entries.sort((a,b)=>b.date.localeCompare(a.date)).map(e=><div key={e.id} className="text-[9px] font-semibold">{e.date} · {e.away} at {e.home}</div>)}</div></div>)}</div>}</div>}
@@ -5778,20 +5945,52 @@ export default function Home() {
                 </div>
                 {passportAddOpen && <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/70 p-3"><div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-[1.5rem] bg-[#f6e8c8] p-4 text-[#3d2b17] shadow-2xl sm:p-5"><div className="flex items-center justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">New Passport Stamp</div><div className="text-xl font-black">Add Game/Match</div></div><button type="button" onClick={()=>setPassportAddOpen(false)} className="min-h-11 min-w-11 rounded-full bg-[#e4d3ad] px-3 font-black">✕</button></div>
                   <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPassportAddMode('search')} className={`min-h-11 rounded-xl text-xs font-black ${passportAddMode==='search'?'bg-[#102b49] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🔎 Find a Game</button><button type="button" onClick={()=>setPassportAddMode('manual')} className={`min-h-11 rounded-xl text-xs font-black ${passportAddMode==='manual'?'bg-[#102b49] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>✏️ Enter Manually</button></div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-[9px] font-black">SPORT<select value={passportDraft.sport} onChange={e=>{setPassportDraft({...passportDraft,sport:e.target.value as 'Football'|'MLB',gameId:undefined});setPassportGameSearch('')}} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option>Football</option><option>MLB</option></select></label><label className="text-[9px] font-black">DATE<input type="date" value={passportDraft.date} onChange={e=>setPassportDraft({...passportDraft,date:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></div>
-                  {passportAddMode==='search'&&<div className="mt-3"><label className="text-[9px] font-black">SEARCH TEAM / GAME<input value={passportGameSearch} onChange={e=>setPassportGameSearch(e.target.value)} placeholder={passportDraft.sport==='MLB'?'Braves, Dodgers...':'Kentucky, Georgia...'} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label>{passportGameSearch.trim()&&<div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-[#c7aa70] bg-white p-2">{passportSearchResults.length?passportSearchResults.map(g=><button key={g.id} type="button" onClick={()=>choosePassportGame(g)} className="block min-h-11 w-full rounded-lg px-3 py-2 text-left hover:bg-[#f7edda]"><div className="text-xs font-black">{g.away} at {g.home}</div><div className="text-[9px] text-slate-500">{formatGameDate(g.startsAt)} · {g.competition}{g.homeScore!=null||g.awayScore!=null?` · ${g.awayScore??'–'}-${g.homeScore??'–'}`:''}</div></button>):<div className="p-3 text-xs font-bold text-slate-500">No matching FamBam game loaded. Use Enter Manually for older games.</div>}</div>}</div>}
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">{[['away','Away team'],['home','Home team'],['venue','Stadium / venue'],['city','City']].map(([k,l])=><label key={k} className="text-[9px] font-black uppercase">{l}<input value={(passportDraft as any)[k]} onChange={e=>setPassportDraft({...passportDraft,[k]:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base normal-case sm:text-sm"/></label>)}<label className="text-[9px] font-black">STATE<select value={passportDraft.state} onChange={e=>setPassportDraft({...passportDraft,state:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="">Choose state</option>{US_STATES.map(c=><option key={c} value={c}>{STATE_NAMES[c]}</option>)}</select></label><label className="text-[9px] font-black">RESULT<select value={passportDraft.result} onChange={e=>setPassportDraft({...passportDraft,result:e.target.value as any})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="" disabled>Choose result</option><option value="W">Win</option><option value="L">Loss</option><option value="T">Tie</option></select></label><label className="text-[9px] font-black">AWAY SCORE<input inputMode="numeric" value={passportDraft.awayScore} onChange={e=>setPassportDraft({...passportDraft,awayScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label><label className="text-[9px] font-black">HOME SCORE<input inputMode="numeric" value={passportDraft.homeScore} onChange={e=>setPassportDraft({...passportDraft,homeScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></div>
+                  <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPassportDraft({...passportDraft,visitType:'game',sport:passportDraft.sport==='Tour'?'Football':passportDraft.sport})} className={`min-h-11 rounded-xl text-xs font-black ${passportDraft.visitType!=='tour'?'bg-[#77511f] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🏟️ Game / Match</button><button type="button" onClick={()=>{setPassportDraft({...passportDraft,visitType:'tour',sport:'Tour',away:'',home:'',awayScore:'',homeScore:'',result:''});setPassportAddMode('manual');setPassportGameSearch('')}} className={`min-h-11 rounded-xl text-xs font-black ${passportDraft.visitType==='tour'?'bg-[#77511f] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🎟️ Stadium Tour</button></div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">{passportDraft.visitType!=='tour'&&<label className="text-[9px] font-black">SPORT<select value={passportDraft.sport} onChange={e=>{setPassportDraft({...passportDraft,sport:e.target.value as 'Football'|'MLB',gameId:undefined});setPassportGameSearch('')}} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option>Football</option><option>MLB</option></select></label>}<label className="text-[9px] font-black">DATE<input type="date" value={passportDraft.date} onChange={e=>setPassportDraft({...passportDraft,date:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></div>
+                  {passportDraft.visitType!=='tour'&&passportAddMode==='search'&&<div className="mt-3"><label className="text-[9px] font-black">SEARCH TEAM / GAME<input value={passportGameSearch} onChange={e=>setPassportGameSearch(e.target.value)} placeholder={passportDraft.sport==='MLB'?'Braves, Dodgers...':'Kentucky, Georgia...'} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label>{passportGameSearch.trim()&&<div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-[#c7aa70] bg-white p-2">{passportSearchResults.length?passportSearchResults.map(g=><button key={g.id} type="button" onClick={()=>choosePassportGame(g)} className="block min-h-11 w-full rounded-lg px-3 py-2 text-left hover:bg-[#f7edda]"><div className="text-xs font-black">{g.away} at {g.home}</div><div className="text-[9px] text-slate-500">{formatGameDate(g.startsAt)} · {g.competition}{g.homeScore!=null||g.awayScore!=null?` · ${g.awayScore??'–'}-${g.homeScore??'–'}`:''}</div></button>):<div className="p-3 text-xs font-bold text-slate-500">No matching FamBam game loaded. Use Enter Manually for older games.</div>}</div>}</div>}
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">{(passportDraft.visitType==='tour'?[['venue','Stadium / venue'],['city','City']]:[['away','Away team'],['home','Home team'],['venue','Stadium / venue'],['city','City']]).map(([k,l])=><label key={k} className="text-[9px] font-black uppercase">{l}<input value={(passportDraft as any)[k]} onChange={e=>setPassportDraft({...passportDraft,[k]:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base normal-case sm:text-sm"/></label>)}<label className="text-[9px] font-black">STATE<select value={passportDraft.state} onChange={e=>setPassportDraft({...passportDraft,state:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="">Choose state</option>{US_STATES.map(c=><option key={c} value={c}>{STATE_NAMES[c]}</option>)}</select></label>{passportDraft.visitType!=='tour'&&<><label className="text-[9px] font-black">RESULT<select value={passportDraft.result} onChange={e=>setPassportDraft({...passportDraft,result:e.target.value as any})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="" disabled>Choose result</option><option value="W">Win</option><option value="L">Loss</option><option value="T">Tie</option></select></label><label className="text-[9px] font-black">AWAY SCORE<input inputMode="numeric" value={passportDraft.awayScore} onChange={e=>setPassportDraft({...passportDraft,awayScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label><label className="text-[9px] font-black">HOME SCORE<input inputMode="numeric" value={passportDraft.homeScore} onChange={e=>setPassportDraft({...passportDraft,homeScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></>}</div>
                   <div className="mt-4"><div className="text-[9px] font-black uppercase">Who Went?</div><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">{players.map(p=><label key={p.id} className={`flex min-h-11 items-center gap-2 rounded-xl border p-2 text-xs font-black ${passportAttendeeIds.includes(p.id)?'border-[#77511f] bg-[#f0d99f]':'border-[#c7aa70] bg-[#fff7e6]'}`}><input type="checkbox" checked={passportAttendeeIds.includes(p.id)} onChange={()=>setPassportAttendeeIds(ids=>ids.includes(p.id)?ids.filter(id=>id!==p.id):[...ids,p.id])} disabled={p.id===signedInPlayer?.id}/>{p.display_name}</label>)}</div></div>
                   <label className="mt-4 block text-[9px] font-black">MY MEMORY / NOTE<textarea value={passportMyNote} onChange={e=>setPassportMyNote(e.target.value)} placeholder="What do you remember about this one?" className="mt-1 min-h-24 w-full rounded-lg border border-[#c7aa70] bg-white p-3 text-base sm:text-sm"/></label>{passportError&&<div className="mt-3 rounded-lg bg-red-50 p-3 text-xs font-bold text-red-700">{passportError}</div>}<button type="button" disabled={passportSaving} onClick={savePassportEntry} className="mt-5 min-h-12 w-full rounded-xl bg-[#102b49] py-3 text-sm font-black text-white disabled:opacity-50">{passportSaving?'Saving…':'Save Shared Stamp 🛂'}</button></div></div>}
-                {passportMemoryEvent&&<div className="fixed inset-0 z-[145] flex items-center justify-center bg-slate-950/70 p-3"><div className="w-full max-w-md rounded-[1.5rem] bg-[#f6e8c8] p-5 text-[#3d2b17] shadow-2xl"><div className="flex items-start justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{passportMemoryEvent.away} at {passportMemoryEvent.home}</div><div className="text-xl font-black">{passportMemoryEvent.memories.some(m=>m.playerId===signedInPlayer?.id)?'Edit My Memory':'Add My Memory'}</div></div><button type="button" onClick={()=>setPassportMemoryEvent(null)} className="min-h-11 min-w-11 rounded-full bg-[#e4d3ad] font-black">✕</button></div><textarea value={passportMemoryNote} onChange={e=>setPassportMemoryNote(e.target.value)} placeholder="Your own memory from this game..." className="mt-4 min-h-32 w-full rounded-xl border border-[#c7aa70] bg-white p-3 text-base"/><button type="button" disabled={passportSaving} onClick={savePassportMemory} className="mt-4 min-h-12 w-full rounded-xl bg-[#102b49] text-sm font-black text-white disabled:opacity-50">{passportSaving?'Saving…':'Save My Memory'}</button></div></div>}
+                {passportMemoryEvent&&<div className="fixed inset-0 z-[145] flex items-center justify-center bg-slate-950/70 p-3"><div className="w-full max-w-md rounded-[1.5rem] bg-[#f6e8c8] p-5 text-[#3d2b17] shadow-2xl"><div className="flex items-start justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{passportEntryTitle(passportMemoryEvent)}</div><div className="text-xl font-black">{passportMemoryEvent.memories.some(m=>m.playerId===signedInPlayer?.id)?'Edit My Memory':'Add My Memory'}</div></div><button type="button" onClick={()=>setPassportMemoryEvent(null)} className="min-h-11 min-w-11 rounded-full bg-[#e4d3ad] font-black">✕</button></div><textarea value={passportMemoryNote} onChange={e=>setPassportMemoryNote(e.target.value)} placeholder="Your own memory from this visit..." className="mt-4 min-h-32 w-full rounded-xl border border-[#c7aa70] bg-white p-3 text-base"/><button type="button" disabled={passportSaving} onClick={savePassportMemory} className="mt-4 min-h-12 w-full rounded-xl bg-[#102b49] text-sm font-black text-white disabled:opacity-50">{passportSaving?'Saving…':'Save My Memory'}</button></div></div>}
               </div>
             )}
 
             {trophyRoomPanel === "memories" && (
               <div className="bg-[#eef1f4] px-3 py-5 sm:px-6 sm:py-7">
                 <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-xl sm:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4"><div className="flex items-center gap-3"><div className="text-4xl">📸</div><div><div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#06284a]">FamBam Memory Book</div><div className="text-xl font-black text-[#10254a]">{signedInPlayer?.display_name ?? 'My'}'s sports memories</div></div></div><button type="button" onClick={openPassportAdd} className="min-h-11 rounded-full bg-[#f3c64f] px-4 py-2 text-[9px] font-black uppercase tracking-wide text-[#33200f]">+ Add Game/Match</button></div>
-                  <div className="mt-5 space-y-3">{passportEntries.length===0?<div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">Your first shared sports memory is waiting.</div>:passportEntries.map(e=>{const mine=e.memories.find(m=>m.playerId===signedInPlayer?.id);return <div key={e.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-start gap-3"><div className="text-3xl">{e.sport==='MLB'?'⚾':'🏈'}</div><div className="min-w-0 flex-1"><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{e.date} · {e.venue}</div><div className="mt-1 text-base font-black text-[#10254a]">{e.away} at {e.home}</div><div className="mt-1 text-[9px] font-semibold text-slate-500">With {e.attendeeNames.join(' · ')}</div>{e.memories.length>0&&<div className="mt-3 space-y-2">{e.memories.map(m=><div key={m.playerId} className="rounded-lg border border-slate-200 bg-white p-3 text-[10px] text-slate-600"><span className="font-black text-[#06284a]">{m.playerName}:</span> {m.note}</div>)}</div>}<button type="button" onClick={()=>{setPassportMemoryEvent(e);setPassportMemoryNote(mine?.note||'')}} className="mt-3 min-h-11 rounded-full border border-[#06284a] bg-white px-4 text-[9px] font-black uppercase text-[#06284a]">{mine?'Edit My Memory':'+ Add My Memory'}</button></div></div></div>})}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4"><div className="flex items-center gap-3"><div className="text-4xl">📸</div><div><div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#06284a]">FamBam Memory Book</div><div className="text-xl font-black text-[#10254a]">{signedInPlayer?.display_name ?? 'My'}'s sports memories</div></div></div><button type="button" onClick={openPassportAdd} className="min-h-11 rounded-full bg-[#f3c64f] px-4 py-2 text-[9px] font-black uppercase tracking-wide text-[#33200f]">+ Add Visit</button></div>
+                  <div className="mt-5 space-y-3">
+                    {passportEntries.length===0 ? (
+                      <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">Your first shared sports memory is waiting.</div>
+                    ) : passportEntries.map((e) => {
+                      const mine = e.memories.find((m) => m.playerId === signedInPlayer?.id);
+                      const canAddPhoto = Boolean(signedInPlayer && e.attendeeIds.includes(signedInPlayer.id));
+                      const canEdit = Boolean(signedInPlayer && (e.createdByPlayerId === signedInPlayer.id || signedInPlayer.is_admin));
+                      return (
+                        <div key={e.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          {e.photos.length > 0 && (
+                            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                              {e.photos.map((photo, index) => <img key={photo} src={photo} alt={`${passportEntryTitle(e)} photo ${index + 1}`} className="aspect-square w-full rounded-xl object-cover" />)}
+                            </div>
+                          )}
+                          <div className="flex items-start gap-3">
+                            <div className="text-3xl">{e.sport==='Tour'?'🎟️':e.sport==='MLB'?'⚾':'🏈'}</div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{e.date} · {e.venue}</div>
+                              <div className="mt-1 text-base font-black text-[#10254a]">{passportEntryTitle(e)}</div>
+                              <div className="mt-1 text-[9px] font-semibold text-slate-500">With {e.attendeeNames.join(' · ')}</div>
+                              {e.memories.length>0&&<div className="mt-3 space-y-2">{e.memories.map(m=><div key={m.playerId} className="rounded-lg border border-slate-200 bg-white p-3 text-[10px] text-slate-600"><span className="font-black text-[#06284a]">{m.playerName}:</span> {m.note}</div>)}</div>}
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <button type="button" onClick={()=>{setPassportMemoryEvent(e);setPassportMemoryNote(mine?.note||'')}} className="min-h-11 rounded-full border border-[#06284a] bg-white px-4 text-[9px] font-black uppercase text-[#06284a]">{mine?'Edit My Memory':'+ Add My Memory'}</button>
+                                {canAddPhoto && <label className="flex min-h-11 cursor-pointer items-center rounded-full bg-[#f3c64f] px-4 text-[9px] font-black uppercase text-[#33200f]">{passportPhotoUploadingId===e.id?'Uploading…':'+ Add Picture'}<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" disabled={passportPhotoUploadingId===e.id} className="sr-only" onChange={(event)=>{const file=event.target.files?.[0];if(file)void uploadPassportPhoto(e.id,file);event.currentTarget.value=''}}/></label>}
+                                {canEdit && <button type="button" onClick={()=>openPassportEdit(e)} className="min-h-11 rounded-full border border-[#77511f] bg-[#fff7e6] px-4 text-[9px] font-black uppercase text-[#77511f]">✏️ Edit Entry</button>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

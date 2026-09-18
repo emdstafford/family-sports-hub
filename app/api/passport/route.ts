@@ -47,6 +47,7 @@ export async function GET(request: Request) {
 
     let attendees: any[] = [];
     let memories: any[] = [];
+    const photos: Record<string, string[]> = {};
     if (eventIds.length) {
       const [a, m] = await Promise.all([
         db.from("passport_event_attendees").select("event_id, player_id, players(id, display_name, initials)").in("event_id", eventIds),
@@ -56,12 +57,24 @@ export async function GET(request: Request) {
       if (m.error) throw m.error;
       attendees = a.data ?? [];
       memories = m.data ?? [];
+
+      const bucket = db.storage.from("fambam-photos");
+      await Promise.all(eventIds.map(async (eventId: string) => {
+        const { data } = await bucket.list(`passport/${eventId}`, {
+          limit: 100,
+          sortBy: { column: "created_at", order: "desc" },
+        });
+
+        photos[eventId] = (data ?? []).map((item) =>
+          bucket.getPublicUrl(`passport/${eventId}/${item.name}`).data.publicUrl,
+        );
+      }));
     }
 
     const { data: states, error: statesError } = await db.from("visited_states").select("state_code").eq("player_id", playerId);
     if (statesError) throw statesError;
 
-    return NextResponse.json({ events, attendees, memories, visitedStates: (states ?? []).map((r: any) => r.state_code) });
+    return NextResponse.json({ events, attendees, memories, photos, visitedStates: (states ?? []).map((r: any) => r.state_code) });
   } catch (e) {
     console.error("Passport GET failed", e);
     return NextResponse.json({ error: e instanceof Error ? e.message : "Could not load Passport." }, { status: 500 });
@@ -80,16 +93,17 @@ export async function POST(request: Request) {
       const d = body.event ?? {};
       const attendees = Array.from(new Set((body.attendeeIds ?? []).map(String)));
       if (!attendees.includes(playerId)) attendees.push(playerId);
-      if (!d.date || !d.away || !d.home || !d.venue || !validStates.has(String(d.state))) {
-        return NextResponse.json({ error: "Date, teams, venue and state are required." }, { status: 400 });
+      const isTour = d.visitType === "tour" || d.sport === "Tour";
+      if (!d.date || !d.venue || !validStates.has(String(d.state)) || (!isTour && (!d.away || !d.home))) {
+        return NextResponse.json({ error: isTour ? "Date, stadium and state are required." : "Date, teams, venue and state are required." }, { status: 400 });
       }
       const { data: event, error } = await db.from("passport_events").insert({
         game_id: d.gameId || null,
         created_by_player_id: playerId,
-        sport: d.sport === "MLB" ? "MLB" : "Football",
+        sport: isTour ? "Tour" : d.sport === "MLB" ? "MLB" : "Football",
         event_date: d.date,
-        away_team: d.away,
-        home_team: d.home,
+        away_team: isTour ? "" : d.away,
+        home_team: isTour ? "" : d.home,
         venue_name: d.venue,
         city: d.city || null,
         state_code: d.state,
@@ -105,6 +119,73 @@ export async function POST(request: Request) {
         if (me) throw me;
       }
       return NextResponse.json({ ok: true, eventId: event.id });
+    }
+
+    if (body.action === "updateEvent") {
+      const eventId = String(body.eventId ?? "");
+      const d = body.event ?? {};
+      const attendees = Array.from(new Set((body.attendeeIds ?? []).map(String)));
+
+      const [{ data: existing }, { data: player }] = await Promise.all([
+        db.from("passport_events").select("id, created_by_player_id").eq("id", eventId).maybeSingle(),
+        db.from("players").select("is_admin").eq("id", playerId).maybeSingle(),
+      ]);
+
+      if (!existing) {
+        return NextResponse.json({ error: "Passport entry not found." }, { status: 404 });
+      }
+
+      if (existing.created_by_player_id !== playerId && player?.is_admin !== true) {
+        return NextResponse.json({ error: "Only the person who created this entry or an admin can edit it." }, { status: 403 });
+      }
+
+      if (!attendees.includes(existing.created_by_player_id)) {
+        attendees.push(existing.created_by_player_id);
+      }
+
+      const isTour = d.visitType === "tour" || d.sport === "Tour";
+      if (!d.date || !d.venue || !validStates.has(String(d.state)) || (!isTour && (!d.away || !d.home))) {
+        return NextResponse.json({ error: isTour ? "Date, stadium and state are required." : "Date, teams, venue and state are required." }, { status: 400 });
+      }
+
+      const { error: updateError } = await db.from("passport_events").update({
+        game_id: isTour ? null : d.gameId || null,
+        sport: isTour ? "Tour" : d.sport === "MLB" ? "MLB" : "Football",
+        event_date: d.date,
+        away_team: isTour ? "" : d.away,
+        home_team: isTour ? "" : d.home,
+        venue_name: d.venue,
+        city: d.city || null,
+        state_code: d.state,
+        away_score: isTour || d.awayScore === "" || d.awayScore == null ? null : Number(d.awayScore),
+        home_score: isTour || d.homeScore === "" || d.homeScore == null ? null : Number(d.homeScore),
+        result: isTour ? null : d.result || null,
+      }).eq("id", eventId);
+      if (updateError) throw updateError;
+
+      const { error: deleteAttendeesError } = await db
+        .from("passport_event_attendees")
+        .delete()
+        .eq("event_id", eventId);
+      if (deleteAttendeesError) throw deleteAttendeesError;
+
+      const { error: insertAttendeesError } = await db
+        .from("passport_event_attendees")
+        .insert(attendees.map((id) => ({ event_id: eventId, player_id: id })));
+      if (insertAttendeesError) throw insertAttendeesError;
+
+      if (typeof body.myNote === "string") {
+        const note = body.myNote.trim();
+        const { error: memoryError } = await db.from("passport_memories").upsert({
+          event_id: eventId,
+          player_id: playerId,
+          note,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "event_id,player_id" });
+        if (memoryError) throw memoryError;
+      }
+
+      return NextResponse.json({ ok: true, eventId });
     }
 
     if (body.action === "saveMemory") {

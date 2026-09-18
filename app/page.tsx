@@ -7647,6 +7647,13 @@ export default function Home() {
                       learning: "Learn bracket strategy, seeds, Cinderella runs and how each region reaches the Final Four.",
                     },
                     {
+                      icon: "📣", name: "UCA College Cheer Nationals", sport: "Cheerleading",
+                      season: "January", format: "Judged Competition",
+                      description: "Cheer on the University of Kentucky at college nationals.",
+                      dates: ["Competition: mid-January 2027", "Preliminaries and semifinals", "Division finals and awards"],
+                      learning: "Learn how routines are scored for stunts, pyramids, tumbling, jumps, synchronization and overall impression—and how deductions can change the final standings.",
+                    },
+                    {
                       icon: "🏐", name: "NCAA Volleyball Tournament", sport: "Volleyball",
                       season: "November–December", format: "64-Team Bracket",
                       description: "Follow the road to the national volleyball title.",

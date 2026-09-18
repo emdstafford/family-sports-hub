@@ -206,6 +206,27 @@ function normalizeLockerTeamName(value: string) {
     .trim();
 }
 
+type TrophyTeamSport = "soccer" | "college-football" | "hockey" | "baseball";
+
+function lockerTeamCountsForTrophy(team: LockerTeam, target: TrophyTeamSport) {
+  const sport = team.sport.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const teamName = `${team.name} ${team.short_name ?? ""}`.toLowerCase();
+
+  if (target === "soccer") {
+    return sport.includes("soccer") || /\b(fc|afc)\b/.test(teamName) || ["arsenal", "liverpool", "aston villa", "wimbledon"].some((name) => teamName.includes(name));
+  }
+
+  if (target === "college-football") {
+    return sport.includes("college football") || sport.includes("ncaa football") || sport === "football" || sport === "cfb";
+  }
+
+  if (target === "hockey") {
+    return sport.includes("hockey") || sport === "nhl" || ["canucks", "ice dawgs"].some((name) => teamName.includes(name));
+  }
+
+  return sport.includes("baseball") || sport === "mlb" || ["braves", "cubs"].some((name) => teamName.includes(name));
+}
+
 function lockerTeamColors(team: LockerTeam) {
   const name = team.name.toLowerCase();
 
@@ -1873,7 +1894,7 @@ export default function Home() {
 
   useEffect(() => {
     if (
-      activeSection === "Locker Room" &&
+      (activeSection === "Locker Room" || activeSection === "Trophy Room") &&
       signedInPlayer &&
       profileSports.length === 0 &&
       !profileLoading
@@ -1882,7 +1903,7 @@ export default function Home() {
     }
 
     if (
-      activeSection === "Locker Room" &&
+      (activeSection === "Locker Room" || activeSection === "Trophy Room") &&
       signedInPlayer
     ) {
       void loadLockerRoom();
@@ -3594,6 +3615,12 @@ export default function Home() {
     setPassportDraft((d) => ({ ...d, gameId: game.id, date, away: game.away, home: game.home, awayScore: game.awayScore == null ? "" : String(game.awayScore), homeScore: game.homeScore == null ? "" : String(game.homeScore) }));
     setPassportGameSearch(`${game.away} at ${game.home}`);
   }
+
+  const signedInLockerTeams =
+    lockerPlayers.find((player) => player.id === signedInPlayer?.id)?.teams ?? [];
+
+  const hasTrophyTeam = (sport: TrophyTeamSport) =>
+    signedInLockerTeams.some((team) => lockerTeamCountsForTrophy(team, sport));
 
   async function savePassportEntry() {
     if (!passportDraft.date || !passportDraft.venue || !passportDraft.state || !passportDraft.home || !passportDraft.away) {
@@ -5432,10 +5459,10 @@ export default function Home() {
                           { icon: "💯", title: "Perfect 10", note: "Go 10-for-10 without a miss in one challenge", progress: `${perfectTenProgress}/10`, milestone: "Repeat it and the trophy count increases" },
                         ],
                         [
-                          { icon: "⚽", title: "Soccer Supporter", note: "Follow your first soccer club", earned: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Soccer") ?? false), progress: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Soccer") ?? false) ? "Earned ✓" : "Choose a soccer team", milestone: "Your first followed soccer club" },
-                          { icon: "🏈", title: "CFB Fan", note: "Follow your first college football team", earned: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="College Football") ?? false), progress: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="College Football") ?? false) ? "Earned ✓" : "Choose a CFB team", milestone: "Your first followed college football team" },
-                          { icon: "🏒", title: "Hockey Fan", note: "Follow your first hockey team", earned: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Hockey") ?? false), progress: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Hockey") ?? false) ? "Earned ✓" : "Choose a hockey team", milestone: "Your first followed hockey team" },
-                          { icon: "⚾", title: "Baseball Fan", note: "Follow your first baseball team", earned: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Baseball") ?? false), progress: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Baseball") ?? false) ? "Earned ✓" : "Choose a baseball team", milestone: "Your first followed baseball team" },
+                          { icon: "⚽", title: "Soccer Supporter", note: "Follow your first soccer club", earned: hasTrophyTeam("soccer"), progress: hasTrophyTeam("soccer") ? "Earned ✓" : "Choose a soccer team", milestone: "Your first followed soccer club" },
+                          { icon: "🏈", title: "CFB Fan", note: "Follow your first college football team", earned: hasTrophyTeam("college-football"), progress: hasTrophyTeam("college-football") ? "Earned ✓" : "Choose a CFB team", milestone: "Your first followed college football team" },
+                          { icon: "🏒", title: "Hockey Fan", note: "Follow your first hockey team", earned: hasTrophyTeam("hockey"), progress: hasTrophyTeam("hockey") ? "Earned ✓" : "Choose a hockey team", milestone: "Your first followed hockey team" },
+                          { icon: "⚾", title: "Baseball Fan", note: "Follow your first baseball team", earned: hasTrophyTeam("baseball"), progress: hasTrophyTeam("baseball") ? "Earned ✓" : "Choose a baseball team", milestone: "Your first followed baseball team" },
                         ],
                         [
                           { icon: "🌎", title: "Traveler", note: "Visit your first state and keep exploring", earned: new Set([...visitedStates, ...passportEntries.map(e=>e.state).filter(Boolean)]).size > 0, progress: new Set([...visitedStates, ...passportEntries.map(e=>e.state).filter(Boolean)]).size > 0 ? `${new Set([...visitedStates, ...passportEntries.map(e=>e.state).filter(Boolean)]).size} state${new Set([...visitedStates, ...passportEntries.map(e=>e.state).filter(Boolean)]).size===1?"":"s"} · Earned ✓` : "0/1 states", milestone: "1 → 5 → 10 → 25 → 50 states" },
@@ -5482,28 +5509,6 @@ export default function Home() {
                       ))}
                     </div>
 
-                    {selectedTrophy && (
-                      <div className="mt-4 rounded-xl border border-[#b17a35] bg-[#1a100a] p-4 shadow-xl">
-                        <div className="flex items-start gap-4">
-                          <div className="text-4xl grayscale opacity-40">{selectedTrophy.icon}</div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[8px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">{selectedTrophy.earned ? "🏆 Earned" : "🔒 How to earn it"}</div>
-                            <div className="mt-1 text-lg font-black text-white">{selectedTrophy.title}</div>
-                            <div className="mt-1 text-xs font-semibold leading-5 text-[#d8c2a4]">{selectedTrophy.note}.</div>
-                            {selectedTrophy.progress && (
-                              <div className="mt-3 rounded-lg border border-[#6f5031] bg-black/20 px-3 py-2 text-[10px] font-black text-[#f3c64f]">Progress: {selectedTrophy.progress}</div>
-                            )}
-                            {selectedTrophy.milestone && (
-                              <div className="mt-2 text-[9px] font-bold leading-4 text-[#bfa98c]">Next milestone: {selectedTrophy.milestone}</div>
-                            )}
-                            {selectedTrophy.repeatable && (
-                              <div className="mt-2 inline-flex rounded-full border border-[#8f6336] bg-[#321e12] px-2.5 py-1 text-[8px] font-black uppercase tracking-wide text-[#f6d36f]">Repeatable achievement</div>
-                            )}
-                          </div>
-                          <button type="button" onClick={() => setSelectedTrophy(null)} className="rounded-full border border-[#6d4b2d] px-2 py-1 text-[10px] font-black text-[#cbb79b]">✕</button>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <aside className="space-y-3">
@@ -5671,6 +5676,49 @@ export default function Home() {
                 <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-xl sm:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4"><div className="flex items-center gap-3"><div className="text-4xl">📸</div><div><div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#06284a]">FamBam Memory Book</div><div className="text-xl font-black text-[#10254a]">{signedInPlayer?.display_name ?? 'My'}'s sports memories</div></div></div><button type="button" onClick={openPassportAdd} className="min-h-11 rounded-full bg-[#f3c64f] px-4 py-2 text-[9px] font-black uppercase tracking-wide text-[#33200f]">+ Add Game/Match</button></div>
                   <div className="mt-5 space-y-3">{passportEntries.length===0?<div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">Your first shared sports memory is waiting.</div>:passportEntries.map(e=>{const mine=e.memories.find(m=>m.playerId===signedInPlayer?.id);return <div key={e.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-start gap-3"><div className="text-3xl">{e.sport==='MLB'?'⚾':'🏈'}</div><div className="min-w-0 flex-1"><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{e.date} · {e.venue}</div><div className="mt-1 text-base font-black text-[#10254a]">{e.away} at {e.home}</div><div className="mt-1 text-[9px] font-semibold text-slate-500">With {e.attendeeNames.join(' · ')}</div>{e.memories.length>0&&<div className="mt-3 space-y-2">{e.memories.map(m=><div key={m.playerId} className="rounded-lg border border-slate-200 bg-white p-3 text-[10px] text-slate-600"><span className="font-black text-[#06284a]">{m.playerName}:</span> {m.note}</div>)}</div>}<button type="button" onClick={()=>{setPassportMemoryEvent(e);setPassportMemoryNote(mine?.note||'')}} className="mt-3 min-h-11 rounded-full border border-[#06284a] bg-white px-4 text-[9px] font-black uppercase text-[#06284a]">{mine?'Edit My Memory':'+ Add My Memory'}</button></div></div></div>})}</div>
+                </div>
+              </div>
+            )}
+
+            {selectedTrophy && (
+              <div
+                className="fixed inset-0 z-[160] flex items-center justify-center bg-[#080503]/80 p-4 backdrop-blur-sm"
+                onClick={() => setSelectedTrophy(null)}
+                role="presentation"
+              >
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`${selectedTrophy.title} trophy details`}
+                  onClick={(event) => event.stopPropagation()}
+                  className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[#b17a35] bg-[#1a100a] p-5 text-left shadow-[0_24px_80px_rgba(0,0,0,.7)]"
+                >
+                  <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_50%_0%,rgba(243,198,79,.2),transparent_72%)]" />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTrophy(null)}
+                    aria-label="Close trophy details"
+                    className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#8f6336] bg-black/35 text-lg font-black text-[#f4e6d2]"
+                  >
+                    ✕
+                  </button>
+                  <div className="relative flex items-start gap-4 pr-11">
+                    <div className={`text-5xl ${selectedTrophy.earned ? "drop-shadow-[0_0_14px_rgba(243,198,79,.5)]" : "grayscale opacity-40"}`}>{selectedTrophy.icon}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">{selectedTrophy.earned ? "🏆 Earned" : "🔒 How to earn it"}</div>
+                      <div className="mt-1 text-2xl font-black text-white">{selectedTrophy.title}</div>
+                    </div>
+                  </div>
+                  <div className="relative mt-5 text-sm font-semibold leading-6 text-[#ead8bf]">{selectedTrophy.note}.</div>
+                  {selectedTrophy.progress && (
+                    <div className="relative mt-4 rounded-xl border border-[#6f5031] bg-black/30 px-4 py-3 text-xs font-black text-[#f3c64f]">Progress: {selectedTrophy.progress}</div>
+                  )}
+                  {selectedTrophy.milestone && (
+                    <div className="relative mt-3 text-[11px] font-bold leading-5 text-[#cbb79b]">Next milestone: {selectedTrophy.milestone}</div>
+                  )}
+                  {selectedTrophy.repeatable && (
+                    <div className="relative mt-3 inline-flex rounded-full border border-[#8f6336] bg-[#321e12] px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-[#f6d36f]">Repeatable achievement</div>
+                  )}
                 </div>
               </div>
             )}

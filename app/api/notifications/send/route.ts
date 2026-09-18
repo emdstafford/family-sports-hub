@@ -171,7 +171,7 @@ export async function GET(request: Request) {
 
     const completedChallenge = (challenges ?? []).find((challenge) => challenge.id !== currentChallenge?.id);
     if (completedChallenge) {
-      const marker = `logs/${completedChallenge.id}-champion.json`;
+      const marker = `logs/${completedChallenge.id}-weekly-recap.json`;
       if (!(await markerExists(marker))) {
         const { data: links } = await db.from("challenge_games").select("game_id").eq("challenge_id", completedChallenge.id);
         const gameIds = (links ?? []).map((link) => link.game_id);
@@ -182,9 +182,15 @@ export async function GET(request: Request) {
           const { data: picks } = await db.from("player_picks").select("player_id, game_id, pick_choice").eq("challenge_id", completedChallenge.id);
           const gameMap = new Map((games ?? []).map((game) => [game.id, game]));
           const scores = new Map<string, number>(playerIds.map((id) => [id, 0]));
+          const completed = new Map<string, number>(playerIds.map((id) => [id, 0]));
+          const pickCounts = new Map<string, Map<string, number>>();
           for (const pick of picks ?? []) {
             const game = gameMap.get(pick.game_id);
             if (!game) continue;
+            completed.set(pick.player_id, (completed.get(pick.player_id) ?? 0) + 1);
+            const choices = pickCounts.get(pick.game_id) ?? new Map<string, number>();
+            choices.set(pick.pick_choice, (choices.get(pick.pick_choice) ?? 0) + 1);
+            pickCounts.set(pick.game_id, choices);
             const winner = Number(game.home_score) > Number(game.away_score) ? "home" : Number(game.away_score) > Number(game.home_score) ? "away" : "draw";
             if (pick.pick_choice === winner) scores.set(pick.player_id, (scores.get(pick.player_id) ?? 0) + 1);
           }
@@ -192,13 +198,38 @@ export async function GET(request: Request) {
           const winners = [...scores.entries()].filter(([, score]) => score === high && high > 0).map(([id]) => playerName.get(id)).filter(Boolean) as string[];
           if (winners.length) {
             const names = winners.length === 1 ? winners[0] : `${winners.slice(0, -1).join(", ")} & ${winners.at(-1)}`;
+            const highlights: string[] = [`${names} ${winners.length === 1 ? "is" : "are"} Weekly Champ${winners.length === 1 ? "" : "s"}`];
+            const perfect = [...scores.entries()]
+              .filter(([id, score]) => gameIds.length >= 10 && score === gameIds.length && completed.get(id) === gameIds.length)
+              .map(([id]) => playerName.get(id)).filter(Boolean) as string[];
+            if (perfect.length) highlights.push(`${perfect.join(" & ")} earned Perfect 10`);
+            else {
+              const fullCards = [...completed.entries()]
+                .filter(([, count]) => count === gameIds.length)
+                .map(([id]) => playerName.get(id)).filter(Boolean) as string[];
+              if (fullCards.length && fullCards.length < playerIds.length) highlights.push(`${fullCards.join(" & ")} completed every pick`);
+            }
+
+            let upsetHero: { playerId: string; ratio: number } | null = null;
+            for (const pick of picks ?? []) {
+              const game = gameMap.get(pick.game_id);
+              if (!game) continue;
+              const winner = Number(game.home_score) > Number(game.away_score) ? "home" : Number(game.away_score) > Number(game.home_score) ? "away" : "draw";
+              if (pick.pick_choice !== winner) continue;
+              const choices = pickCounts.get(pick.game_id);
+              const total = [...(choices?.values() ?? [])].reduce((sum, count) => sum + count, 0);
+              const ratio = total ? (choices?.get(winner) ?? 0) / total : 1;
+              if (total >= 2 && ratio < 0.5 && (!upsetHero || ratio < upsetHero.ratio)) upsetHero = { playerId: pick.player_id, ratio };
+            }
+            if (upsetHero) highlights.push(`${playerName.get(upsetHero.playerId) ?? "A FamBam player"} made the biggest upset pick`);
+
             let delivered = false;
             for (const playerId of playerIds) {
               if (!preferences.get(playerId)?.trophyAlerts) continue;
               delivered = (await notifyPlayer(playerId, {
-                title: `🏆 Congrats to ${names}!`,
-                body: `${names} ${winners.length === 1 ? "is" : "are"} this week's FamBam Challenge Champion${winners.length === 1 ? "" : "s"}!`,
-                tag: `champion-${completedChallenge.id}`,
+                title: "🏆 FamBam Weekly Recap",
+                body: `${highlights.join("! ")}!`,
+                tag: `weekly-recap-${completedChallenge.id}`,
                 url: "/",
               })) || delivered;
             }

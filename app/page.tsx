@@ -1154,6 +1154,18 @@ export default function Home() {
   const [activeSection, setActiveSection] =
     useState<"Home" | "Challenge" | "Events" | "Games" | "Locker Room" | "Trophy Room">("Home");
 
+  const [selectedEventGuide, setSelectedEventGuide] =
+    useState<null | {
+      icon: string;
+      name: string;
+      sport: string;
+      season: string;
+      format: string;
+      description: string;
+      dates: string[];
+      learning: string;
+    }>(null);
+
   const [adminGame, setAdminGame] =
     useState<BrowserGame | null>(null);
 
@@ -6884,6 +6896,69 @@ export default function Home() {
         </div>
       </nav>
 
+      {selectedEventGuide && (
+        <div className="fixed inset-0 z-[135] flex items-end justify-center bg-slate-950/60 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-[1.75rem] bg-[#f7f4ec] shadow-2xl sm:rounded-[1.75rem]">
+            <div className="bg-[#06284a] p-5 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-4xl">{selectedEventGuide.icon}</div>
+                  <div className="mt-2 text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">
+                    {selectedEventGuide.sport} Event
+                  </div>
+                  <h2 className="mt-1 text-2xl font-black">{selectedEventGuide.name}</h2>
+                  <div className="mt-1 text-xs font-semibold text-blue-100">
+                    {selectedEventGuide.season} · {selectedEventGuide.format}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedEventGuide(null)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-lg font-black"
+                  aria-label="Close event guide"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3 p-4">
+              <div className="rounded-2xl bg-white p-4 shadow-sm">
+                <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">About This Event</div>
+                <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-600">{selectedEventGuide.description}</p>
+              </div>
+
+              <div className="rounded-2xl bg-white p-4 shadow-sm">
+                <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">Key Dates</div>
+                <div className="mt-2 space-y-2">
+                  {selectedEventGuide.dates.map((date) => (
+                    <div key={date} className="flex items-start gap-2 text-xs font-semibold text-slate-600">
+                      <span className="text-[#f3c64f]">●</span>
+                      <span>{date}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 text-[9px] font-semibold italic text-slate-400">
+                  Exact dates will update when each official schedule is released.
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#e8dba8] bg-[#fff8dc] p-4">
+                <div className="text-[10px] font-black uppercase tracking-wide text-[#765800]">What We’ll Learn</div>
+                <p className="mt-2 text-xs font-semibold leading-relaxed text-[#5f4b18]">{selectedEventGuide.learning}</p>
+              </div>
+
+              <div className="rounded-2xl bg-[#10254a] p-4 text-white">
+                <div className="text-[10px] font-black uppercase tracking-wide text-[#f3c64f]">FamBam Plan</div>
+                <p className="mt-2 text-xs font-semibold leading-relaxed text-blue-100">
+                  When this event becomes active, it will get its own picks, standings, reminders, champion and trophies without changing the regular weekly challenge.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {gameRoomGame && signedInPlayer && (
         <div className="fixed inset-0 z-[130] flex items-end justify-center bg-slate-950/60 backdrop-blur-sm sm:items-center sm:p-4">
           <div
@@ -7522,24 +7597,134 @@ export default function Home() {
               </div>
 
               <div>
-                <h3 className="mb-2 text-sm font-black uppercase tracking-wide text-[#10254a]">
-                  Cup Calendar
-                </h3>
+                <div className="mb-2 flex items-end justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-wide text-[#10254a]">
+                      Upcoming Events
+                    </h3>
+                    <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
+                      Tap any event to learn how it works and when it happens.
+                    </div>
+                  </div>
+                  <div className="text-[8px] font-black uppercase text-[#b28a2e]">
+                    More coming
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    ["🥤", "Carabao Cup", "English knockout cup", "Knockout"],
-                    ["🌟", "Champions League", "Europe’s biggest clubs", "League + Knockout"],
-                    ["🟠", "Europa League", "European competition", "League + Knockout"],
-                    ["🟢", "Conference League", "European underdog stories", "League + Knockout"],
-                    ["🏆", "EFL Trophy", "AFC Wimbledon cup path", "Groups + Knockout"],
-                    ["🏈", "Bowl Pick’em", "College football postseason", "Coming this winter"],
-                  ].map(([icon, name, description, format]) => (
-                    <div key={name} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                      <div className="text-2xl">{icon}</div>
-                      <div className="mt-2 text-xs font-black text-[#10254a]">{name}</div>
-                      <div className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-500">{description}</div>
-                      <div className="mt-2 inline-flex rounded-full bg-[#f7f4ec] px-2 py-1 text-[8px] font-black text-[#765800]">{format}</div>
-                    </div>
+                    {
+                      icon: "🥤", name: "Carabao Cup", sport: "Soccer",
+                      season: "August–March", format: "Knockout",
+                      description: "England’s professional League Cup.",
+                      dates: ["Early rounds: August–September", "Knockout rounds: October–February", "Final: usually March"],
+                      learning: "Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.",
+                    },
+                    {
+                      icon: "🌟", name: "Champions League", sport: "Soccer",
+                      season: "September–May", format: "League + Knockout",
+                      description: "Europe’s biggest club competition.",
+                      dates: ["League phase: September–January", "Knockout rounds: February–May", "Final: late May"],
+                      learning: "Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.",
+                    },
+                    {
+                      icon: "🟠", name: "Europa League", sport: "Soccer",
+                      season: "September–May", format: "League + Knockout",
+                      description: "A major European club tournament.",
+                      dates: ["League phase: September–January", "Knockout rounds: February–May", "Final: May"],
+                      learning: "Follow European standings, qualification cut lines, aggregate scoring and the path to the final.",
+                    },
+                    {
+                      icon: "🟢", name: "Conference League", sport: "Soccer",
+                      season: "September–May", format: "League + Knockout",
+                      description: "European competition full of underdog stories.",
+                      dates: ["League phase: September–December", "Knockout rounds: February–May", "Final: May"],
+                      learning: "Discover clubs from across Europe and learn how league-phase results lead into knockout rounds.",
+                    },
+                    {
+                      icon: "🏆", name: "EFL Trophy", sport: "Soccer",
+                      season: "August–April", format: "Groups + Knockout",
+                      description: "A cup path especially relevant to AFC Wimbledon.",
+                      dates: ["Group stage: August–November", "Knockout rounds: December–March", "Final: usually April"],
+                      learning: "Learn group standings first, followed by a single-elimination bracket and a Wembley final.",
+                    },
+                    {
+                      icon: "🏈", name: "Bowl Pick’em", sport: "College Football",
+                      season: "December–January", format: "Many Bowls",
+                      description: "Pick winners across the college football postseason.",
+                      dates: ["Selections: early December", "Bowl season: mid-December–January", "Final standings: after the last bowl"],
+                      learning: "Learn bowl affiliations, conference matchups and why bowls exist outside the playoff.",
+                    },
+                    {
+                      icon: "🏟️", name: "College Football Playoff", sport: "College Football",
+                      season: "December–January", format: "Playoff",
+                      description: "A bracket for the national championship.",
+                      dates: ["Bracket reveal: December", "Early rounds: December", "Championship: January"],
+                      learning: "Learn seeding, byes, bracket paths and how the national champion is decided.",
+                    },
+                    {
+                      icon: "🏀", name: "Men’s March Madness", sport: "Basketball",
+                      season: "March–April", format: "68-Team Bracket",
+                      description: "The men’s NCAA tournament challenge.",
+                      dates: ["Selection Sunday: March", "Tournament: mid-March–early April", "Championship: early April"],
+                      learning: "Learn seeds, regions, upset picks, the Sweet 16, Elite Eight and Final Four.",
+                    },
+                    {
+                      icon: "🏀", name: "Women’s March Madness", sport: "Basketball",
+                      season: "March–April", format: "68-Team Bracket",
+                      description: "The women’s NCAA tournament challenge.",
+                      dates: ["Selection Sunday: March", "Tournament: mid-March–early April", "Championship: early April"],
+                      learning: "Learn bracket strategy, seeds, Cinderella runs and how each region reaches the Final Four.",
+                    },
+                    {
+                      icon: "🏐", name: "NCAA Volleyball Tournament", sport: "Volleyball",
+                      season: "November–December", format: "64-Team Bracket",
+                      description: "Follow the road to the national volleyball title.",
+                      dates: ["Selection show: late November", "Tournament rounds: December", "Championship: mid-December"],
+                      learning: "Learn tournament seeding, best-of-five matches, sets, advancement and the road to the national semifinals.",
+                    },
+                    {
+                      icon: "🌹", name: "Kentucky Derby", sport: "Horse Racing",
+                      season: "First Saturday in May", format: "Single Race",
+                      description: "Pick the Derby winner and learn the field.",
+                      dates: ["Prep season: winter–spring", "Post-position draw: Derby week", "Kentucky Derby: first Saturday in May"],
+                      learning: "Learn qualifying points, post positions, odds, track conditions and how the Derby begins the Triple Crown.",
+                    },
+                    {
+                      icon: "👑", name: "Triple Crown", sport: "Horse Racing",
+                      season: "May–June", format: "Three Races",
+                      description: "Derby, Preakness and Belmont together.",
+                      dates: ["Kentucky Derby: May", "Preakness Stakes: May", "Belmont Stakes: June"],
+                      learning: "Track three different races and distances while watching whether one horse can sweep all three.",
+                    },
+                    {
+                      icon: "🌍", name: "World Cups & Euros", sport: "International Soccer",
+                      season: "Tournament years", format: "Groups + Knockout",
+                      description: "Men’s and women’s international tournaments.",
+                      dates: ["Group stage", "Knockout rounds", "Final"],
+                      learning: "Learn group tables, goal difference, qualification paths and knockout brackets while choosing a country to support.",
+                    },
+                    {
+                      icon: "🥇", name: "Olympics", sport: "Multi-Sport",
+                      season: "Every two years", format: "Many Events",
+                      description: "Family picks across favorite Olympic events.",
+                      dates: ["Opening ceremony", "Daily medal events", "Closing ceremony"],
+                      learning: "Follow medal tables, heats, qualification rounds and finals across many sports.",
+                    },
+                  ].map((event) => (
+                    <button
+                      key={event.name}
+                      type="button"
+                      onClick={() => setSelectedEventGuide(event)}
+                      className="rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition active:scale-[0.98]"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-2xl">{event.icon}</div>
+                        <div className="text-[9px] font-black text-[#b28a2e]">→</div>
+                      </div>
+                      <div className="mt-2 text-xs font-black text-[#10254a]">{event.name}</div>
+                      <div className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-500">{event.description}</div>
+                      <div className="mt-2 inline-flex rounded-full bg-[#f7f4ec] px-2 py-1 text-[8px] font-black text-[#765800]">{event.season}</div>
+                    </button>
                   ))}
                 </div>
               </div>

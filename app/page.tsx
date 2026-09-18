@@ -6145,17 +6145,6 @@ export default function Home() {
                                           alt={`${team.name} uniform hanging in the locker`}
                                           className="absolute left-1/2 top-0 h-[228px] w-[94%] -translate-x-1/2 object-contain object-top drop-shadow-[0_18px_14px_rgba(0,0,0,.8)]"
                                         />
-                                        {team.logo_url && (
-                                          <img
-                                            src={team.logo_url}
-                                            alt=""
-                                            className={`absolute left-1/2 z-10 -translate-x-1/2 object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,.8)] ${
-                                              team.sport === "Cheerleading"
-                                                ? "top-[82px] h-12 w-12"
-                                                : "top-[91px] h-10 w-10"
-                                            }`}
-                                          />
-                                        )}
                                       </div>
                                     </div>
                                   );

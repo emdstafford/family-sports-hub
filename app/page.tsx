@@ -7641,16 +7641,16 @@ export default function Home() {
                   <div className="space-y-4 p-4">
                     <div>
                       <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">
-                        How This Competition Works
+                        How It Works
                       </div>
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <div className="mt-2 grid grid-cols-2 gap-2">
                         {[
-                          ["🏟️", "Hundreds of clubs", "Teams from across English football can enter."],
-                          ["🚪", "Staggered entry", "Smaller clubs begin first; higher divisions join later."],
-                          ["⚔️", "Knockout football", "Win and advance. Lose and the cup run ends."],
-                          ["🏁", "Road to Wembley", "Every surviving club is chasing the May final."],
+                          ["🏟️", "Hundreds of clubs", "Clubs from every level can enter."],
+                          ["🚪", "Staggered entry", "Smaller clubs start; top clubs join later."],
+                          ["⚔️", "Knockout football", "Win and advance. Lose and you’re out."],
+                          ["🏁", "Road to Wembley", "Survive each round to reach the final."],
                         ].map(([icon, title, text]) => (
-                          <div key={title} className="rounded-xl bg-[#f7f4ec] p-3">
+                          <div key={title} className="rounded-xl bg-[#f7f4ec] p-2.5">
                             <div className="text-lg">{icon}</div>
                             <div className="mt-1 text-xs font-black text-[#10254a]">{title}</div>
                             <div className="mt-1 text-[10px] font-semibold leading-relaxed text-slate-600">{text}</div>

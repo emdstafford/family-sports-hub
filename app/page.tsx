@@ -27,7 +27,8 @@ type Sport =
   | "College Basketball"
   | "Volleyball"
   | "Hockey"
-  | "Baseball";
+  | "Baseball"
+  | "Cheerleading";
 
 type ProfileSport = {
   id: string;

@@ -853,32 +853,74 @@ function passportEntryTitle(entry: PassportEntry) {
     : `${entry.away} at ${entry.home}`;
 }
 
-async function preparePhotoForUpload(file: File) {
-  const image = await createImageBitmap(file, { imageOrientation: "from-image" });
-  const maxEdge = 1600;
-  const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
+async function preparePhotoForUpload(
+  file: File,
+  aspectRatio: number,
+  zoom: number,
+  offsetX: number,
+  offsetY: number,
+) {
+  const sourceUrl = URL.createObjectURL(file);
+  const image = new Image();
+
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("This picture could not be opened on your device."));
+    image.src = sourceUrl;
+  });
+
+  URL.revokeObjectURL(sourceUrl);
+
+  const sourceAspect = image.naturalWidth / image.naturalHeight;
+  let baseWidth = image.naturalWidth;
+  let baseHeight = image.naturalHeight;
+
+  if (sourceAspect > aspectRatio) {
+    baseWidth = image.naturalHeight * aspectRatio;
+  } else {
+    baseHeight = image.naturalWidth / aspectRatio;
+  }
+
+  const cropWidth = baseWidth / zoom;
+  const cropHeight = baseHeight / zoom;
+  const availableX = Math.max(0, image.naturalWidth - cropWidth);
+  const availableY = Math.max(0, image.naturalHeight - cropHeight);
+  const sourceX = Math.max(0, Math.min(availableX, availableX * ((offsetX + 100) / 200)));
+  const sourceY = Math.max(0, Math.min(availableY, availableY * ((offsetY + 100) / 200)));
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(image.width * scale));
-  canvas.height = Math.max(1, Math.round(image.height * scale));
+  canvas.width = aspectRatio === 1 ? 1200 : 1600;
+  canvas.height = Math.round(canvas.width / aspectRatio);
   const context = canvas.getContext("2d");
 
   if (!context) throw new Error("This device could not prepare the picture.");
 
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  image.close();
+  context.drawImage(
+    image,
+    sourceX,
+    sourceY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
+  return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (result) => result ? resolve(result) : reject(new Error("This picture could not be prepared.")),
       "image/jpeg",
       0.84,
     );
   });
-
-  return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "photo"}.jpg`, {
-    type: "image/jpeg",
-  });
 }
+
+type PhotoCropRequest = {
+  file: File;
+  previewUrl: string;
+  purpose: "profile" | "passport";
+  eventId?: string;
+};
 
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -966,6 +1008,12 @@ export default function Home() {
 
   const [profilePhotoUploading, setProfilePhotoUploading] =
     useState(false);
+
+  const [photoCrop, setPhotoCrop] = useState<PhotoCropRequest | null>(null);
+  const [photoCropZoom, setPhotoCropZoom] = useState(1);
+  const [photoCropX, setPhotoCropX] = useState(0);
+  const [photoCropY, setPhotoCropY] = useState(0);
+  const [photoCropSaving, setPhotoCropSaving] = useState(false);
 
   const [profileSports, setProfileSports] =
     useState<ProfileSport[]>([]);
@@ -2401,7 +2449,7 @@ export default function Home() {
     }
   }
 
-  async function uploadProfilePhoto(file: File) {
+  async function uploadProfilePhoto(file: Blob) {
     if (!signedInPlayer) return;
 
     const sessionToken = window.localStorage.getItem("fambam_session_token");
@@ -2414,11 +2462,10 @@ export default function Home() {
     setProfileError(null);
 
     try {
-      const preparedFile = await preparePhotoForUpload(file);
       const form = new FormData();
       form.append("playerId", signedInPlayer.id);
       form.append("purpose", "profile");
-      form.append("file", preparedFile);
+      form.append("file", file, "profile-photo.jpg");
 
       const response = await fetch("/api/photo-upload", {
         method: "POST",
@@ -2435,7 +2482,9 @@ export default function Home() {
       ));
       setSignedInPlayer((current) => current ? { ...current, avatar_url: body.url } : current);
     } catch (error) {
-      setProfileError(error instanceof Error ? error.message : "Could not upload picture.");
+      const message = error instanceof Error ? error.message : "Could not upload picture.";
+      setProfileError(message);
+      throw new Error(message);
     } finally {
       setProfilePhotoUploading(false);
     }
@@ -3894,7 +3943,7 @@ export default function Home() {
     finally { setPassportSaving(false); }
   }
 
-  async function uploadPassportPhoto(eventId: string, file: File) {
+  async function uploadPassportPhoto(eventId: string, file: Blob) {
     if (!signedInPlayer) return;
     const token = window.localStorage.getItem("fambam_session_token");
     if (!token) {
@@ -3905,12 +3954,11 @@ export default function Home() {
     setPassportPhotoUploadingId(eventId);
     setPassportError(null);
     try {
-      const preparedFile = await preparePhotoForUpload(file);
       const form = new FormData();
       form.append("playerId", signedInPlayer.id);
       form.append("purpose", "passport");
       form.append("eventId", eventId);
-      form.append("file", preparedFile);
+      form.append("file", file, "memory-photo.jpg");
       const response = await fetch("/api/photo-upload", {
         method: "POST",
         headers: { "x-fambam-session": token },
@@ -3920,9 +3968,59 @@ export default function Home() {
       if (!response.ok) throw new Error(body.error || "Could not upload picture.");
       await loadPassport();
     } catch (error) {
-      setPassportError(error instanceof Error ? error.message : "Could not upload picture.");
+      const message = error instanceof Error ? error.message : "Could not upload picture.";
+      setPassportError(message);
+      throw new Error(message);
     } finally {
       setPassportPhotoUploadingId(null);
+    }
+  }
+
+  function beginPhotoCrop(
+    file: File,
+    purpose: "profile" | "passport",
+    eventId?: string,
+  ) {
+    if (photoCrop) URL.revokeObjectURL(photoCrop.previewUrl);
+    setPhotoCrop({ file, purpose, eventId, previewUrl: URL.createObjectURL(file) });
+    setPhotoCropZoom(1);
+    setPhotoCropX(0);
+    setPhotoCropY(0);
+  }
+
+  function closePhotoCrop() {
+    if (photoCrop) URL.revokeObjectURL(photoCrop.previewUrl);
+    setPhotoCrop(null);
+    setPhotoCropSaving(false);
+  }
+
+  async function saveCroppedPhoto() {
+    if (!photoCrop) return;
+    setPhotoCropSaving(true);
+    setProfileError(null);
+    setPassportError(null);
+
+    try {
+      const cropped = await preparePhotoForUpload(
+        photoCrop.file,
+        photoCrop.purpose === "profile" ? 1 : 4 / 3,
+        photoCropZoom,
+        photoCropX,
+        photoCropY,
+      );
+
+      if (photoCrop.purpose === "profile") {
+        await uploadProfilePhoto(cropped);
+      } else if (photoCrop.eventId) {
+        await uploadPassportPhoto(photoCrop.eventId, cropped);
+      }
+
+      closePhotoCrop();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not crop this picture.";
+      if (photoCrop.purpose === "profile") setProfileError(message);
+      else setPassportError(message);
+      setPhotoCropSaving(false);
     }
   }
 
@@ -4990,6 +5088,51 @@ export default function Home() {
         </section>
       )}
 
+      {photoCrop && (
+        <div className="fixed inset-0 z-[190] flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-sm">
+          <div className="max-h-[94vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 text-[#10254a] shadow-2xl sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#b68718]">Adjust Picture</div>
+                <div className="text-xl font-black">Crop it how you want</div>
+              </div>
+              <button type="button" onClick={closePhotoCrop} disabled={photoCropSaving} className="min-h-11 min-w-11 rounded-full bg-slate-100 font-black">✕</button>
+            </div>
+
+            <div className={`relative mx-auto mt-4 overflow-hidden bg-slate-900 ${photoCrop.purpose === "profile" ? "aspect-square max-w-[330px] rounded-full" : "aspect-[4/3] w-full rounded-xl"}`}>
+              <img
+                src={photoCrop.previewUrl}
+                alt="Picture crop preview"
+                className="absolute inset-0 h-full w-full select-none object-cover"
+                style={{
+                  transform: `translate(${-photoCropX * 0.35}%, ${-photoCropY * 0.35}%) scale(${photoCropZoom})`,
+                  transformOrigin: "center",
+                }}
+                draggable={false}
+              />
+              <div className="pointer-events-none absolute inset-0 ring-2 ring-inset ring-white/80" />
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <label className="block text-[9px] font-black uppercase tracking-wide">Zoom
+                <input type="range" min="1" max="3" step="0.05" value={photoCropZoom} onChange={(event)=>setPhotoCropZoom(Number(event.target.value))} className="mt-2 w-full accent-[#06284a]" />
+              </label>
+              <label className="block text-[9px] font-black uppercase tracking-wide">Move Left / Right
+                <input type="range" min="-100" max="100" step="1" value={photoCropX} onChange={(event)=>setPhotoCropX(Number(event.target.value))} className="mt-2 w-full accent-[#06284a]" />
+              </label>
+              <label className="block text-[9px] font-black uppercase tracking-wide">Move Up / Down
+                <input type="range" min="-100" max="100" step="1" value={photoCropY} onChange={(event)=>setPhotoCropY(Number(event.target.value))} className="mt-2 w-full accent-[#06284a]" />
+              </label>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button type="button" onClick={closePhotoCrop} disabled={photoCropSaving} className="min-h-12 rounded-xl border border-slate-300 bg-white text-sm font-black">Cancel</button>
+              <button type="button" onClick={()=>void saveCroppedPhoto()} disabled={photoCropSaving} className="min-h-12 rounded-xl bg-[#f3c64f] text-sm font-black text-[#06284a] disabled:opacity-60">{photoCropSaving ? "Saving…" : "Use This Crop"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {profileOpen && signedInPlayer && (
         <div className="fixed inset-0 z-[140] overflow-y-auto bg-[#eef1f4]">
           <div className="sticky top-0 z-20 border-b border-white/10 bg-[#06284a] text-white shadow-sm">
@@ -5058,7 +5201,7 @@ export default function Home() {
                         disabled={profilePhotoUploading}
                         onChange={(event) => {
                           const file = event.target.files?.[0];
-                          if (file) void uploadProfilePhoto(file);
+                          if (file) beginPhotoCrop(file, "profile");
                           event.currentTarget.value = "";
                         }}
                       />
@@ -5938,7 +6081,48 @@ export default function Home() {
                     <div className="mb-5 grid grid-cols-3 gap-2">
                       {[[passportEntries.length,'Visits'],[new Set(passportEntries.map(x=>x.venue)).size,'Stadiums'],[new Set([...visitedStates,...passportEntries.map(x=>x.state).filter(Boolean)]).size,'States']].map(([v,l])=><div key={String(l)} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center"><div className="text-2xl font-black">{v}</div><div className="text-[8px] font-black uppercase text-slate-500">{l}</div></div>)}
                     </div>
-                    {passportView === 'year' && <div className="space-y-5">{passportEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center"><div className="text-5xl">🛂</div><div className="mt-3 font-black">Your first stamp is waiting.</div><button onClick={openPassportAdd} className="mt-4 rounded-full bg-[#77511f] px-4 py-2 text-[9px] font-black uppercase text-white">+ Add Game/Match</button></div>:Object.entries(passportEntries.reduce<Record<string,PassportEntry[]>>((a,e)=>{const y=e.date.slice(0,4)||'Undated';(a[y]??=[]).push(e);return a;},{})).sort(([a],[b])=>b.localeCompare(a)).map(([year,entries])=><div key={year}><div className="mb-3 text-xl font-black">{year}</div><div className="grid gap-3 md:grid-cols-2">{entries.map(e=><div key={e.id} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4"><div className="absolute right-3 top-3 rotate-[-10deg] rounded-full border-4 border-double border-[#a35b48] px-3 py-2 text-[8px] font-black uppercase text-[#a35b48] opacity-75">{e.sport==='MLB'?'⚾':'🏈'}<br/>VISITED</div><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{e.date} · {e.result||'Attended'}</div><div className="mt-2 pr-20 text-base font-black">{e.away} at {e.home}</div><div className="mt-1 text-xs font-bold">{e.awayScore||e.homeScore?`${e.awayScore||'–'} – ${e.homeScore||'–'}`:''}</div><div className="mt-3 text-[10px] font-semibold">🏟️ {e.venue}{e.city?` · ${e.city}, ${e.state}`:` · ${e.state}`}</div>{e.attendeeNames.length>0&&<div className="mt-1 text-[10px]">👨‍👩‍👧‍👦 {e.attendeeNames.join(" · ")}</div>}{e.memories.length>0&&<div className="mt-2 space-y-1 border-t border-[#d7c39b] pt-2">{e.memories.map(m=><div key={m.playerId} className="text-[10px] italic"><span className="font-black not-italic">{m.playerName}:</span> “{m.note}”</div>)}</div>}{signedInPlayer&&e.attendeeIds.includes(signedInPlayer.id)&&<button type="button" onClick={()=>{setPassportMemoryEvent(e);setPassportMemoryNote(e.memories.find(m=>m.playerId===signedInPlayer.id)?.note||"")}} className="mt-3 rounded-full border border-[#b99d68] bg-[#fff7e6] px-3 py-1.5 text-[8px] font-black uppercase text-[#77511f]">{e.memories.some(m=>m.playerId===signedInPlayer.id)?"Edit My Memory":"+ Add My Memory"}</button>}</div>)}</div></div>)}</div>}
+                    {passportView === 'year' && (
+                      <div className="space-y-5">
+                        {passportEntries.length === 0 ? (
+                          <div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center">
+                            <div className="text-5xl">🛂</div>
+                            <div className="mt-3 font-black">Your first stamp is waiting.</div>
+                            <button onClick={openPassportAdd} className="mt-4 rounded-full bg-[#77511f] px-4 py-2 text-[9px] font-black uppercase text-white">+ Add Visit</button>
+                          </div>
+                        ) : Object.entries(passportEntries.reduce<Record<string,PassportEntry[]>>((grouped, entry) => {
+                          const year = entry.date.slice(0, 4) || 'Undated';
+                          (grouped[year] ??= []).push(entry);
+                          return grouped;
+                        }, {})).sort(([a], [b]) => b.localeCompare(a)).map(([year, entries]) => (
+                          <div key={year}>
+                            <div className="mb-3 text-xl font-black">{year}</div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {entries.map((entry) => {
+                                const canAddPhoto = Boolean(signedInPlayer && entry.attendeeIds.includes(signedInPlayer.id));
+                                const canEdit = Boolean(signedInPlayer && (entry.createdByPlayerId === signedInPlayer.id || signedInPlayer.is_admin));
+                                return (
+                                  <div key={entry.id} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4">
+                                    <div className="absolute right-3 top-3 rotate-[-10deg] rounded-full border-4 border-double border-[#a35b48] px-3 py-2 text-[8px] font-black uppercase text-[#a35b48] opacity-75">{entry.sport==='Tour'?'🎟️':entry.sport==='MLB'?'⚾':'🏈'}<br/>VISITED</div>
+                                    {entry.photos.length > 0 && <div className="mb-3 grid grid-cols-3 gap-1.5 pr-16">{entry.photos.slice(0, 3).map((photo, index)=><img key={photo} src={photo} alt={`${passportEntryTitle(entry)} photo ${index+1}`} className="aspect-square w-full rounded-lg object-cover" />)}</div>}
+                                    <div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{entry.date} · {entry.sport==='Tour'?'Tour':entry.result||'Attended'}</div>
+                                    <div className="mt-2 pr-20 text-base font-black">{passportEntryTitle(entry)}</div>
+                                    <div className="mt-1 text-xs font-bold">{entry.awayScore||entry.homeScore?`${entry.awayScore||'–'} – ${entry.homeScore||'–'}`:''}</div>
+                                    <div className="mt-3 text-[10px] font-semibold">🏟️ {entry.venue}{entry.city?` · ${entry.city}, ${entry.state}`:` · ${entry.state}`}</div>
+                                    {entry.attendeeNames.length>0&&<div className="mt-1 text-[10px]">👨‍👩‍👧‍👦 {entry.attendeeNames.join(" · ")}</div>}
+                                    {entry.memories.length>0&&<div className="mt-2 space-y-1 border-t border-[#d7c39b] pt-2">{entry.memories.map(memory=><div key={memory.playerId} className="text-[10px] italic"><span className="font-black not-italic">{memory.playerName}:</span> “{memory.note}”</div>)}</div>}
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      {canAddPhoto && <label className="flex min-h-10 cursor-pointer items-center rounded-full bg-[#f3c64f] px-3 text-[8px] font-black uppercase text-[#33200f]">{passportPhotoUploadingId===entry.id?'Uploading…':'+ Add Picture'}<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" disabled={passportPhotoUploadingId===entry.id} className="sr-only" onChange={(event)=>{const file=event.target.files?.[0];if(file)beginPhotoCrop(file,"passport",entry.id);event.currentTarget.value=''}}/></label>}
+                                      {canEdit && <button type="button" onClick={()=>openPassportEdit(entry)} className="min-h-10 rounded-full border border-[#77511f] bg-[#fff7e6] px-3 text-[8px] font-black uppercase text-[#77511f]">✏️ Edit Entry</button>}
+                                      {canAddPhoto && <button type="button" onClick={()=>{setPassportMemoryEvent(entry);setPassportMemoryNote(entry.memories.find(memory=>memory.playerId===signedInPlayer?.id)?.note||"")}} className="min-h-10 rounded-full border border-[#b99d68] bg-white px-3 text-[8px] font-black uppercase text-[#77511f]">{entry.memories.some(memory=>memory.playerId===signedInPlayer?.id)?"Edit Memory":"+ Memory"}</button>}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {passportView === 'venue' && <div><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">Stadium Collection</div><div className="text-xl font-black">All Your Stadiums</div></div><div className="flex flex-wrap gap-2">{(["All","Football","MLB"] as const).map(f=><button key={f} type="button" onClick={()=>setStadiumSportFilter(f)} className={`rounded-full px-3 py-2 text-[8px] font-black uppercase ${stadiumSportFilter===f?'bg-[#77511f] text-white':'border border-[#b99d68] bg-[#f7ebcd] text-[#77511f]'}`}>{f==='Football'?'🏈 Football':f==='MLB'?'⚾ MLB':'All'}</button>)}</div></div>{passportEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center text-sm font-bold">Add a game/match to start your stadium collection.</div>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(passportEntries.filter(e=>stadiumSportFilter==='All'||e.sport===stadiumSportFilter).reduce<Record<string,PassportEntry[]>>((a,e)=>{(a[e.venue]??=[]).push(e);return a;},{})).map(([venue,entries])=><div key={venue} className="rounded-xl border border-slate-200 bg-white p-4"><div className="text-4xl">🏟️</div><div className="mt-2 text-lg font-black">{venue}</div><div className="text-[9px] font-bold text-slate-500">{entries[0].city}{entries[0].city?', ':''}{entries[0].state}</div><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#77511f] px-2 py-1 text-[8px] font-black text-white">{entries.length} VISIT{entries.length===1?'':'S'}</span><span className="rounded-full border border-[#b99d68] px-2 py-1 text-[8px] font-black">{[...new Set(entries.map(e=>e.sport))].join(' · ')}</span></div><div className="mt-3 space-y-1 border-t border-[#d7c39b] pt-2">{entries.sort((a,b)=>b.date.localeCompare(a.date)).map(e=><div key={e.id} className="text-[9px] font-semibold">{e.date} · {e.away} at {e.home}</div>)}</div></div>)}</div>}</div>}
                     {passportView === 'states' && <div><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">States I've Been To</div><div className="text-xl font-black">Tap any state you've visited</div></div><div className="text-[9px] font-bold text-slate-500">★ = sports visit</div></div><div className="grid grid-cols-5 gap-1.5 sm:grid-cols-8 md:grid-cols-10">{US_STATES.map(code=>{const sports=passportEntries.some(e=>e.state===code);const visited=visitedStates.includes(code);return <button key={code} title={STATE_NAMES[code]} onClick={()=>toggleVisitedState(code)} className={`relative aspect-[1.15] rounded-lg border text-[9px] font-black transition ${sports?'border-[#9c6c16] bg-[#e4c36b] text-[#33220d]':visited?'border-[#557492] bg-[#b9cbd9] text-[#102b49]':'border-[#cbb98f] bg-[#f7edda] text-[#9b8a68]'}`}>{code}{sports&&<span className="absolute right-0.5 top-0 text-[7px]">★</span>}</button>})}</div><div className="mt-4 rounded-lg border border-[#ccb582] bg-[#f8eccd] p-3 text-[9px] font-semibold">Regular travel counts too. Sports entries automatically mark their state, while you can tap any other state you've visited in general.</div></div>}
                   </div>
@@ -5982,7 +6166,7 @@ export default function Home() {
                               {e.memories.length>0&&<div className="mt-3 space-y-2">{e.memories.map(m=><div key={m.playerId} className="rounded-lg border border-slate-200 bg-white p-3 text-[10px] text-slate-600"><span className="font-black text-[#06284a]">{m.playerName}:</span> {m.note}</div>)}</div>}
                               <div className="mt-3 flex flex-wrap gap-2">
                                 <button type="button" onClick={()=>{setPassportMemoryEvent(e);setPassportMemoryNote(mine?.note||'')}} className="min-h-11 rounded-full border border-[#06284a] bg-white px-4 text-[9px] font-black uppercase text-[#06284a]">{mine?'Edit My Memory':'+ Add My Memory'}</button>
-                                {canAddPhoto && <label className="flex min-h-11 cursor-pointer items-center rounded-full bg-[#f3c64f] px-4 text-[9px] font-black uppercase text-[#33200f]">{passportPhotoUploadingId===e.id?'Uploading…':'+ Add Picture'}<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" disabled={passportPhotoUploadingId===e.id} className="sr-only" onChange={(event)=>{const file=event.target.files?.[0];if(file)void uploadPassportPhoto(e.id,file);event.currentTarget.value=''}}/></label>}
+                                {canAddPhoto && <label className="flex min-h-11 cursor-pointer items-center rounded-full bg-[#f3c64f] px-4 text-[9px] font-black uppercase text-[#33200f]">{passportPhotoUploadingId===e.id?'Uploading…':'+ Add Picture'}<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" disabled={passportPhotoUploadingId===e.id} className="sr-only" onChange={(event)=>{const file=event.target.files?.[0];if(file)beginPhotoCrop(file,"passport",e.id);event.currentTarget.value=''}}/></label>}
                                 {canEdit && <button type="button" onClick={()=>openPassportEdit(e)} className="min-h-11 rounded-full border border-[#77511f] bg-[#fff7e6] px-4 text-[9px] font-black uppercase text-[#77511f]">✏️ Edit Entry</button>}
                               </div>
                             </div>

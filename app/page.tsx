@@ -5304,7 +5304,7 @@ export default function Home() {
             </div>
 
             <div className="border-b border-[#8b5c2d] bg-[#24170f] px-3 py-3 sm:px-6">
-              <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                 {[
                   [null, "🏆", "Trophies"],
                   ["records", "📖", "Records"],
@@ -5317,13 +5317,13 @@ export default function Home() {
                       key={label}
                       type="button"
                       onClick={() => setTrophyRoomPanel(panel as null | "records" | "passport" | "memories")}
-                      className={`shrink-0 rounded-full border px-4 py-2 text-[9px] font-black uppercase tracking-wide transition ${
+                      className={`min-w-0 rounded-xl border px-1 py-2 text-[7px] font-black uppercase tracking-tight transition sm:px-3 sm:text-[9px] sm:tracking-wide ${
                         selected
                           ? "border-[#f3c64f] bg-[#f3c64f] text-[#33200f]"
                           : "border-[#9a6a38] bg-[#321e12] text-[#f7ead8] hover:border-[#d5a43d]"
                       }`}
                     >
-                      <span className="mr-1.5">{icon}</span>
+                      <span className="mr-0.5 sm:mr-1.5">{icon}</span>
                       {label}
                     </button>
                   );
@@ -6781,3 +6781,29 @@ export default function Home() {
               >
                 ⌫
               </button>
+            </div>
+
+            {adminError && (
+              <div className="mt-4 text-center text-sm font-bold text-red-600">
+                {adminError}
+              </div>
+            )}
+
+            <button
+              onClick={addGameToChallenge}
+              disabled={
+                adminPin.length !== 4 ||
+                addingGame
+              }
+              className="mt-5 w-full rounded-2xl bg-amber-400 py-4 font-black text-amber-950 disabled:bg-slate-200"
+            >
+              {addingGame
+                ? "Adding..."
+                : "Add to Challenge →"}
+            </button>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

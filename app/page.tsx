@@ -246,6 +246,7 @@ function lockerTeamColors(team: LockerTeam) {
   if (name.includes("vancouver") || name.includes("canucks")) return { primary: "#00205B", secondary: "#00843D", accent: "#FFFFFF" };
   if (name.includes("georgia")) return { primary: "#BA0C2F", secondary: "#000000", accent: "#FFFFFF" };
   if (name.includes("atlanta braves") || name.includes("braves")) return { primary: "#CE1141", secondary: "#13274F", accent: "#FFFFFF" };
+  if (name.includes("atlanta vibe") || name === "vibe") return { primary: "#27C7D4", secondary: "#10254A", accent: "#FF5E78" };
 
   return { primary: "#10254a", secondary: "#f3c64f", accent: "#FFFFFF" };
 }
@@ -274,6 +275,9 @@ function lockerUniformAsset(team: LockerTeam) {
   }
   if (name.includes("atlanta braves") || name === "braves") {
     return "/uniforms/atlanta-braves.webp";
+  }
+  if (name.includes("atlanta vibe") || name === "vibe") {
+    return "/uniforms/atlanta-vibe.webp";
   }
   if (name.includes("chicago cubs") || name === "cubs") {
     return "/uniforms/chicago-cubs.webp";
@@ -3005,6 +3009,104 @@ export default function Home() {
       challengeGameIds.includes(game.id),
     );
 
+  const completedChallengeGameCount =
+    challengeGames.filter((game) => {
+      const status = game.status.toLowerCase();
+
+      return [
+        "final",
+        "finished",
+        "complete",
+        "completed",
+        "closed",
+      ].some((finalStatus) =>
+        status.includes(finalStatus),
+      );
+    }).length;
+
+  // The database leaderboard can retain grading from a game that was
+  // replaced while the weekly card was still being assembled. Reconcile
+  // every total with the games that are actually on this week's card so
+  // upcoming games never appear as scored and an old 12-game card cannot
+  // leak into the current 10-game challenge.
+  const weeklyLeaderboard = leaderboard.map((row) => {
+    const completedPicks = Math.min(
+      row.completed_picks,
+      completedChallengeGameCount,
+      challengeGames.length,
+    );
+    const correct = Math.min(row.correct, completedPicks);
+    const points =
+      completedPicks === 0
+        ? 0
+        : Math.min(row.points, completedPicks);
+
+    return {
+      ...row,
+      points,
+      correct,
+      completed_picks: completedPicks,
+      total_picks: challengeGames.length,
+      accuracy:
+        completedPicks > 0
+          ? (correct / completedPicks) * 100
+          : 0,
+    };
+  });
+
+  const activeChallengeId = challenge?.id ?? null;
+
+  useEffect(() => {
+    if (!activeChallengeId || completedChallengeGameCount === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function refreshCompletedChallengeScores() {
+      try {
+        await fetch("/api/challenge/grade", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            challengeId: activeChallengeId,
+          }),
+        });
+
+        const supabase = createClient();
+        const { data, error } = await supabase.rpc(
+          "get_challenge_leaderboard",
+          {
+            target_challenge_id: activeChallengeId,
+          },
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        if (!cancelled) {
+          setLeaderboard(
+            (data ?? []) as LeaderboardRow[],
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Challenge score refresh failed:",
+          error,
+        );
+      }
+    }
+
+    void refreshCompletedChallengeScores();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeChallengeId, completedChallengeGameCount]);
+
   const availablePickGames =
     challengeGames.filter(
       (game) => !gameIsLocked(game, currentTime),
@@ -3490,7 +3592,7 @@ export default function Home() {
       challengeGames.length;
 
   const trophyStanding = signedInPlayer
-    ? leaderboard.find((row) => row.player_id === signedInPlayer.id) ?? null
+    ? weeklyLeaderboard.find((row) => row.player_id === signedInPlayer.id) ?? null
     : null;
 
   const perfectTenProgress = trophyStanding
@@ -3717,12 +3819,21 @@ export default function Home() {
               </div>
             </button>
           ) : (
-            <a
-              href="#signin"
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSection("Home");
+                setActiveSport("All");
+                window.setTimeout(() => {
+                  document
+                    .getElementById("signin")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 0);
+              }}
               className="rounded-xl bg-[#f3c64f] px-4 py-2 text-xs font-black text-[#06284a]"
             >
               Sign In
-            </a>
+            </button>
           )}
         </div>
       </header>
@@ -5742,10 +5853,10 @@ export default function Home() {
         >
           {[
             ["🏠", "Home"],
-            ["🏆", "Challenge"],
+            ["🎯", "Challenge"],
             ["⚽", "Games"],
-            ["👥", "Locker Room"],
-            ["▥", "Trophy Room"],
+            ["👕", "Locker Room"],
+            ["🏆", "Trophy Room"],
           ].map(([icon, label], index) => (
             <button
               key={label}
@@ -6269,7 +6380,7 @@ export default function Home() {
                   )}
                 </div>              ) : (
                 <div className="p-5">
-                  {leaderboard.length > 0 && (
+                  {weeklyLeaderboard.length > 0 && (
                     <div className="mb-4 rounded-2xl border border-[#e5dcc5] bg-white p-3 shadow-sm">
                       <div className="mb-2 flex items-center justify-between">
                         <div>
@@ -6287,7 +6398,7 @@ export default function Home() {
                       </div>
 
                       <div className="space-y-1.5">
-                        {[...leaderboard]
+                        {[...weeklyLeaderboard]
                           .sort((a, b) => {
                             if (b.points !== a.points) {
                               return b.points - a.points;
@@ -6325,7 +6436,6 @@ export default function Home() {
                                 <div className="min-w-0 flex-1">
                                   <div className="truncate text-xs font-black text-[#06284a]">
                                     {row.display_name}
-                                    {isYou ? " · YOU" : ""}
                                   </div>
 
                                   <div className="text-[9px] font-semibold text-slate-500">

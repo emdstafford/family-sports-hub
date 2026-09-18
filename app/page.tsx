@@ -1166,6 +1166,25 @@ export default function Home() {
       learning: string;
     }>(null);
 
+  const [eventPicks, setEventPicks] =
+    useState<Record<string, Record<string, PickChoice>>>({});
+  const [eventProgress, setEventProgress] =
+    useState<Record<string, {
+      made: number;
+      completed: number;
+      correct: number;
+      accuracy: number;
+      trophies: {
+        firstEventPick: boolean;
+        cupExpert: boolean;
+        perfectRound: boolean;
+      };
+    }>>({});
+  const [eventPickSavingKey, setEventPickSavingKey] =
+    useState<string | null>(null);
+  const [eventPickMessage, setEventPickMessage] =
+    useState<string | null>(null);
+
   const [adminGame, setAdminGame] =
     useState<BrowserGame | null>(null);
 
@@ -1527,6 +1546,109 @@ export default function Home() {
     currentTime,
     challengeRevealedPicks,
   ]);
+
+  async function loadEventPicks(eventId: string) {
+    if (!signedInPlayer) return;
+    const sessionToken = window.localStorage.getItem("fambam_session_token");
+    if (!sessionToken) return;
+
+    try {
+      const params = new URLSearchParams({
+        playerId: signedInPlayer.id,
+        eventId,
+      });
+      const response = await fetch(`/api/event-picks?${params.toString()}`, {
+        headers: { "x-fambam-session": sessionToken },
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error ?? "Could not load event picks.");
+
+      setEventPicks((current) => ({
+        ...current,
+        [eventId]: Object.fromEntries(
+          (data.picks ?? []).map((pick: { gameId: string; pickChoice: PickChoice }) => [
+            pick.gameId,
+            pick.pickChoice,
+          ]),
+        ),
+      }));
+      setEventProgress((current) => ({
+        ...current,
+        [eventId]: {
+          ...(data.progress ?? { made: 0, completed: 0, correct: 0, accuracy: 0 }),
+          trophies: data.trophies ?? {
+            firstEventPick: false,
+            cupExpert: false,
+            perfectRound: false,
+          },
+        },
+      }));
+    } catch (error) {
+      console.error("Event picks load failed:", error);
+    }
+  }
+
+  async function saveEventPick(
+    eventId: string,
+    game: BrowserGame,
+    pickChoice: "home" | "away",
+  ) {
+    if (!signedInPlayer) return;
+    const sessionToken = window.localStorage.getItem("fambam_session_token");
+    if (!sessionToken) return;
+
+    const savingKey = `${eventId}:${game.id}`;
+    setEventPickSavingKey(savingKey);
+    setEventPickMessage(null);
+
+    try {
+      const response = await fetch("/api/event-picks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-fambam-session": sessionToken,
+        },
+        body: JSON.stringify({
+          playerId: signedInPlayer.id,
+          eventId,
+          gameId: game.id,
+          pickChoice,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error ?? "Could not save this event pick.");
+
+      setEventPicks((current) => ({
+        ...current,
+        [eventId]: {
+          ...(current[eventId] ?? {}),
+          [game.id]: pickChoice,
+        },
+      }));
+      setEventPickMessage("Event pick saved! 🏆");
+      await loadEventPicks(eventId);
+    } catch (error) {
+      setEventPickMessage(
+        error instanceof Error ? error.message : "Could not save this event pick.",
+      );
+    } finally {
+      setEventPickSavingKey(null);
+    }
+  }
+
+  useEffect(() => {
+    if (
+      !signedInPlayer ||
+      (activeSection !== "Events" && activeSection !== "Trophy Room")
+    ) {
+      return;
+    }
+
+    ["fa-cup", "carabao-cup", "champions-league", "efl-trophy"].forEach(
+      (eventId) => void loadEventPicks(eventId),
+    );
+  }, [activeSection, signedInPlayer?.id]);
 
   async function openGameRoom(game: BrowserGame) {
     if (!signedInPlayer) {
@@ -7442,7 +7564,7 @@ export default function Home() {
                     Active Now
                   </h3>
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[9px] font-black text-emerald-700">
-                    1 EVENT
+                    4 EVENTS
                   </span>
                 </div>
 
@@ -7562,6 +7684,116 @@ export default function Home() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-200 px-4 py-3">
+                  <div className="text-sm font-black uppercase tracking-wide text-[#10254a]">
+                    Active Event Picks
+                  </div>
+                  <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
+                    These are separate from the regular 10-game Challenge.
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-3">
+                  {[
+                    { id: "carabao-cup", icon: "🥤", name: "Carabao Cup", matches: ["carabao cup", "efl cup", "league cup"] },
+                    { id: "champions-league", icon: "🌟", name: "Champions League", matches: ["champions league"] },
+                    { id: "efl-trophy", icon: "🏆", name: "EFL Trophy", matches: ["efl trophy", "football league trophy"] },
+                    { id: "fa-cup", icon: "⚽", name: "FA Cup", matches: ["fa cup"] },
+                  ].map((event) => {
+                    const eventGames = realGames
+                      .filter((game) => {
+                        const competition = game.competition.toLowerCase();
+                        const matchesEvent = event.matches.some((name) => competition.includes(name));
+                        const upcoming = !game.startsAt ||
+                          new Date(game.startsAt).getTime() > (currentTime ?? Date.now());
+                        return matchesEvent && upcoming;
+                      })
+                      .sort(
+                        (a, b) =>
+                          new Date(a.startsAt ?? 0).getTime() -
+                          new Date(b.startsAt ?? 0).getTime(),
+                      )
+                      .slice(0, 4);
+                    const progress = eventProgress[event.id];
+
+                    return (
+                      <div key={event.id} className="rounded-xl bg-[#f7f4ec] p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">{event.icon}</span>
+                            <div>
+                              <div className="text-xs font-black text-[#10254a]">{event.name}</div>
+                              <div className="text-[8px] font-bold text-slate-500">
+                                {progress ? `${progress.correct} correct · ${progress.made} picks` : "Separate event standings"}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[8px] font-black text-emerald-700">
+                            ACTIVE
+                          </span>
+                        </div>
+
+                        {eventGames.length > 0 ? (
+                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            {eventGames.map((game) => {
+                              const selected = eventPicks[event.id]?.[game.id];
+                              const saving = eventPickSavingKey === `${event.id}:${game.id}`;
+                              return (
+                                <div key={game.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => void openGameRoom(game)}
+                                    className="w-full text-left"
+                                  >
+                                    <div className="text-[10px] font-black text-[#10254a]">
+                                      {game.away} at {game.home}
+                                    </div>
+                                    <div className="mt-0.5 text-[8px] font-semibold text-slate-500">
+                                      {formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}
+                                    </div>
+                                  </button>
+                                  <div className="mt-2 grid grid-cols-2 gap-1.5">
+                                    {([
+                                      ["away", game.away],
+                                      ["home", game.home],
+                                    ] as const).map(([choice, team]) => (
+                                      <button
+                                        key={choice}
+                                        type="button"
+                                        disabled={saving}
+                                        onClick={() => void saveEventPick(event.id, game, choice)}
+                                        className={`rounded-lg px-2 py-2 text-[8px] font-black transition ${
+                                          selected === choice
+                                            ? "bg-[#06284a] text-white"
+                                            : "border border-slate-200 bg-white text-[#10254a]"
+                                        }`}
+                                      >
+                                        {selected === choice ? "✓ " : ""}{team}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="mt-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-[9px] font-semibold text-slate-500">
+                            The next fixtures will appear here when the sports feed publishes them.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {eventPickMessage && (
+                    <div className="rounded-xl bg-[#fff8dc] px-3 py-2 text-center text-[10px] font-black text-[#765800]">
+                      {eventPickMessage}
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -7608,152 +7608,18 @@ export default function Home() {
             </div>
 
             <div className="space-y-4 px-3 py-4">
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-black uppercase tracking-wide text-[#10254a]">
-                    Active Now
-                  </h3>
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[9px] font-black text-emerald-700">
-                    4 EVENTS
-                  </span>
-                </div>
-
-                <div className="overflow-hidden rounded-2xl border border-[#d5a43d] bg-white shadow-sm">
-                  <div className="bg-[linear-gradient(135deg,#071f38_0%,#0c3b66_100%)] p-4 text-white">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">
-                          Qualifying Rounds
-                        </div>
-                        <div className="mt-1 text-2xl font-black">
-                          FA Cup Quest
-                        </div>
-                        <div className="mt-1 text-xs font-semibold text-blue-100">
-                          The road to Wembley has begun.
-                        </div>
-                      </div>
-                      <div className="rounded-full bg-[#f3c64f] px-2.5 py-1 text-[9px] font-black text-[#06284a]">
-                        ACTIVE
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 p-4">
-                    <div>
-                      <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">
-                        How It Works
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        {[
-                          ["🏟️", "Hundreds of clubs", "Clubs from every level can enter."],
-                          ["🚪", "Staggered entry", "Smaller clubs start; top clubs join later."],
-                          ["⚔️", "Knockout football", "Win and advance. Lose and you’re out."],
-                          ["🏁", "Road to Wembley", "Survive each round to reach the final."],
-                        ].map(([icon, title, text]) => (
-                          <div key={title} className="rounded-xl bg-[#f7f4ec] p-2.5">
-                            <div className="text-lg">{icon}</div>
-                            <div className="mt-1 text-xs font-black text-[#10254a]">{title}</div>
-                            <div className="mt-1 text-[10px] font-semibold leading-relaxed text-slate-600">{text}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-[#e8dba8] bg-[#fff8dc] p-3">
-                      <div className="text-[10px] font-black uppercase tracking-wide text-[#765800]">
-                        What Results Mean
-                      </div>
-                      <div className="mt-1 text-xs font-semibold leading-relaxed text-[#5f4b18]">
-                        There are no league-table points. The winner advances to the next round. If the match is level, the competition rules determine extra time, penalties or another deciding step.
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">
-                        Our Clubs Join
-                      </div>
-                      <div className="mt-2 space-y-2">
-                        <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5">
-                          <div><div className="text-xs font-black text-[#10254a]">AFC Wimbledon</div><div className="text-[9px] font-semibold text-slate-500">First Round Proper</div></div>
-                          <div className="text-[9px] font-black text-[#164d9b]">NOV 7</div>
-                        </div>
-                        <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5">
-                          <div><div className="text-xs font-black text-[#10254a]">Arsenal · Aston Villa · Liverpool</div><div className="text-[9px] font-semibold text-slate-500">Third Round Proper</div></div>
-                          <div className="text-[9px] font-black text-[#164d9b]">JAN 9</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">
-                        Event Trophies
-                      </div>
-                      <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {[
-                          ["🪄", "Giant Killer"],
-                          ["🌟", "Cinderella Pick"],
-                          ["🎯", "Cup Expert"],
-                          ["🏆", "FA Cup Champion"],
-                        ].map(([icon, label]) => (
-                          <div key={label} className="shrink-0 rounded-xl border border-[#e8dba8] bg-[#fffaf0] px-3 py-2 text-center">
-                            <div className="text-xl">{icon}</div>
-                            <div className="mt-1 text-[9px] font-black text-[#10254a]">{label}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {upcomingFaCupGames.length > 0 ? (
-                      <div>
-                        <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">
-                          Matches on the Radar
-                        </div>
-                        <div className="mt-2 space-y-2">
-                          {upcomingFaCupGames.slice(0, 5).map((game) => (
-                            <button
-                              key={game.id}
-                              type="button"
-                              onClick={() => void openGameRoom(game)}
-                              className="flex w-full items-center justify-between rounded-xl bg-[#06284a] px-3 py-3 text-left text-white"
-                            >
-                              <div className="min-w-0">
-                                <div className="truncate text-xs font-black">{game.away} at {game.home}</div>
-                                <div className="mt-0.5 text-[9px] font-semibold text-blue-100">{formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}</div>
-                              </div>
-                              <span className="text-[#f3c64f]">→</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border-2 border-dashed border-slate-200 p-4 text-center">
-                        <div className="text-sm font-black text-[#10254a]">Qualifying is underway</div>
-                        <div className="mt-1 text-[10px] font-semibold text-slate-500">
-                          Featured qualifying picks will appear here as the event schedule is added.
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-200 px-4 py-3">
                   <div className="text-sm font-black uppercase tracking-wide text-[#10254a]">
-                    Active Event Picks
+                    Happening Now
                   </div>
                   <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
-                    Optional · Separate from the regular 10-game Challenge · Skip any event with no penalty.
+                    Ordered by what is happening next · Tap an event name for its guide · Optional with no penalty.
                   </div>
                 </div>
 
                 <div className="space-y-4 p-3">
-                  {[
-                    { id: "carabao-cup", icon: "🥤", name: "Carabao Cup", matches: ["carabao cup", "efl cup", "league cup"] },
-                    { id: "champions-league", icon: "🌟", name: "Champions League", matches: ["champions league"] },
-                    { id: "efl-trophy", icon: "🏆", name: "EFL Trophy", matches: ["efl trophy", "football league trophy"] },
-                    { id: "fa-cup", icon: "⚽", name: "FA Cup", matches: ["fa cup"] },
-                  ].map((event) => {
+                  {[{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}]].map((event) => {
                     const eventGames = realGames
                       .filter((game) => {
                         const competition = game.competition.toLowerCase();
@@ -7772,20 +7638,27 @@ export default function Home() {
 
                     return (
                       <div key={event.id} className="rounded-xl bg-[#f7f4ec] p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedEventGuide(event)}
+                          className="flex w-full items-center justify-between gap-3 text-left active:opacity-70"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
                             <span className="text-xl">{event.icon}</span>
-                            <div>
-                              <div className="text-xs font-black text-[#10254a]">{event.name}</div>
+                            <div className="min-w-0">
+                              <div className="truncate text-xs font-black text-[#10254a]">{event.name}</div>
                               <div className="text-[8px] font-bold text-slate-500">
-                                {progress ? `${progress.correct} correct · ${progress.made} picks` : "Separate event standings"}
+                                {progress ? `${progress.correct} correct · ${progress.made} picks` : `${event.season} · Tap for guide`}
                               </div>
                             </div>
                           </div>
-                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[8px] font-black text-emerald-700">
-                            ACTIVE
-                          </span>
-                        </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[8px] font-black text-emerald-700">
+                              ACTIVE
+                            </span>
+                            <span className="text-xs font-black text-[#b28a2e]">ⓘ</span>
+                          </div>
+                        </button>
 
                         {eventGames.length > 0 ? (
                           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -7832,7 +7705,7 @@ export default function Home() {
                           </div>
                         ) : (
                           <div className="mt-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-[9px] font-semibold text-slate-500">
-                            The next fixtures will appear here when the sports feed publishes them.
+                            The next fixtures are refreshing now. Once published, they will appear here automatically for picks.
                           </div>
                         )}
                       </div>
@@ -7851,10 +7724,10 @@ export default function Home() {
                 <div className="mb-2 flex items-end justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-wide text-[#10254a]">
-                      Upcoming Events
+                      Coming Up Next
                     </h3>
                     <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
-                      Tap any event to learn how it works and when it happens.
+                      In season order. Tap any event to learn how it works and when it happens.
                     </div>
                   </div>
                   <div className="text-[8px] font-black uppercase text-[#b28a2e]">
@@ -7968,7 +7841,12 @@ export default function Home() {
                       dates: ["Opening ceremony", "Daily medal events", "Closing ceremony"],
                       learning: "Follow medal tables, heats, qualification rounds and finals across many sports.",
                     },
-                  ].map((event) => (
+                  ]
+                    .filter((event) => !["Carabao Cup", "Champions League", "EFL Trophy"].includes(event.name))
+                    .sort((a, b) => {
+                      const order = ["September–May", "November–December", "December–January", "January", "March–April", "First Saturday in May", "May–June", "Tournament years", "Every two years"];
+                      return order.indexOf(a.season) - order.indexOf(b.season);
+                    }).map((event) => (
                     <button
                       key={event.name}
                       type="button"

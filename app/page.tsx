@@ -5155,14 +5155,20 @@ export default function Home() {
                               {team.is_primary ? " · ⭐ Favorite" : ""}
                             </div>
 
-                            <div className="relative mt-3 flex min-h-[58px] items-center justify-center gap-3 border-y border-[#8b6235]/60 bg-black/10 px-2 py-2">
-                              <span className="text-2xl drop-shadow-lg">
-                                {team.sport === "Soccer" ? "🧣" : team.sport === "College Football" ? "🏈" : team.sport === "College Basketball" ? "🏀" : team.sport === "Hockey" ? "🏒" : team.sport === "Baseball" ? "⚾" : team.sport === "Volleyball" ? "🏐" : "🎟️"}
-                              </span>
-                              <div className="text-left">
-                                <div className="text-[7px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">Locker Memorabilia</div>
-                                <div className="mt-0.5 text-[9px] font-bold text-[#d7c2a7]">
-                                  {team.sport === "Soccer" ? "Match scarf · club colors" : team.sport === "College Football" ? "Game ball · team colors" : team.sport === "College Basketball" ? "Court ball · team colors" : team.sport === "Hockey" ? "Stick & puck · team colors" : team.sport === "Baseball" ? "Ball & cap · team colors" : team.sport === "Volleyball" ? "Game ball · team colors" : "Team keepsakes"}
+                            <div className="relative mt-3 border-y border-[#8b6235]/60 bg-black/10 px-2 py-2.5">
+                              <div className="mb-2 text-center text-[7px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">Locker Memorabilia</div>
+                              <div className="flex items-end justify-center gap-3 text-center">
+                                <div>
+                                  <div className="text-3xl drop-shadow-lg">{team.sport === "Soccer" ? "🧣" : team.sport === "College Football" ? "🏈" : team.sport === "College Basketball" ? "🏀" : team.sport === "Hockey" ? "🏒" : team.sport === "Baseball" ? "⚾" : team.sport === "Volleyball" ? "🏐" : "🎟️"}</div>
+                                  <div className="mt-1 text-[7px] font-bold text-[#d7c2a7]">{team.sport === "Soccer" ? "Scarf" : team.sport === "Hockey" ? "Puck" : team.sport === "Baseball" ? "Game Ball" : team.sport === "Volleyball" ? "Game Ball" : "Game Ball"}</div>
+                                </div>
+                                <div>
+                                  <div className="text-3xl drop-shadow-lg">{team.sport === "Soccer" ? "👕" : team.sport === "College Football" ? "🏟️" : team.sport === "College Basketball" ? "👟" : team.sport === "Hockey" ? "🏒" : team.sport === "Baseball" ? "🧢" : team.sport === "Volleyball" ? "👕" : "📸"}</div>
+                                  <div className="mt-1 text-[7px] font-bold text-[#d7c2a7]">{team.sport === "Soccer" ? "Kit" : team.sport === "College Football" ? "Stadium" : team.sport === "College Basketball" ? "Court Gear" : team.sport === "Hockey" ? "Stick" : team.sport === "Baseball" ? "Cap" : team.sport === "Volleyball" ? "Jersey" : "Keepsake"}</div>
+                                </div>
+                                <div>
+                                  <div className="text-3xl drop-shadow-lg">🎟️</div>
+                                  <div className="mt-1 text-[7px] font-bold text-[#d7c2a7]">Tickets</div>
                                 </div>
                               </div>
                             </div>

@@ -176,7 +176,7 @@ export async function GET(request: Request) {
         const { data: links } = await db.from("challenge_games").select("game_id").eq("challenge_id", completedChallenge.id);
         const gameIds = (links ?? []).map((link) => link.game_id);
         const { data: games } = gameIds.length
-          ? await db.from("games").select("id, status, home_score, away_score").in("id", gameIds)
+          ? await db.from("games").select("id, starts_at, status, home_score, away_score").in("id", gameIds)
           : { data: [] };
         if (gameIds.length > 0 && (games ?? []).length === gameIds.length && (games ?? []).every(isFinal)) {
           const { data: picks } = await db.from("player_picks").select("player_id, game_id, pick_choice").eq("challenge_id", completedChallenge.id);
@@ -203,11 +203,26 @@ export async function GET(request: Request) {
               .filter(([id, score]) => gameIds.length >= 10 && score === gameIds.length && completed.get(id) === gameIds.length)
               .map(([id]) => playerName.get(id)).filter(Boolean) as string[];
             if (perfect.length) highlights.push(`${perfect.join(" & ")} earned Perfect 10`);
-            else {
-              const fullCards = [...completed.entries()]
-                .filter(([, count]) => count === gameIds.length)
+
+            const orderedGames = [...(games ?? [])].sort((a, b) => String(a.starts_at ?? "").localeCompare(String(b.starts_at ?? "")));
+            const bestStreaks = new Map<string, number>();
+            for (const playerId of playerIds) {
+              const playerPicks = new Map((picks ?? []).filter((pick) => pick.player_id === playerId).map((pick) => [pick.game_id, pick.pick_choice]));
+              let streak = 0;
+              let best = 0;
+              for (const game of orderedGames) {
+                const winner = Number(game.home_score) > Number(game.away_score) ? "home" : Number(game.away_score) > Number(game.home_score) ? "away" : "draw";
+                streak = playerPicks.get(game.id) === winner ? streak + 1 : 0;
+                best = Math.max(best, streak);
+              }
+              bestStreaks.set(playerId, best);
+            }
+            const longestStreak = Math.max(...bestStreaks.values());
+            if (longestStreak >= 3) {
+              const hotHands = [...bestStreaks.entries()]
+                .filter(([, streak]) => streak === longestStreak)
                 .map(([id]) => playerName.get(id)).filter(Boolean) as string[];
-              if (fullCards.length && fullCards.length < playerIds.length) highlights.push(`${fullCards.join(" & ")} completed every pick`);
+              highlights.push(`${hotHands.join(" & ")} had the Hot Hand with ${longestStreak} straight`);
             }
 
             let upsetHero: { playerId: string; ratio: number } | null = null;

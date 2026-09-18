@@ -205,6 +205,21 @@ function normalizeLockerTeamName(value: string) {
     .trim();
 }
 
+function lockerTeamColors(team: LockerTeam) {
+  const name = team.name.toLowerCase();
+
+  if (name.includes("arsenal")) return { primary: "#EF0107", secondary: "#FFFFFF", accent: "#063672" };
+  if (name.includes("liverpool")) return { primary: "#C8102E", secondary: "#FFFFFF", accent: "#00B2A9" };
+  if (name.includes("aston villa")) return { primary: "#670E36", secondary: "#95BFE5", accent: "#FEE505" };
+  if (name.includes("wimbledon")) return { primary: "#0047AB", secondary: "#FFD100", accent: "#FFFFFF" };
+  if (name.includes("kentucky")) return { primary: "#0033A0", secondary: "#FFFFFF", accent: "#C8C9C7" };
+  if (name.includes("vancouver") || name.includes("canucks")) return { primary: "#00205B", secondary: "#00843D", accent: "#FFFFFF" };
+  if (name.includes("georgia")) return { primary: "#BA0C2F", secondary: "#000000", accent: "#FFFFFF" };
+  if (name.includes("atlanta braves") || name.includes("braves")) return { primary: "#CE1141", secondary: "#13274F", accent: "#FFFFFF" };
+
+  return { primary: "#10254a", secondary: "#f3c64f", accent: "#FFFFFF" };
+}
+
 function lockerTeamMatchesGame(team: LockerTeam, game: BrowserGame) {
   if (team.sport !== game.sport) return false;
 
@@ -3792,7 +3807,7 @@ export default function Home() {
                 <div className="flex gap-3">
                   <div className="flex w-12 shrink-0 flex-col items-center justify-center text-center">
                     <div className="text-2xl">{game.icon}</div>
-                    <div className="mt-1 text-[7px] font-black uppercase leading-tight text-[#10254a]">
+                    <div className="mt-0.5 line-clamp-2 text-[6px] font-black uppercase leading-tight text-[#10254a]">
                       {game.competition}
                     </div>
                   </div>
@@ -3804,7 +3819,7 @@ export default function Home() {
                       className="block w-full rounded-xl text-left active:bg-slate-50"
                       aria-label={`Open game details for ${game.away} vs ${game.home}`}
                     >
-                    <div className="text-[15px] font-black leading-tight text-[#10254a]">
+                    <div className="text-[14px] font-black leading-tight text-[#10254a]">
                       {game.sport === "College Football"
                         ? rankedTeamLabel(game.away, collegeFootballRankings)
                         : game.away}
@@ -4010,8 +4025,8 @@ export default function Home() {
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="mb-1 flex items-center gap-2">
-                            <span className="rounded-full bg-[#f7f4ec] px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-[#b28a2e]">
+                          <div className="mb-0.5 flex items-center gap-1.5">
+                            <span className="rounded-full bg-[#f7f4ec] px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-[#b28a2e]">
                               Final
                             </span>
                             <span className="text-[10px] font-semibold text-slate-400">
@@ -4021,7 +4036,7 @@ export default function Home() {
 
                           <div className="flex items-center justify-between gap-3">
                             <div
-                              className={`truncate text-[14px] ${
+                              className={`truncate text-[12px] ${
                                 awayWon
                                   ? "font-black text-[#10254a]"
                                   : "font-bold text-slate-600"
@@ -4034,7 +4049,7 @@ export default function Home() {
                                   )
                                 : game.away}
                             </div>
-                            <div className="shrink-0 text-lg font-black text-[#10254a]">
+                            <div className="shrink-0 text-sm font-black text-[#10254a]">
                               {game.awayScore ?? "—"}
                             </div>
                           </div>
@@ -4059,7 +4074,7 @@ export default function Home() {
                             </div>
                           </div>
 
-                          <div className="mt-1.5 text-[9px] font-black text-[#164d9b]">
+                          <div className="mt-0.5 text-[8px] font-black text-[#164d9b]">
                             Game Details &amp; FamBam Picks →
                           </div>
                         </div>

@@ -4852,6 +4852,28 @@ export default function Home() {
                   hasScore &&
                   game.homeScore! > game.awayScore!;
 
+                const resultLabel = !hasScore
+                  ? "Result available"
+                  : game.homeScore === game.awayScore
+                    ? "Draw"
+                    : `${homeWon ? game.home : game.away} wins`;
+
+                const revealedPicks =
+                  challengeRevealedPicks[game.id] ?? [];
+
+                const winningChoice: PickChoice | null =
+                  !hasScore
+                    ? null
+                    : game.homeScore === game.awayScore
+                      ? "draw"
+                      : homeWon
+                        ? "home"
+                        : "away";
+
+                const correctPicks = revealedPicks.filter(
+                  (pick) => pick.pick_choice === winningChoice,
+                );
+
                 return (
                   <article key={game.id} className="py-1.5">
                     <button
@@ -4918,7 +4940,20 @@ export default function Home() {
                             </div>
                           </div>
 
-                          <div className="mt-0.5 text-[8px] font-black text-[#164d9b]">
+                          <div className="mt-1 rounded-lg bg-[#fff8dc] px-2 py-1.5">
+                            <div className="text-[9px] font-black text-[#765800]">
+                              🏁 Final Whistle · {resultLabel}
+                            </div>
+                            {revealedPicks.length > 0 && (
+                              <div className="mt-0.5 text-[8px] font-bold text-slate-600">
+                                {correctPicks.length > 0
+                                  ? `${correctPicks.map((pick) => pick.display_name).join(", ")} picked it right!`
+                                  : "That result fooled the whole family!"}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-1 text-[8px] font-black text-[#164d9b]">
                             Game Details &amp; FamBam Picks →
                           </div>
                         </div>

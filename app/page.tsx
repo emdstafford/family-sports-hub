@@ -5119,7 +5119,7 @@ export default function Home() {
                 <div className="relative w-full max-w-2xl rotate-[-0.3deg] rounded-md border-[3px] border-[#5b351b] bg-gradient-to-b from-[#76502d] via-[#5d3b21] to-[#432814] px-5 py-4 text-center shadow-[0_12px_25px_rgba(0,0,0,0.55),inset_0_2px_0_rgba(255,255,255,0.12)] sm:px-10 sm:py-5">
                   <div className="absolute inset-x-0 top-[32%] h-px bg-black/20" />
                   <div className="absolute inset-x-0 top-[67%] h-px bg-black/20" />
-                  <div className="relative text-[10px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">
+                  <div className="relative text-xs font-black uppercase tracking-[0.14em] text-[#f3c64f]">
                     FamBam
                   </div>
                   <div className="relative mt-1 text-[clamp(1.35rem,5vw,2.7rem)] font-black uppercase leading-none tracking-tight text-[#f8efe0] drop-shadow-[0_3px_1px_rgba(0,0,0,0.65)]">
@@ -5127,7 +5127,7 @@ export default function Home() {
                       ? `${signedInPlayer.display_name}'s Locker Room`
                       : "My Locker Room"}
                   </div>
-                  <div className="relative mt-2 text-[8px] font-bold uppercase tracking-[0.22em] text-[#e6d4b8] sm:text-[10px]">
+                  <div className="relative mt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#e6d4b8] sm:text-xs">
                     Play · Explore · Remember · Together
                   </div>
                 </div>
@@ -5171,7 +5171,7 @@ export default function Home() {
                           <div className="relative mx-3 mt-2 rounded-sm border border-[#b8874f] bg-[linear-gradient(180deg,rgba(92,55,29,.96),rgba(40,23,13,.96))] px-2 py-2.5 text-center shadow-[0_5px_12px_rgba(0,0,0,.55),inset_0_1px_0_rgba(255,255,255,.13)]">
                             <div className="absolute left-2 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[#a77843] shadow-inner" />
                             <div className="absolute right-2 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[#a77843] shadow-inner" />
-                            <div className="truncate text-[9px] font-black uppercase tracking-[0.12em] text-[#f3c64f] sm:text-[10px]">
+                            <div className="truncate text-xs font-black uppercase tracking-[0.08em] text-[#f3c64f]">
                               {team.short_name ?? team.name}
                             </div>
                           </div>
@@ -5195,10 +5195,10 @@ export default function Home() {
                               )}
                             </div>
 
-                            <div className="relative mt-1 line-clamp-2 min-h-[2.5rem] text-center text-xs font-black leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-base">
+                            <div className="relative mt-1 line-clamp-2 min-h-[2.5rem] text-center text-sm font-black leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-base">
                               {team.name}
                             </div>
-                            <div className="relative mt-1 text-center text-[9px] font-bold text-[#d7c2a7] sm:text-[10px]">
+                            <div className="relative mt-1 text-center text-xs font-semibold text-[#d7c2a7]">
                               {team.sport}
                               {team.is_primary ? " · ⭐ Favorite" : ""}
                             </div>
@@ -5272,29 +5272,29 @@ export default function Home() {
                             </div>
 
                             <div className="relative mt-3 min-h-[92px] border-t border-[#8b6235]/80 pt-3">
-                              <div className="mb-1 text-[8px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
+                              <div className="mb-1 text-[10px] font-black uppercase tracking-[0.1em] text-[#f3c64f]">
                                 {nextGame ? "Next Game" : "Team Locker"}
                               </div>
                               {nextGame ? (
                                 <>
-                                  <div className="line-clamp-2 text-[10px] font-black leading-tight text-[#f8efe0] sm:text-xs">
+                                  <div className="line-clamp-2 text-sm font-black leading-tight text-[#f8efe0]">
                                     {teamIsHome ? "vs" : "at"} {opponent}
                                   </div>
-                                  <div className="mt-1 text-[8px] font-bold leading-tight text-[#cdb89e] sm:text-[9px]">
+                                  <div className="mt-1 text-[11px] font-semibold leading-tight text-[#cdb89e]">
                                     {formatGameDate(nextGame.startsAt)} · {formatGameTime(nextGame.startsAt, nextGame.startTimeTbd)}
                                   </div>
-                                  <div className="mt-1 truncate text-[8px] font-bold text-white/45">
+                                  <div className="mt-1 truncate text-[10px] font-semibold text-white/55">
                                     {nextGame.competition}
                                   </div>
                                 </>
                               ) : (
-                                <div className="text-[9px] font-bold leading-snug text-[#cdb89e]">
+                                <div className="text-xs font-semibold leading-snug text-[#cdb89e]">
                                   No upcoming game loaded yet.
                                 </div>
                               )}
                             </div>
 
-                            <div className="relative mt-3 flex items-center justify-between border-t border-[#8b6235]/60 pt-2 text-[8px] font-black uppercase tracking-wide text-[#d7c2a7]">
+                            <div className="relative mt-3 flex items-center justify-between border-t border-[#8b6235]/60 pt-2 text-[10px] font-black uppercase tracking-wide text-[#d7c2a7]">
                               <span>{nextGame ? "Open Matchup" : "Browse Games"}</span>
                               <span className="text-[#f3c64f] transition group-hover:translate-x-1">→</span>
                             </div>
@@ -5319,7 +5319,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => void openProfile()}
-                          className="mt-3 rounded-xl bg-[#f3c64f] px-4 py-2.5 text-[10px] font-black text-[#33200f]"
+                          className="mt-3 rounded-xl bg-[#f3c64f] px-4 py-2.5 text-xs font-black text-[#33200f]"
                         >
                           Add a Team
                         </button>
@@ -5342,7 +5342,7 @@ export default function Home() {
                       key={sport}
                       type="button"
                       onClick={() => setLockerSportFilter(sport)}
-                      className={`shrink-0 rounded-full border px-3 py-2 text-[10px] font-black ${
+                      className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black ${
                         lockerSportFilter === sport
                           ? "border-[#f3c64f] bg-[#f3c64f] text-[#33200f]"
                           : "border-[#9a7047] bg-black/20 text-[#f4e6d2]"
@@ -5355,7 +5355,7 @@ export default function Home() {
 
                 <div className="mt-2 flex items-center justify-between gap-3 border-y border-[#7b542e] py-3">
                   <div>
-                    <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
+                    <div className="text-[10px] font-black uppercase tracking-[0.1em] text-[#f3c64f]">
                       My Teams
                     </div>
                     <div className="mt-0.5 text-xs font-bold text-[#d7c2a7]">
@@ -5367,7 +5367,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => void openProfile()}
-                    className="rounded-xl border border-[#f3c64f] bg-black/20 px-3 py-2 text-[10px] font-black text-[#f3c64f]"
+                    className="rounded-xl border border-[#f3c64f] bg-black/20 px-3 py-2 text-xs font-black text-[#f3c64f]"
                   >
                     + Edit Teams
                   </button>

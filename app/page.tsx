@@ -6237,11 +6237,6 @@ export default function Home() {
                                 return (
                                   <div key={entry.id} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4">
                                     <div className="absolute right-3 top-3 rotate-[-10deg] rounded-full border-4 border-double border-[#a35b48] px-3 py-2 text-[8px] font-black uppercase text-[#a35b48] opacity-75">{entry.sport==='Tour'?'🎟️':entry.sport==='MLB'?'⚾':'🏈'}<br/>VISITED</div>
-                                    {entry.photos.length > 0 && <div className="mb-3 grid grid-cols-3 gap-1.5 pr-16">{entry.photos.slice(0, 3).map((photo, index)=>{
-                                      const fileName = decodeURIComponent(photo.split("?")[0].split("/").pop() ?? "");
-                                      const canDeletePhoto = Boolean(signedInPlayer && (signedInPlayer.is_admin || fileName.startsWith(`${signedInPlayer.id}-`)));
-                                      return <button key={photo} type="button" onClick={()=>setPassportPhotoViewer({eventId:entry.id,url:photo,title:`${passportEntryTitle(entry)} photo ${index+1}`,canDelete:canDeletePhoto})} className="block overflow-hidden rounded-lg text-left transition active:scale-[0.98]" aria-label={`Open ${passportEntryTitle(entry)} photo ${index+1}`}><img src={photo} alt={`${passportEntryTitle(entry)} photo ${index+1}`} className="aspect-square w-full object-cover" /></button>;
-                                    })}</div>}
                                     <div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{entry.date} · {entry.sport==='Tour'?'Tour':entry.result||'Attended'}</div>
                                     <div className="mt-2 pr-20 text-base font-black">{passportEntryTitle(entry)}</div>
                                     <div className="mt-1 text-xs font-bold">{entry.awayScore||entry.homeScore?`${entry.awayScore||'–'} – ${entry.homeScore||'–'}`:''}</div>

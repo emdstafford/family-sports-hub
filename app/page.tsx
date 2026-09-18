@@ -1152,7 +1152,7 @@ export default function Home() {
   const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Challenge" | "Games" | "Locker Room" | "Trophy Room">("Home");
+    useState<"Home" | "Challenge" | "Events" | "Games" | "Locker Room" | "Trophy Room">("Home");
 
   const [adminGame, setAdminGame] =
     useState<BrowserGame | null>(null);
@@ -7371,6 +7371,197 @@ export default function Home() {
         </div>
       )}
 
+      {activeSection === "Events" && signedInPlayer && (
+        <section className="min-h-[calc(100vh-64px)] bg-[#eef1f4] pb-28">
+          <div className="mx-auto max-w-3xl">
+            <div className="bg-[#06284a] px-4 pb-5 pt-5 text-white">
+              <button
+                type="button"
+                onClick={() => setActiveSection("Challenge")}
+                className="mb-3 text-[10px] font-black uppercase tracking-wide text-[#f3c64f]"
+              >
+                ← Back to Weekly Challenge
+              </button>
+              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#f3c64f]">
+                FamBam Special Events
+              </div>
+              <h2 className="mt-1 text-3xl font-black">🏆 Events Hub</h2>
+              <p className="mt-2 max-w-xl text-sm font-semibold leading-relaxed text-blue-100">
+                Extra challenges run alongside the regular 10-game week. Each event keeps its own picks, standings, champion and trophies.
+              </p>
+            </div>
+
+            <div className="space-y-4 px-3 py-4">
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-black uppercase tracking-wide text-[#10254a]">
+                    Active Now
+                  </h3>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[9px] font-black text-emerald-700">
+                    1 EVENT
+                  </span>
+                </div>
+
+                <div className="overflow-hidden rounded-2xl border border-[#d5a43d] bg-white shadow-sm">
+                  <div className="bg-[linear-gradient(135deg,#071f38_0%,#0c3b66_100%)] p-4 text-white">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">
+                          Qualifying Rounds
+                        </div>
+                        <div className="mt-1 text-2xl font-black">
+                          FA Cup Quest
+                        </div>
+                        <div className="mt-1 text-xs font-semibold text-blue-100">
+                          The road to Wembley has begun.
+                        </div>
+                      </div>
+                      <div className="rounded-full bg-[#f3c64f] px-2.5 py-1 text-[9px] font-black text-[#06284a]">
+                        ACTIVE
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 p-4">
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">
+                        How This Competition Works
+                      </div>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        {[
+                          ["🏟️", "Hundreds of clubs", "Teams from across English football can enter."],
+                          ["🚪", "Staggered entry", "Smaller clubs begin first; higher divisions join later."],
+                          ["⚔️", "Knockout football", "Win and advance. Lose and the cup run ends."],
+                          ["🏁", "Road to Wembley", "Every surviving club is chasing the May final."],
+                        ].map(([icon, title, text]) => (
+                          <div key={title} className="rounded-xl bg-[#f7f4ec] p-3">
+                            <div className="text-lg">{icon}</div>
+                            <div className="mt-1 text-xs font-black text-[#10254a]">{title}</div>
+                            <div className="mt-1 text-[10px] font-semibold leading-relaxed text-slate-600">{text}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-[#e8dba8] bg-[#fff8dc] p-3">
+                      <div className="text-[10px] font-black uppercase tracking-wide text-[#765800]">
+                        What Results Mean
+                      </div>
+                      <div className="mt-1 text-xs font-semibold leading-relaxed text-[#5f4b18]">
+                        There are no league-table points. The winner advances to the next round. If the match is level, the competition rules determine extra time, penalties or another deciding step.
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">
+                        Our Clubs Join
+                      </div>
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5">
+                          <div><div className="text-xs font-black text-[#10254a]">AFC Wimbledon</div><div className="text-[9px] font-semibold text-slate-500">First Round Proper</div></div>
+                          <div className="text-[9px] font-black text-[#164d9b]">NOV 7</div>
+                        </div>
+                        <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5">
+                          <div><div className="text-xs font-black text-[#10254a]">Arsenal · Aston Villa · Liverpool</div><div className="text-[9px] font-semibold text-slate-500">Third Round Proper</div></div>
+                          <div className="text-[9px] font-black text-[#164d9b]">JAN 9</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">
+                        Event Trophies
+                      </div>
+                      <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {[
+                          ["🪄", "Giant Killer"],
+                          ["🌟", "Cinderella Pick"],
+                          ["🎯", "Cup Expert"],
+                          ["🏆", "FA Cup Champion"],
+                        ].map(([icon, label]) => (
+                          <div key={label} className="shrink-0 rounded-xl border border-[#e8dba8] bg-[#fffaf0] px-3 py-2 text-center">
+                            <div className="text-xl">{icon}</div>
+                            <div className="mt-1 text-[9px] font-black text-[#10254a]">{label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {upcomingFaCupGames.length > 0 ? (
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">
+                          Matches on the Radar
+                        </div>
+                        <div className="mt-2 space-y-2">
+                          {upcomingFaCupGames.slice(0, 5).map((game) => (
+                            <button
+                              key={game.id}
+                              type="button"
+                              onClick={() => void openGameRoom(game)}
+                              className="flex w-full items-center justify-between rounded-xl bg-[#06284a] px-3 py-3 text-left text-white"
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate text-xs font-black">{game.away} at {game.home}</div>
+                                <div className="mt-0.5 text-[9px] font-semibold text-blue-100">{formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}</div>
+                              </div>
+                              <span className="text-[#f3c64f]">→</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border-2 border-dashed border-slate-200 p-4 text-center">
+                        <div className="text-sm font-black text-[#10254a]">Qualifying is underway</div>
+                        <div className="mt-1 text-[10px] font-semibold text-slate-500">
+                          Featured qualifying picks will appear here as the event schedule is added.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-sm font-black uppercase tracking-wide text-[#10254a]">
+                  Cup Calendar
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ["🥤", "Carabao Cup", "English knockout cup", "Knockout"],
+                    ["🌟", "Champions League", "Europe’s biggest clubs", "League + Knockout"],
+                    ["🟠", "Europa League", "European competition", "League + Knockout"],
+                    ["🟢", "Conference League", "European underdog stories", "League + Knockout"],
+                    ["🏆", "EFL Trophy", "AFC Wimbledon cup path", "Groups + Knockout"],
+                    ["🏈", "Bowl Pick’em", "College football postseason", "Coming this winter"],
+                  ].map(([icon, name, description, format]) => (
+                    <div key={name} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                      <div className="text-2xl">{icon}</div>
+                      <div className="mt-2 text-xs font-black text-[#10254a]">{name}</div>
+                      <div className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-500">{description}</div>
+                      <div className="mt-2 inline-flex rounded-full bg-[#f7f4ec] px-2 py-1 text-[8px] font-black text-[#765800]">{format}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-[#10254a] p-4 text-white">
+                <div className="text-[10px] font-black uppercase tracking-wide text-[#f3c64f]">
+                  Learn While We Play
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-semibold text-blue-100">
+                  <div>✓ Standings and points</div>
+                  <div>✓ Aggregate scores</div>
+                  <div>✓ Extra time and penalties</div>
+                  <div>✓ Who advances</div>
+                  <div>✓ Who to root for</div>
+                  <div>✓ Why each result matters</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {activeSection === "Challenge" &&
         signedInPlayer &&
         challenge && (
@@ -7467,6 +7658,14 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSection("Events")}
+                  className="mt-3 w-full rounded-xl bg-[#f3c64f] px-4 py-3 text-xs font-black text-[#06284a] active:scale-[0.99]"
+                >
+                  Open Events Hub →
+                </button>
 
                 {upcomingFaCupGames.length > 0 ? (
                   <div className="mt-3 space-y-2">

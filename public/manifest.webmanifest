@@ -2,6 +2,7 @@
   "name": "FamBam Sports",
   "short_name": "FamBam Sports",
   "description": "Family sports picks, challenges, standings, and game-day fun for the FamBam.",
+  "id": "/",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fffaf0",

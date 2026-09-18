@@ -1024,6 +1024,16 @@ export default function Home() {
   const [profileError, setProfileError] =
     useState<string | null>(null);
 
+  const [notificationSupported, setNotificationSupported] = useState(true);
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const [notificationSaving, setNotificationSaving] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    pickReminders: true,
+    bigGameAlerts: true,
+    trophyAlerts: true,
+  });
+
   const [profileDisplayName, setProfileDisplayName] =
     useState("");
 
@@ -2219,6 +2229,8 @@ export default function Home() {
       return;
     }
 
+    void loadNotificationSettings();
+
     try {
       const params = new URLSearchParams({
         playerId: signedInPlayer.id,
@@ -2354,6 +2366,120 @@ export default function Home() {
       );
     } finally {
       setProfileLoading(false);
+    }
+  }
+
+  function notificationApplicationKey(value: string) {
+    const padding = "=".repeat((4 - value.length % 4) % 4);
+    const base64 = (value + padding).replaceAll("-", "+").replaceAll("_", "/");
+    const raw = window.atob(base64);
+    return Uint8Array.from([...raw].map((character) => character.charCodeAt(0)));
+  }
+
+  async function loadNotificationSettings() {
+    if (!signedInPlayer) return;
+    const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    setNotificationSupported(supported);
+    if (!supported) return;
+    const sessionToken = window.localStorage.getItem("fambam_session_token");
+    if (!sessionToken) return;
+    try {
+      const [response, registration] = await Promise.all([
+        fetch(`/api/notifications?playerId=${encodeURIComponent(signedInPlayer.id)}`, {
+          cache: "no-store",
+          headers: { "x-fambam-session": sessionToken },
+        }),
+        navigator.serviceWorker.register("/sw.js"),
+      ]);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error ?? "Could not load notification settings.");
+      setNotificationPreferences(data.preferences);
+      setNotificationEnabled(Boolean(await registration.pushManager.getSubscription()));
+    } catch (error) {
+      setNotificationMessage(error instanceof Error ? error.message : "Could not load notification settings.");
+    }
+  }
+
+  async function enableNotifications() {
+    if (!signedInPlayer || notificationSaving) return;
+    setNotificationSaving(true);
+    setNotificationMessage(null);
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        setNotificationSupported(false);
+        throw new Error("Notifications need this site added to your Home Screen and iOS 16.4 or newer.");
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") throw new Error("Notifications are off. You can allow them in your iPhone Settings for FamBam Sports.");
+      const sessionToken = window.localStorage.getItem("fambam_session_token");
+      if (!sessionToken) throw new Error("Please sign in again first.");
+      const settingsResponse = await fetch(`/api/notifications?playerId=${encodeURIComponent(signedInPlayer.id)}`, {
+        cache: "no-store",
+        headers: { "x-fambam-session": sessionToken },
+      });
+      const settings = await settingsResponse.json();
+      if (!settingsResponse.ok) throw new Error(settings?.error ?? "Could not start notifications.");
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+      const existing = await registration.pushManager.getSubscription();
+      const subscription = existing ?? await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: notificationApplicationKey(settings.publicKey),
+      });
+      const response = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-fambam-session": sessionToken },
+        body: JSON.stringify({ action: "subscribe", playerId: signedInPlayer.id, subscription: subscription.toJSON() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error ?? "Could not turn on notifications.");
+      setNotificationEnabled(true);
+      setNotificationMessage("Notifications are on for this phone! 🎉");
+    } catch (error) {
+      setNotificationMessage(error instanceof Error ? error.message : "Could not turn on notifications.");
+    } finally {
+      setNotificationSaving(false);
+    }
+  }
+
+  async function updateNotificationPreference(key: keyof typeof notificationPreferences, enabled: boolean) {
+    if (!signedInPlayer) return;
+    const next = { ...notificationPreferences, [key]: enabled };
+    setNotificationPreferences(next);
+    const sessionToken = window.localStorage.getItem("fambam_session_token");
+    if (!sessionToken) return;
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-fambam-session": sessionToken },
+        body: JSON.stringify({ action: "preferences", playerId: signedInPlayer.id, preferences: next }),
+      });
+      if (!response.ok) throw new Error("Could not save notification choices.");
+    } catch (error) {
+      setNotificationPreferences(notificationPreferences);
+      setNotificationMessage(error instanceof Error ? error.message : "Could not save notification choices.");
+    }
+  }
+
+  async function disableNotifications() {
+    if (!signedInPlayer || notificationSaving) return;
+    setNotificationSaving(true);
+    setNotificationMessage(null);
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+      const endpoint = subscription?.endpoint ?? "";
+      if (subscription) await subscription.unsubscribe();
+      const sessionToken = window.localStorage.getItem("fambam_session_token");
+      if (sessionToken) await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-fambam-session": sessionToken },
+        body: JSON.stringify({ action: "unsubscribe", playerId: signedInPlayer.id, endpoint }),
+      });
+      setNotificationEnabled(false);
+      setNotificationMessage("Notifications are off on this phone.");
+    } finally {
+      setNotificationSaving(false);
     }
   }
 
@@ -5518,6 +5644,75 @@ export default function Home() {
                       />
                     </div>
                   </div>
+                </section>
+
+                <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b68718]">
+                        🔔 Notifications
+                      </div>
+                      <h2 className="mt-1 text-xl font-black text-[#10254a]">
+                        Stay in the game
+                      </h2>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        Get helpful FamBam reminders right on this phone.
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-3 py-1.5 text-[9px] font-black uppercase ${notificationEnabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                      {notificationEnabled ? "On ✓" : "Off"}
+                    </span>
+                  </div>
+
+                  {!notificationSupported ? (
+                    <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs font-bold leading-relaxed text-amber-900">
+                      On iPhone, open FamBam from its Home Screen icon and use iOS 16.4 or newer to turn on notifications.
+                    </div>
+                  ) : !notificationEnabled ? (
+                    <button
+                      type="button"
+                      onClick={() => void enableNotifications()}
+                      disabled={notificationSaving}
+                      className="mt-4 min-h-12 w-full rounded-xl bg-[#06284a] px-4 text-sm font-black text-white disabled:opacity-60"
+                    >
+                      {notificationSaving ? "Turning On…" : "Turn On Notifications"}
+                    </button>
+                  ) : (
+                    <div className="mt-4 space-y-2">
+                      {([
+                        ["pickReminders", "🎯 Pick Reminders", "A nudge when your Challenge card is unfinished"],
+                        ["bigGameAlerts", "🏟️ Big Games", "Upcoming games for your favorite teams"],
+                        ["trophyAlerts", "🏆 Trophy Celebrations", "Celebrate the weekly FamBam champion"],
+                      ] as const).map(([key, title, detail]) => (
+                        <label key={key} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+                          <span className="min-w-0">
+                            <span className="block text-sm font-black text-[#10254a]">{title}</span>
+                            <span className="mt-0.5 block text-[10px] font-semibold leading-snug text-slate-500">{detail}</span>
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={notificationPreferences[key]}
+                            onChange={(event) => void updateNotificationPreference(key, event.target.checked)}
+                            className="h-6 w-6 shrink-0 accent-[#06284a]"
+                          />
+                        </label>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => void disableNotifications()}
+                        disabled={notificationSaving}
+                        className="w-full py-2 text-[10px] font-black text-slate-400 disabled:opacity-50"
+                      >
+                        Turn off on this phone
+                      </button>
+                    </div>
+                  )}
+
+                  {notificationMessage && (
+                    <div className="mt-3 rounded-xl bg-[#fff7da] px-3 py-2.5 text-xs font-bold text-[#5c4512]">
+                      {notificationMessage}
+                    </div>
+                  )}
                 </section>
 
                 <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">

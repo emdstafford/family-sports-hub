@@ -1638,6 +1638,83 @@ export default function Home() {
   }
 
   useEffect(() => {
+    if (activeSection !== "Events") return;
+
+    let cancelled = false;
+
+    async function refreshEventGames() {
+      try {
+        const response = await fetch("/api/games", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) return;
+
+        const body = (await response.json()) as {
+          games?: ApiGame[];
+        };
+
+        if (cancelled) return;
+
+        const refreshedGames: BrowserGame[] = (
+          body.games ?? []
+        )
+          .filter(
+            (game) =>
+              game.sport === "College Football" ||
+              game.sport === "Soccer" ||
+              game.sport === "College Basketball" ||
+              game.sport === "Volleyball" ||
+              game.sport === "Hockey" ||
+              game.sport === "Baseball",
+          )
+          .map((game) => ({
+            id: game.id,
+            sport: game.sport as Sport,
+            competition: game.competition,
+            home: game.home,
+            away: game.away,
+            startsAt: game.startsAt,
+            startTimeTbd: game.startTimeTbd,
+            sourceNotes: game.sourceNotes,
+            homeScore: game.homeScore,
+            awayScore: game.awayScore,
+            status: game.status,
+            externalProvider:
+              game.externalProvider ?? null,
+            externalId: game.externalId ?? null,
+            icon:
+              game.sport === "Soccer"
+                ? "⚽"
+                : game.sport === "College Football"
+                  ? "🏈"
+                  : game.sport === "College Basketball"
+                    ? "🏀"
+                    : game.sport === "Volleyball"
+                      ? "🏐"
+                      : game.sport === "Hockey"
+                        ? "🏒"
+                        : "⚾",
+            liveData: true,
+          }));
+
+        setRealGames(refreshedGames);
+      } catch (error) {
+        console.error(
+          "Unable to refresh event games:",
+          error,
+        );
+      }
+    }
+
+    void refreshEventGames();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSection]);
+
+  useEffect(() => {
     if (
       !signedInPlayer ||
       (activeSection !== "Events" && activeSection !== "Trophy Room")

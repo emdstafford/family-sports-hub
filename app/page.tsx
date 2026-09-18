@@ -5169,31 +5169,47 @@ export default function Home() {
                               {team.is_primary ? " · ⭐ Favorite" : ""}
                             </div>
 
-                            <div className="relative mt-3 min-h-[126px] overflow-hidden border-y border-[#8b6235]/60 bg-black/10 px-2 py-2.5">
+                            <div className="relative mt-3 h-[190px] overflow-hidden border-y border-[#8b6235]/70 bg-[linear-gradient(90deg,#24140c_0%,#3d2415_48%,#25150c_100%)]">
                               {(() => {
                                 const colors = lockerTeamColors(team);
+                                const label = (team.short_name ?? team.name).replace(/\s+(FC|Football|Cheerleading)$/i, "");
                                 return (
-                                  <div className="relative mx-auto h-[102px] max-w-[220px]">
-                                    <div className="absolute left-1/2 top-0 h-3 w-px -translate-x-1/2 bg-[#b88a58]" />
-                                    <div className="absolute left-1/2 top-2 h-3 w-8 -translate-x-1/2 rounded-t-full border border-[#b88a58]" />
+                                  <div className="absolute inset-0">
+                                    <div className="absolute left-3 right-3 top-3 h-1 rounded-full bg-[#a87845] shadow-[0_2px_3px_rgba(0,0,0,.5)]" />
+                                    <div className="absolute left-1/2 top-3 h-4 w-px -translate-x-1/2 bg-[#b88a58]" />
+                                    <div className="absolute left-1/2 top-5 h-4 w-12 -translate-x-1/2 rounded-t-full border border-[#b88a58] border-b-0" />
+
                                     <div
-                                      className="absolute left-1/2 top-4 h-[70px] w-[76px] -translate-x-1/2 rounded-b-xl border-2 shadow-lg"
-                                      style={{ backgroundColor: colors.primary, borderColor: colors.secondary }}
+                                      className="absolute left-1/2 top-7 h-[96px] w-[92px] -translate-x-1/2 drop-shadow-[0_8px_7px_rgba(0,0,0,.45)]"
+                                      style={{ color: colors.secondary }}
                                     >
-                                      <div className="mt-2 text-center text-[7px] font-black uppercase" style={{ color: colors.secondary }}>
-                                        {team.short_name ?? team.name}
+                                      <div className="absolute left-0 top-2 h-8 w-7 -skew-y-6 rounded-l-md border-2" style={{ backgroundColor: colors.primary, borderColor: colors.secondary }} />
+                                      <div className="absolute right-0 top-2 h-8 w-7 skew-y-6 rounded-r-md border-2" style={{ backgroundColor: colors.primary, borderColor: colors.secondary }} />
+                                      <div className="absolute left-[18px] right-[18px] top-0 bottom-0 rounded-b-xl border-2" style={{ backgroundColor: colors.primary, borderColor: colors.secondary }}>
+                                        <div className="mt-4 truncate px-1 text-center text-[7px] font-black uppercase" style={{ color: colors.secondary }}>{label}</div>
+                                        {team.logo_url ? <img src={team.logo_url} alt="" className="mx-auto mt-2 h-8 w-8 object-contain" /> : <div className="mx-auto mt-2 h-7 w-7 rounded-full border" style={{ borderColor: colors.accent }} />}
                                       </div>
-                                      <div className="mx-auto mt-2 h-5 w-5 rounded-full border" style={{ borderColor: colors.accent }} />
                                     </div>
-                                    {team.sport === "Soccer" && (
-                                      <div className="absolute bottom-1 left-1/2 flex h-4 w-[150px] -translate-x-1/2 items-center justify-center -rotate-3 rounded-sm border border-white/30 text-[6px] font-black uppercase shadow-md" style={{ backgroundColor: colors.secondary, color: colors.primary }}>
-                                        {team.short_name ?? team.name} scarf
-                                      </div>
-                                    )}
-                                    {team.sport === "Baseball" && <><div className="absolute bottom-0 left-2 h-7 w-12 rounded-t-full border-2 shadow-md" style={{ backgroundColor: colors.primary, borderColor: colors.secondary }} /><div className="absolute bottom-1 right-3 text-2xl">⚾</div></>}
-                                    {team.sport === "Hockey" && <><div className="absolute bottom-0 left-3 h-2 w-20 -rotate-[58deg] rounded-full bg-[#c9a56f]" /><div className="absolute bottom-0 right-5 h-3 w-6 rounded-full bg-black" /></>}
-                                    {team.sport === "Cheerleading" && <><div className="absolute bottom-0 left-2 text-3xl">🎀</div><div className="absolute bottom-0 right-1 text-3xl">📣</div></>}
-                                    {["College Football","College Basketball","Volleyball"].includes(team.sport) && <div className="absolute bottom-0 right-3 text-3xl">{team.sport === "College Football" ? "🏈" : team.sport === "College Basketball" ? "🏀" : "🏐"}</div>}
+
+                                    <div className="absolute bottom-[43px] left-2 right-2 h-4 rounded-sm border border-[#9a6938] bg-[linear-gradient(180deg,#8a582c,#573219)] shadow-[0_5px_8px_rgba(0,0,0,.5)]" />
+                                    <div className="absolute bottom-2 left-4 h-[34px] w-2 bg-[#4b2b17]" />
+                                    <div className="absolute bottom-2 right-4 h-[34px] w-2 bg-[#4b2b17]" />
+
+                                    <div className="absolute bottom-[54px] left-3 h-9 w-14 rounded-lg border border-white/10 bg-[#1b2531] shadow-md">
+                                      <div className="absolute -top-2 left-3 right-3 h-3 rounded-t-full border-2 border-[#1b2531]" />
+                                      <div className="pt-2 text-center text-[5px] font-black uppercase text-white/70">{label}</div>
+                                    </div>
+                                    <div className="absolute bottom-[55px] right-3 h-10 w-4 rounded-b-md rounded-t-lg border border-white/20" style={{ backgroundColor: colors.primary }}>
+                                      <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-sm bg-white/70" />
+                                    </div>
+
+                                    {team.sport === "Soccer" && <><div className="absolute bottom-[43px] left-[22%] right-[20%] h-4 -rotate-3 rounded-sm border border-white/25 text-center text-[5px] font-black uppercase leading-[14px] shadow" style={{ backgroundColor: colors.secondary, color: colors.primary }}>{label}</div><div className="absolute bottom-[15px] left-[35%] text-xl">👟</div></>}
+                                    {team.sport === "Cheerleading" && <><div className="absolute bottom-[49px] left-[30%] text-2xl">🎀</div><div className="absolute bottom-[47px] right-[23%] text-2xl">📣</div></>}
+                                    {team.sport === "Hockey" && <><div className="absolute bottom-[30px] left-[38%] h-2 w-24 -rotate-[63deg] rounded-full bg-[#c9a56f]" /><div className="absolute bottom-[16px] right-[27%] h-3 w-6 rounded-full bg-black" /></>}
+                                    {team.sport === "Baseball" && <><div className="absolute bottom-[49px] left-[34%] h-7 w-12 rounded-t-full border-2" style={{ backgroundColor: colors.primary, borderColor: colors.secondary }} /><div className="absolute bottom-[50px] right-[25%] text-xl">⚾</div></>}
+                                    {team.sport === "College Football" && <><div className="absolute bottom-[47px] left-[30%] text-2xl">🏈</div><div className="absolute bottom-[48px] right-[24%] text-2xl">🏈</div></>}
+                                    {team.sport === "College Basketball" && <div className="absolute bottom-[47px] left-[44%] text-2xl">🏀</div>}
+                                    {team.sport === "Volleyball" && <div className="absolute bottom-[47px] left-[44%] text-2xl">🏐</div>}
                                   </div>
                                 );
                               })()}

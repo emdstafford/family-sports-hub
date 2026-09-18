@@ -2468,7 +2468,7 @@ export default function Home() {
       form.append("purpose", "profile");
       form.append("file", file, "profile-photo.jpg");
 
-      const response = await fetch("/api/photo-upload", {
+      const response = await fetch("/api/player-profile", {
         method: "POST",
         headers: { "x-fambam-session": sessionToken },
         body: form,
@@ -3968,7 +3968,7 @@ export default function Home() {
       form.append("purpose", "passport");
       form.append("eventId", eventId);
       form.append("file", file, "memory-photo.jpg");
-      const response = await fetch("/api/photo-upload", {
+      const response = await fetch("/api/passport", {
         method: "POST",
         headers: { "x-fambam-session": token },
         body: form,

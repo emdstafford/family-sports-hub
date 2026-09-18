@@ -18,6 +18,67 @@ async function verify(playerId: string, token: string) {
 }
 
 const validStates = new Set("AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(" "));
+const photoBucket = "fambam-photos";
+const maxPhotoSize = 4 * 1024 * 1024;
+const photoTypes = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+]);
+
+async function uploadPassportPhoto(request: Request) {
+  const token = request.headers.get("x-fambam-session") ?? "";
+  const form = await request.formData();
+  const playerId = String(form.get("playerId") ?? "");
+  const eventId = String(form.get("eventId") ?? "");
+  const file = form.get("file");
+
+  if (!(await verify(playerId, token))) {
+    return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
+  }
+  if (!eventId || !(file instanceof File) || file.size === 0) {
+    return NextResponse.json({ error: "Choose a picture first." }, { status: 400 });
+  }
+
+  const extension = photoTypes.get(file.type);
+  if (!extension) {
+    return NextResponse.json({ error: "Please choose a JPG, PNG or WEBP picture." }, { status: 400 });
+  }
+  if (file.size > maxPhotoSize) {
+    return NextResponse.json({ error: "This picture is still too large after processing." }, { status: 400 });
+  }
+
+  const db = admin();
+  const { data: attendee } = await db
+    .from("passport_event_attendees")
+    .select("event_id")
+    .eq("event_id", eventId)
+    .eq("player_id", playerId)
+    .maybeSingle();
+  if (!attendee) {
+    return NextResponse.json({ error: "Only someone marked as attending can add pictures." }, { status: 403 });
+  }
+
+  const { data: existingBucket } = await db.storage.getBucket(photoBucket);
+  if (!existingBucket) {
+    const { error: bucketError } = await db.storage.createBucket(photoBucket, {
+      public: true,
+      fileSizeLimit: maxPhotoSize,
+      allowedMimeTypes: [...photoTypes.keys()],
+    });
+    if (bucketError && !bucketError.message.toLowerCase().includes("already exists")) throw bucketError;
+  }
+
+  const path = `passport/${eventId}/${playerId}-${crypto.randomUUID()}.${extension}`;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const { error: uploadError } = await db.storage
+    .from(photoBucket)
+    .upload(path, bytes, { contentType: file.type, upsert: false });
+  if (uploadError) throw uploadError;
+
+  const url = db.storage.from(photoBucket).getPublicUrl(path).data.publicUrl;
+  return NextResponse.json({ ok: true, url, path });
+}
 
 export async function GET(request: Request) {
   try {
@@ -83,6 +144,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    if (request.headers.get("content-type")?.includes("multipart/form-data")) {
+      return await uploadPassportPhoto(request);
+    }
+
     const body = await request.json();
     const playerId = String(body.playerId ?? "");
     const token = request.headers.get("x-fambam-session") ?? "";

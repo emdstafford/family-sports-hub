@@ -54,6 +54,67 @@ async function verifySession(
   return sessionValid === true;
 }
 
+const photoBucket = "fambam-photos";
+const maxPhotoSize = 4 * 1024 * 1024;
+const photoTypes = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+]);
+
+async function uploadProfilePhoto(request: Request) {
+  const sessionToken = request.headers.get("x-fambam-session") ?? "";
+  const form = await request.formData();
+  const playerId = String(form.get("playerId") ?? "");
+  const file = form.get("file");
+
+  if (!(await verifySession(playerId, sessionToken))) {
+    return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
+  }
+  if (!(file instanceof File) || file.size === 0) {
+    return NextResponse.json({ error: "Choose a picture first." }, { status: 400 });
+  }
+
+  const extension = photoTypes.get(file.type);
+  if (!extension) {
+    return NextResponse.json({ error: "Please choose a JPG, PNG or WEBP picture." }, { status: 400 });
+  }
+  if (file.size > maxPhotoSize) {
+    return NextResponse.json({ error: "This picture is still too large after processing." }, { status: 400 });
+  }
+
+  const supabase = getAdminClient();
+  const { data: existingBucket } = await supabase.storage.getBucket(photoBucket);
+  if (!existingBucket) {
+    const { error: bucketError } = await supabase.storage.createBucket(photoBucket, {
+      public: true,
+      fileSizeLimit: maxPhotoSize,
+      allowedMimeTypes: [...photoTypes.keys()],
+    });
+    if (bucketError && !bucketError.message.toLowerCase().includes("already exists")) throw bucketError;
+  }
+
+  const path = `profiles/${playerId}/avatar-${Date.now()}.${extension}`;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const { error: uploadError } = await supabase.storage
+    .from(photoBucket)
+    .upload(path, bytes, { contentType: file.type, upsert: false });
+  if (uploadError) throw uploadError;
+
+  const url = supabase.storage.from(photoBucket).getPublicUrl(path).data.publicUrl;
+  const { error: updateError } = await supabase.from("players").update({ avatar_url: url }).eq("id", playerId);
+  if (updateError) throw updateError;
+
+  const { data: oldFiles } = await supabase.storage.from(photoBucket).list(`profiles/${playerId}`, { limit: 100 });
+  const currentName = path.split("/").pop();
+  const oldPaths = (oldFiles ?? [])
+    .filter((item) => item.name !== currentName)
+    .map((item) => `profiles/${playerId}/${item.name}`);
+  if (oldPaths.length) await supabase.storage.from(photoBucket).remove(oldPaths);
+
+  return NextResponse.json({ ok: true, url, path });
+}
+
 export async function GET(
   request: Request,
 ) {
@@ -201,6 +262,10 @@ export async function POST(
   request: Request,
 ) {
   try {
+    if (request.headers.get("content-type")?.includes("multipart/form-data")) {
+      return await uploadProfilePhoto(request);
+    }
+
     const body = await request.json();
 
     const playerId =

@@ -153,6 +153,14 @@ type LeaderboardRow = {
   accuracy: number;
 };
 
+type RecordBookAchievement = {
+  weeklyWins: number;
+  fullCards: number;
+  perfectTens: number;
+  bestWeekCorrect: number;
+  backToBack: boolean;
+};
+
 type CollegeFootballRanking = {
   team_name: string;
   rank: number;
@@ -945,6 +953,9 @@ export default function Home() {
 
   const [recordBookLeaderboard, setRecordBookLeaderboard] =
     useState<LeaderboardRow[]>([]);
+
+  const [recordBookAchievements, setRecordBookAchievements] =
+    useState<Record<string, RecordBookAchievement>>({});
 
   const [collegeFootballRankings, setCollegeFootballRankings] =
     useState<CollegeFootballRanking[]>([]);
@@ -2273,6 +2284,12 @@ export default function Home() {
         Array.isArray(data.recordBookLeaderboard)
           ? data.recordBookLeaderboard
           : [],
+      );
+
+      setRecordBookAchievements(
+        data.recordBookAchievements && typeof data.recordBookAchievements === "object"
+          ? data.recordBookAchievements
+          : {},
       );
 
       setProfileSports(
@@ -4072,6 +4089,9 @@ export default function Home() {
 
   const passportVisitEntries = passportEntries.filter((entry) => entry.entryType !== "family");
   const recordBookRows = recordBookLeaderboard.length > 0 ? recordBookLeaderboard : leaderboard;
+  const myRecordAchievements = signedInPlayer
+    ? recordBookAchievements[signedInPlayer.id]
+    : undefined;
 
   const savedMemoryCount = passportEntries.reduce(
     (total, entry) => total + entry.memories.filter((memory) => memory.note.trim().length > 0).length,
@@ -6097,17 +6117,8 @@ export default function Home() {
 
       {activeSection === "Trophy Room" && (
         <section className={`min-h-[calc(100vh-96px)] pb-28 text-[#10254a] ${trophyRoomPanel === null ? "bg-[#1b110b]" : "bg-[#eef1f4]"}`}>
-          <div className={`mx-auto min-h-[calc(100vh-96px)] max-w-[1500px] overflow-hidden ${trophyRoomPanel === null ? "bg-[#1b110b]" : "bg-[#eef1f4]"}`}>
-            <div className="border-b border-[#8b5c2d] bg-[linear-gradient(180deg,#302016_0%,#1d120c_100%)] px-3 pb-3 pt-4 sm:px-6 sm:pt-5">
-              <div className="mb-3 flex items-end justify-between gap-3 px-1">
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">FamBam Trophy Room</div>
-                  <h2 className="mt-0.5 text-xl font-black text-[#fff7e8] sm:text-2xl">
-                    {signedInPlayer?.display_name ? `${signedInPlayer.display_name}'s Collection` : "My Collection"}
-                  </h2>
-                </div>
-                <div className="hidden text-[10px] font-black uppercase tracking-[0.14em] text-[#cdb89e] sm:block">Earn · Remember · Celebrate</div>
-              </div>
+          <div className={`mx-auto min-h-[calc(100vh-96px)] max-w-[1500px] ${trophyRoomPanel === null ? "bg-[#1b110b]" : "bg-[#eef1f4]"}`}>
+            <div className="sticky top-[72px] z-40 border-b border-[#8b5c2d] bg-[linear-gradient(180deg,#302016_0%,#1d120c_100%)] px-3 py-3 shadow-lg sm:px-6">
               <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                 {[
                   [null, "🏆", "Trophies"],
@@ -6158,11 +6169,11 @@ export default function Home() {
                         {
                           label: "Challenge Trophies",
                           trophies: [
-                          { icon: "🏆", title: "Weekly Champ", note: "Finish a weekly FamBam Challenge in first place", repeatable: true, progress: "Wins stack ×1, ×2, ×3…", milestone: "5 wins unlocks Challenge Champion" },
-                          { icon: "🎯", title: "Pick Master", note: "Complete every pick on a full challenge card", repeatable: true, progress: `${challengeGamesWithSavedPick}/${challengeGames.length || 10}`, milestone: "Complete 5 full cards for the next tier" },
+                          { icon: "🏆", title: "Weekly Champ", note: "Finish a weekly FamBam Challenge in first place", repeatable: true, earned: (myRecordAchievements?.weeklyWins ?? 0) > 0, progress: `${myRecordAchievements?.weeklyWins ?? 0} weekly win${(myRecordAchievements?.weeklyWins ?? 0)===1?'':'s'}`, milestone: "5 wins unlocks Challenge Champion" },
+                          { icon: "🎯", title: "Pick Master", note: "Complete every pick on a full challenge card", repeatable: true, earned: (myRecordAchievements?.fullCards ?? 0) > 0, progress: `${myRecordAchievements?.fullCards ?? 0} full card${(myRecordAchievements?.fullCards ?? 0)===1?'':'s'}`, milestone: "Complete 5 full cards for the next tier" },
                           { icon: "🔥", title: "Hot Streak", note: "Build a streak of correct picks", progress: `${currentChallengeProgress}/5`, milestone: "5 → 10 → 25 correct-pick streak milestones" },
-                          { icon: "💯", title: "Perfect 10", note: "Go 10-for-10 without a miss in one challenge", progress: `${perfectTenProgress}/10`, milestone: "Repeat it and the trophy count increases" },
-                          { icon: "🏆🏆", title: "Back-to-Back", note: "Win two weekly FamBam Challenges in a row", progress: "Win 2 in a row", milestone: "Two consecutive Challenge wins" },
+                          { icon: "💯", title: "Perfect 10", note: "Go 10-for-10 without a miss in one challenge", earned: (myRecordAchievements?.perfectTens ?? 0) > 0, progress: (myRecordAchievements?.perfectTens ?? 0)>0?`${myRecordAchievements?.perfectTens} perfect card${myRecordAchievements?.perfectTens===1?'':'s'}`:`${perfectTenProgress}/10`, milestone: "Repeat it and the trophy count increases" },
+                          { icon: "🏆🏆", title: "Back-to-Back", note: "Win two weekly FamBam Challenges in a row", earned: myRecordAchievements?.backToBack === true, progress: myRecordAchievements?.backToBack?"Earned ✓":"Win 2 in a row", milestone: "Two consecutive Challenge wins" },
                           { icon: "🧹", title: "Family Sweep", note: "Have the whole family make the same winning pick", progress: "Complete a family sweep", milestone: "Everyone agrees and everyone is correct" },
                           ],
                         },
@@ -6304,7 +6315,7 @@ export default function Home() {
                             <div key={row.player_id} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${index === 0 ? "border-[#f3c64f] bg-[#fffaf0]" : "border-slate-200 bg-slate-50"}`}>
                               <div className="w-7 text-center text-lg">{index === 0 ? "🏆" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`}</div>
                               <div className="min-w-0 flex-1">
-                                <div className="truncate text-sm font-black text-[#10254a]">{row.display_name}</div>
+                                <div className="flex items-center gap-1.5 text-sm font-black text-[#10254a]"><span className="truncate">{row.display_name}</span>{(recordBookAchievements[row.player_id]?.weeklyWins??0)>0&&<span className="shrink-0 text-[10px] text-[#9c6c16]">🏆 ×{recordBookAchievements[row.player_id].weeklyWins}</span>}</div>
                                 <div className="text-[10px] font-semibold text-slate-500">{row.correct} correct · {row.completed_picks}/{row.total_picks} scored</div>
                               </div>
                               <div className="text-lg font-black text-[#06284a]">{row.points}</div>

@@ -72,7 +72,7 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
 
   if (playerError || challengesError || challengeGamesError || picksError) {
     console.error("Record Book setup failed:", playerError?.message ?? challengesError?.message ?? challengeGamesError?.message ?? picksError?.message);
-    return [];
+    return { leaderboard: [], achievements: {} };
   }
 
   const eligibleChallengeIds = new Set((challenges ?? []).map((challenge) => challenge.id));
@@ -83,7 +83,7 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
     : { data: [], error: null };
   if (gamesError) {
     console.error("Record Book games failed:", gamesError.message);
-    return [];
+    return { leaderboard: [], achievements: {} };
   }
 
   const isFinalGame = (game: { status: string | null; home_score: number | null; away_score: number | null }) => {
@@ -93,9 +93,12 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
       && game.away_score != null;
   };
   const gameById = new Map((games ?? []).map((game) => [game.id, game]));
+  const finalGameCounts = new Map<string, number>();
   const scoredGameCount = eligibleChallengeGames.filter((row) => {
     const game = gameById.get(row.game_id);
-    return Boolean(game && isFinalGame(game));
+    const final = Boolean(game && isFinalGame(game));
+    if (final) finalGameCounts.set(row.challenge_id, (finalGameCounts.get(row.challenge_id) ?? 0) + 1);
+    return final;
   }).length;
 
   const totals = new Map<string, {
@@ -123,6 +126,7 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
   }
 
   const includedPickKeys = new Set(eligibleChallengeGames.map((row) => `${row.challenge_id}:${row.game_id}`));
+  const weeklyScores = new Map<string, Map<string, { completed: number; correct: number }>>();
 
   for (const pick of picks ?? []) {
     if (!includedPickKeys.has(`${pick.challenge_id}:${pick.game_id}`)) continue;
@@ -133,6 +137,9 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
     if (!isFinalGame(game)) continue;
 
     total.completed_picks += 1;
+    const challengeScores = weeklyScores.get(pick.challenge_id) ?? new Map<string, { completed: number; correct: number }>();
+    const playerWeek = challengeScores.get(pick.player_id) ?? { completed: 0, correct: 0 };
+    playerWeek.completed += 1;
     const homeScore = Number(game.home_score);
     const awayScore = Number(game.away_score);
     const winningChoice = homeScore > awayScore
@@ -143,13 +150,53 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
     if (pick.pick_choice === winningChoice) {
       total.correct += 1;
       total.points += 1;
+      playerWeek.correct += 1;
+    }
+    challengeScores.set(pick.player_id, playerWeek);
+    weeklyScores.set(pick.challenge_id, challengeScores);
+  }
+
+  const achievements: Record<string, {
+    weeklyWins: number;
+    fullCards: number;
+    perfectTens: number;
+    bestWeekCorrect: number;
+    backToBack: boolean;
+  }> = {};
+  const winStreaks = new Map<string, number>();
+  for (const player of players ?? []) {
+    achievements[player.id] = { weeklyWins: 0, fullCards: 0, perfectTens: 0, bestWeekCorrect: 0, backToBack: false };
+    winStreaks.set(player.id, 0);
+  }
+
+  const orderedChallenges = [...(challenges ?? [])].sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
+  for (const challenge of orderedChallenges) {
+    const cardSize = finalGameCounts.get(challenge.id) ?? 0;
+    if (cardSize === 0) continue;
+    const scores = weeklyScores.get(challenge.id) ?? new Map();
+    let winningScore = 0;
+    for (const score of scores.values()) winningScore = Math.max(winningScore, score.correct);
+
+    for (const player of players ?? []) {
+      const score = scores.get(player.id) ?? { completed: 0, correct: 0 };
+      const stats = achievements[player.id];
+      stats.bestWeekCorrect = Math.max(stats.bestWeekCorrect, score.correct);
+      if (score.completed === cardSize) stats.fullCards += 1;
+      if (cardSize >= 10 && score.completed >= 10 && score.correct >= 10) stats.perfectTens += 1;
+
+      const won = winningScore > 0 && score.correct === winningScore;
+      const streak = won ? (winStreaks.get(player.id) ?? 0) + 1 : 0;
+      winStreaks.set(player.id, streak);
+      if (won) stats.weeklyWins += 1;
+      if (streak >= 2) stats.backToBack = true;
     }
   }
 
-  return [...totals.values()].map((row) => ({
+  const leaderboard = [...totals.values()].map((row) => ({
     ...row,
     accuracy: row.completed_picks > 0 ? (row.correct / row.completed_picks) * 100 : 0,
   }));
+  return { leaderboard, achievements };
 }
 
 const photoBucket = "fambam-photos";
@@ -331,7 +378,7 @@ export async function GET(
       throw favoriteTeamsResult.error;
     }
 
-    const [recordBookLeaderboard, { data: playerAvatars, error: playerAvatarsError }] = await Promise.all([
+    const [recordBook, { data: playerAvatars, error: playerAvatarsError }] = await Promise.all([
       getRecordBookLeaderboard(supabase),
       supabase.from("players").select("id, avatar_url"),
     ]);
@@ -347,7 +394,8 @@ export async function GET(
         playerSportsResult.data ?? [],
       favoriteTeams:
         favoriteTeamsResult.data ?? [],
-      recordBookLeaderboard,
+      recordBookLeaderboard: recordBook.leaderboard,
+      recordBookAchievements: recordBook.achievements,
       playerAvatars: playerAvatars ?? [],
     });
   } catch (error) {

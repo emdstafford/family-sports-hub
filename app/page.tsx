@@ -6805,3 +6805,9 @@ export default function Home() {
                 ? "Adding..."
                 : "Add to Challenge →"}
             </button>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

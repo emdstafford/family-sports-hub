@@ -3429,6 +3429,29 @@ export default function Home() {
     ? Math.min(trophyStanding.correct, 10)
     : 0;
 
+  async function readPassportResponse(response: Response) {
+    const text = await response.text();
+
+    if (!text.trim()) {
+      return {
+        body: null as any,
+        error: `Passport service returned an empty response (${response.status}).`,
+      };
+    }
+
+    try {
+      return { body: JSON.parse(text), error: null as string | null };
+    } catch {
+      const looksLikeHtml = /^\s*</.test(text);
+      return {
+        body: null as any,
+        error: looksLikeHtml
+          ? `Passport service is not available on this deployment yet (${response.status}). The rest of FamBam is still safe to use.`
+          : `Passport service returned an unreadable response (${response.status}).`,
+      };
+    }
+  }
+
   async function loadPassport() {
     if (!signedInPlayer) return;
     const token = window.localStorage.getItem("fambam_session_token");
@@ -3440,8 +3463,10 @@ export default function Home() {
         cache: "no-store",
         headers: { "x-fambam-session": token },
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Could not load Passport.");
+      const parsed = await readPassportResponse(response);
+      if (parsed.error) throw new Error(parsed.error);
+      const body = parsed.body ?? {};
+      if (!response.ok) throw new Error(body.error || `Could not load Passport (${response.status}).`);
       const attendees = body.attendees ?? [];
       const memories = body.memories ?? [];
       const mapped: PassportEntry[] = (body.events ?? []).map((event: any) => ({
@@ -3481,8 +3506,10 @@ export default function Home() {
       headers: { "content-type": "application/json", "x-fambam-session": token },
       body: JSON.stringify({ playerId: signedInPlayer.id, ...payload }),
     });
-    const body = await response.json();
-    if (!response.ok) throw new Error(body.error || "Passport update failed.");
+    const parsed = await readPassportResponse(response);
+    if (parsed.error) throw new Error(parsed.error);
+    const body = parsed.body ?? {};
+    if (!response.ok) throw new Error(body.error || `Passport update failed (${response.status}).`);
     return body;
   }
 

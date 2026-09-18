@@ -167,6 +167,7 @@ const sportButtons: Sport[] = [
   "Volleyball",
   "Hockey",
   "Baseball",
+  "Cheerleading",
 ];
 
 function formatGameDate(startsAt: string | null) {
@@ -5156,12 +5157,12 @@ export default function Home() {
                               <div className="mb-2 text-center text-[7px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">Locker Memorabilia</div>
                               <div className="flex items-end justify-center gap-3 text-center">
                                 <div>
-                                  <div className="text-3xl drop-shadow-lg">{team.sport === "Soccer" ? "🧣" : team.sport === "College Football" ? "🏈" : team.sport === "College Basketball" ? "🏀" : team.sport === "Hockey" ? "🏒" : team.sport === "Baseball" ? "⚾" : team.sport === "Volleyball" ? "🏐" : "🎟️"}</div>
-                                  <div className="mt-1 text-[7px] font-bold text-[#d7c2a7]">{team.sport === "Soccer" ? "Scarf" : team.sport === "Hockey" ? "Puck" : team.sport === "Baseball" ? "Game Ball" : team.sport === "Volleyball" ? "Game Ball" : "Game Ball"}</div>
+                                  <div className="text-3xl drop-shadow-lg">{team.sport === "Soccer" ? "🧣" : team.sport === "College Football" ? "🏈" : team.sport === "College Basketball" ? "🏀" : team.sport === "Hockey" ? "🏒" : team.sport === "Baseball" ? "⚾" : team.sport === "Volleyball" ? "🏐" : team.sport === "Cheerleading" ? "📣" : "🎟️"}</div>
+                                  <div className="mt-1 text-[7px] font-bold text-[#d7c2a7]">{team.sport === "Soccer" ? "Scarf" : team.sport === "Hockey" ? "Puck" : team.sport === "Baseball" ? "Game Ball" : team.sport === "Volleyball" ? "Game Ball" : team.sport === "Cheerleading" ? "Pom Poms" : "Game Ball"}</div>
                                 </div>
                                 <div>
-                                  <div className="text-3xl drop-shadow-lg">{team.sport === "Soccer" ? "👕" : team.sport === "College Football" ? "🏟️" : team.sport === "College Basketball" ? "👟" : team.sport === "Hockey" ? "🏒" : team.sport === "Baseball" ? "🧢" : team.sport === "Volleyball" ? "👕" : "📸"}</div>
-                                  <div className="mt-1 text-[7px] font-bold text-[#d7c2a7]">{team.sport === "Soccer" ? "Kit" : team.sport === "College Football" ? "Stadium" : team.sport === "College Basketball" ? "Court Gear" : team.sport === "Hockey" ? "Stick" : team.sport === "Baseball" ? "Cap" : team.sport === "Volleyball" ? "Jersey" : "Keepsake"}</div>
+                                  <div className="text-3xl drop-shadow-lg">{team.sport === "Soccer" ? "👕" : team.sport === "College Football" ? "🏟️" : team.sport === "College Basketball" ? "👟" : team.sport === "Hockey" ? "🏒" : team.sport === "Baseball" ? "🧢" : team.sport === "Volleyball" ? "👕" : team.sport === "Cheerleading" ? "🎀" : "📸"}</div>
+                                  <div className="mt-1 text-[7px] font-bold text-[#d7c2a7]">{team.sport === "Soccer" ? "Kit" : team.sport === "College Football" ? "Stadium" : team.sport === "College Basketball" ? "Court Gear" : team.sport === "Hockey" ? "Stick" : team.sport === "Baseball" ? "Cap" : team.sport === "Volleyball" ? "Jersey" : team.sport === "Cheerleading" ? "Bow" : "Keepsake"}</div>
                                 </div>
                                 <div>
                                   <div className="text-3xl drop-shadow-lg">🎟️</div>

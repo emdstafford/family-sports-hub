@@ -6154,7 +6154,7 @@ export default function Home() {
                               setActiveSection("Games");
                             }
                           }}
-                          className="group w-[56vw] min-w-[205px] max-w-[240px] shrink-0 snap-start overflow-hidden border-r border-[#714b2b] bg-[#28180e] bg-cover bg-top text-left transition sm:w-[29vw] sm:min-w-[215px] sm:max-w-[250px] lg:w-[17vw] lg:max-w-[260px]"
+                          className="group w-[46vw] min-w-[145px] max-w-[190px] shrink-0 snap-start overflow-hidden border-r border-[#714b2b] bg-[#28180e] bg-cover bg-top text-left transition sm:w-[29vw] sm:min-w-[190px] sm:max-w-[225px] lg:w-[17vw] lg:max-w-[240px]"
                           style={{
                             backgroundImage:
                               "linear-gradient(180deg,rgba(8,5,3,.06),rgba(6,4,3,.42)),url('/locker-bay-realistic.webp')",

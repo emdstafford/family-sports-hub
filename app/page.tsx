@@ -3454,6 +3454,26 @@ export default function Home() {
       challengeGameIds.includes(game.id),
     );
 
+  const faCupGames = realGames
+    .filter((game) =>
+      game.competition
+        .toLowerCase()
+        .includes("fa cup"),
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.startsAt ?? 0).getTime() -
+        new Date(b.startsAt ?? 0).getTime(),
+    );
+
+  const upcomingFaCupGames = faCupGames.filter(
+    (game) =>
+      !game.startsAt ||
+      new Date(game.startsAt).getTime() >=
+        (currentTime ?? Date.now()) -
+          3 * 60 * 60 * 1000,
+  );
+
   const completedChallengeGameCount =
     challengeGames.filter((game) => {
       const status = game.status.toLowerCase();
@@ -7387,6 +7407,100 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* FA CUP SPECIAL EVENT */}
+              <div className="border-b border-[#e5dcc5] bg-[#071f38] px-4 py-4 text-white">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">
+                      FamBam Special Event
+                    </div>
+                    <div className="mt-1 text-xl font-black">
+                      🏆 The FA Cup Quest
+                    </div>
+                    <div className="mt-1 text-xs font-semibold leading-relaxed text-blue-100">
+                      Follow the cup from qualifying to Wembley. Every round can bring a giant-killing upset or a new Cinderella.
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-full border border-[#f3c64f]/40 bg-[#f3c64f]/10 px-2.5 py-1 text-[9px] font-black text-[#f3c64f]">
+                    QUALIFYING NOW
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-white/10 p-2.5">
+                    <div className="text-[8px] font-black uppercase tracking-wide text-[#f3c64f]">
+                      Next FamBam Entry
+                    </div>
+                    <div className="mt-1 text-xs font-black">
+                      AFC Wimbledon
+                    </div>
+                    <div className="mt-0.5 text-[9px] font-semibold text-blue-100">
+                      First Round Proper
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-white/10 p-2.5">
+                    <div className="text-[8px] font-black uppercase tracking-wide text-[#f3c64f]">
+                      Joining in January
+                    </div>
+                    <div className="mt-1 text-xs font-black">
+                      Arsenal · Villa · Liverpool
+                    </div>
+                    <div className="mt-0.5 text-[9px] font-semibold text-blue-100">
+                      Third Round Proper
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {[
+                    ["🪄", "Giant Killer"],
+                    ["🌟", "Cinderella Pick"],
+                    ["🏆", "Round Champion"],
+                  ].map(([icon, label]) => (
+                    <div
+                      key={label}
+                      className="shrink-0 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[9px] font-black"
+                    >
+                      {icon} {label}
+                    </div>
+                  ))}
+                </div>
+
+                {upcomingFaCupGames.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-[9px] font-black uppercase tracking-wide text-[#f3c64f]">
+                      Cup Matches on the Radar
+                    </div>
+                    {upcomingFaCupGames.slice(0, 3).map((game) => (
+                      <button
+                        key={game.id}
+                        type="button"
+                        onClick={() => void openGameRoom(game)}
+                        className="flex w-full items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 text-left text-[#10254a] active:scale-[0.99]"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-black">
+                            {game.away} at {game.home}
+                          </div>
+                          <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
+                            {formatGameDate(game.startsAt)} ·{" "}
+                            {formatGameTime(
+                              game.startsAt,
+                              game.startTimeTbd,
+                            )}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[#b28a2e]">→</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-xl border border-white/10 bg-black/15 px-3 py-2.5 text-[10px] font-semibold text-blue-100">
+                    Special picks will open here when AFC Wimbledon&apos;s first FA Cup fixture is drawn.
+                  </div>
+                )}
               </div>
 
               {/* WHO'S READY */}

@@ -1,0 +1,137 @@
+import { createClient } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
+
+function admin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) throw new Error("Supabase server environment variables are missing.");
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
+async function verify(playerId: string, token: string) {
+  if (!playerId || !token) return false;
+  const { data, error } = await admin().rpc("verify_player_session", {
+    target_player_id: playerId,
+    attempted_token: token,
+  });
+  return !error && data === true;
+}
+
+const validStates = new Set("AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(" "));
+
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const playerId = url.searchParams.get("playerId") ?? "";
+    const token = request.headers.get("x-fambam-session") ?? "";
+    if (!(await verify(playerId, token))) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
+
+    const db = admin();
+    const { data: attendeeRows, error: attendeeError } = await db
+      .from("passport_event_attendees")
+      .select("event_id")
+      .eq("player_id", playerId);
+    if (attendeeError) throw attendeeError;
+    const eventIds = (attendeeRows ?? []).map((r: any) => r.event_id);
+
+    let events: any[] = [];
+    if (eventIds.length) {
+      const { data, error } = await db
+        .from("passport_events")
+        .select("*")
+        .in("id", eventIds)
+        .order("event_date", { ascending: false });
+      if (error) throw error;
+      events = data ?? [];
+    }
+
+    let attendees: any[] = [];
+    let memories: any[] = [];
+    if (eventIds.length) {
+      const [a, m] = await Promise.all([
+        db.from("passport_event_attendees").select("event_id, player_id, players(id, display_name, initials)").in("event_id", eventIds),
+        db.from("passport_memories").select("event_id, player_id, note, updated_at, players(id, display_name, initials)").in("event_id", eventIds),
+      ]);
+      if (a.error) throw a.error;
+      if (m.error) throw m.error;
+      attendees = a.data ?? [];
+      memories = m.data ?? [];
+    }
+
+    const { data: states, error: statesError } = await db.from("visited_states").select("state_code").eq("player_id", playerId);
+    if (statesError) throw statesError;
+
+    return NextResponse.json({ events, attendees, memories, visitedStates: (states ?? []).map((r: any) => r.state_code) });
+  } catch (e) {
+    console.error("Passport GET failed", e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not load Passport." }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const playerId = String(body.playerId ?? "");
+    const token = request.headers.get("x-fambam-session") ?? "";
+    if (!(await verify(playerId, token))) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
+    const db = admin();
+
+    if (body.action === "createEvent") {
+      const d = body.event ?? {};
+      const attendees = Array.from(new Set((body.attendeeIds ?? []).map(String)));
+      if (!attendees.includes(playerId)) attendees.push(playerId);
+      if (!d.date || !d.away || !d.home || !d.venue || !validStates.has(String(d.state))) {
+        return NextResponse.json({ error: "Date, teams, venue and state are required." }, { status: 400 });
+      }
+      const { data: event, error } = await db.from("passport_events").insert({
+        game_id: d.gameId || null,
+        created_by_player_id: playerId,
+        sport: d.sport === "MLB" ? "MLB" : "Football",
+        event_date: d.date,
+        away_team: d.away,
+        home_team: d.home,
+        venue_name: d.venue,
+        city: d.city || null,
+        state_code: d.state,
+        away_score: d.awayScore === "" || d.awayScore == null ? null : Number(d.awayScore),
+        home_score: d.homeScore === "" || d.homeScore == null ? null : Number(d.homeScore),
+        result: d.result || null,
+      }).select("id").single();
+      if (error) throw error;
+      const { error: ae } = await db.from("passport_event_attendees").insert(attendees.map((id) => ({ event_id: event.id, player_id: id })));
+      if (ae) throw ae;
+      if (String(body.myNote ?? "").trim()) {
+        const { error: me } = await db.from("passport_memories").upsert({ event_id: event.id, player_id: playerId, note: String(body.myNote).trim(), updated_at: new Date().toISOString() }, { onConflict: "event_id,player_id" });
+        if (me) throw me;
+      }
+      return NextResponse.json({ ok: true, eventId: event.id });
+    }
+
+    if (body.action === "saveMemory") {
+      const eventId = String(body.eventId ?? "");
+      const { data: attendee } = await db.from("passport_event_attendees").select("event_id").eq("event_id", eventId).eq("player_id", playerId).maybeSingle();
+      if (!attendee) return NextResponse.json({ error: "Only an attendee can add their memory." }, { status: 403 });
+      const { error } = await db.from("passport_memories").upsert({ event_id: eventId, player_id: playerId, note: String(body.note ?? "").trim(), updated_at: new Date().toISOString() }, { onConflict: "event_id,player_id" });
+      if (error) throw error;
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === "toggleState") {
+      const state = String(body.state ?? "");
+      if (!validStates.has(state)) return NextResponse.json({ error: "Invalid state." }, { status: 400 });
+      if (body.visited) {
+        const { error } = await db.from("visited_states").upsert({ player_id: playerId, state_code: state }, { onConflict: "player_id,state_code" });
+        if (error) throw error;
+      } else {
+        const { error } = await db.from("visited_states").delete().eq("player_id", playerId).eq("state_code", state);
+        if (error) throw error;
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    return NextResponse.json({ error: "Unknown Passport action." }, { status: 400 });
+  } catch (e) {
+    console.error("Passport POST failed", e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Passport update failed." }, { status: 500 });
+  }
+}

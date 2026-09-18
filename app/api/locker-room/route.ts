@@ -2,39 +2,25 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 function getAdminClient() {
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseSecretKey =
-    process.env.SUPABASE_SECRET_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
   if (!supabaseUrl || !supabaseSecretKey) {
-    throw new Error(
-      "Supabase server environment variables are missing.",
-    );
+    throw new Error("Supabase server environment variables are missing.");
   }
 
-  return createClient(
-    supabaseUrl,
-    supabaseSecretKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
+  return createClient(supabaseUrl, supabaseSecretKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
     },
-  );
+  });
 }
 
-async function verifySession(
-  playerId: string,
-  sessionToken: string,
-) {
+async function verifySession(playerId: string, sessionToken: string) {
   const supabase = getAdminClient();
 
-  const {
-    data: sessionValid,
-    error: sessionError,
-  } = await supabase.rpc(
+  const { data: sessionValid, error: sessionError } = await supabase.rpc(
     "verify_player_session",
     {
       target_player_id: playerId,
@@ -55,39 +41,21 @@ async function verifySession(
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } =
-      new URL(request.url);
-
-    const playerId =
-      searchParams.get("playerId") ?? "";
-
+    const { searchParams } = new URL(request.url);
+    const playerId = searchParams.get("playerId") ?? "";
     const sessionToken =
-      request.headers.get(
-        "x-fambam-session",
-      ) ?? "";
+      request.headers.get("x-fambam-session") ?? "";
 
     if (!playerId || !sessionToken) {
       return NextResponse.json(
-        {
-          error:
-            "A remembered FamBam session is required.",
-        },
+        { error: "A remembered FamBam session is required." },
         { status: 401 },
       );
     }
 
-    const sessionValid =
-      await verifySession(
-        playerId,
-        sessionToken,
-      );
-
-    if (!sessionValid) {
+    if (!(await verifySession(playerId, sessionToken))) {
       return NextResponse.json(
-        {
-          error:
-            "Your FamBam session has expired.",
-        },
+        { error: "Your FamBam session has expired." },
         { status: 401 },
       );
     }
@@ -95,106 +63,87 @@ export async function GET(request: Request) {
     const supabase = getAdminClient();
 
     const [
-      playersResult,
+      playerResult,
+      sportsResult,
       favoritesResult,
     ] = await Promise.all([
       supabase
         .from("players")
-        .select(
-          "id, display_name, initials, sort_order",
-        )
-        .order("sort_order"),
+        .select("id, display_name, initials, sort_order")
+        .eq("id", playerId)
+        .single(),
+
+      supabase
+        .from("sports")
+        .select("id, name")
+        .eq("active", true),
 
       supabase
         .from("player_favorite_teams")
         .select(`
-          player_id,
+          team_id,
           is_primary,
           teams (
             id,
+            sport_id,
             name,
             short_name,
-            logo_url,
-            sports (
-              name
-            )
+            abbreviation,
+            logo_url
           )
-        `),
+        `)
+        .eq("player_id", playerId),
     ]);
 
-    if (playersResult.error) {
-      throw playersResult.error;
-    }
+    if (playerResult.error) throw playerResult.error;
+    if (sportsResult.error) throw sportsResult.error;
+    if (favoritesResult.error) throw favoritesResult.error;
 
-    if (favoritesResult.error) {
-      throw favoritesResult.error;
-    }
+    const sportNames = new Map(
+      (sportsResult.data ?? []).map((sport) => [
+        sport.id,
+        sport.name,
+      ]),
+    );
 
-    const favorites =
-      favoritesResult.data ?? [];
+    const teams = (favoritesResult.data ?? [])
+      .map((favorite: any) => {
+        const team = Array.isArray(favorite.teams)
+          ? favorite.teams[0]
+          : favorite.teams;
 
-    const players =
-      (playersResult.data ?? []).map(
-        (player) => ({
-          id: player.id,
-          display_name:
-            player.display_name,
-          initials: player.initials,
-          teams: favorites
-            .filter(
-              (favorite: any) =>
-                favorite.player_id ===
-                player.id,
-            )
-            .map((favorite: any) => {
-              const team =
-                Array.isArray(
-                  favorite.teams,
-                )
-                  ? favorite.teams[0]
-                  : favorite.teams;
+        if (!team?.id || !team?.name) return null;
 
-              const sport =
-                Array.isArray(
-                  team?.sports,
-                )
-                  ? team?.sports?.[0]
-                  : team?.sports;
-
-              return {
-                id: team?.id ?? "",
-                name: team?.name ?? "",
-                short_name:
-                  team?.short_name ?? null,
-                logo_url:
-                  team?.logo_url ?? null,
-                sport:
-                  sport?.name ?? "Other",
-                is_primary:
-                  favorite.is_primary ===
-                  true,
-              };
-            })
-            .filter(
-              (team: any) =>
-                team.id && team.name,
-            ),
-        }),
-      );
+        return {
+          id: team.id,
+          name: team.name,
+          short_name: team.short_name ?? team.abbreviation ?? null,
+          logo_url: team.logo_url ?? null,
+          sport: sportNames.get(team.sport_id) ?? "Other",
+          is_primary: favorite.is_primary === true,
+        };
+      })
+      .filter(Boolean);
 
     return NextResponse.json({
-      players,
+      players: [
+        {
+          id: playerResult.data.id,
+          display_name: playerResult.data.display_name,
+          initials: playerResult.data.initials,
+          teams,
+        },
+      ],
     });
   } catch (error) {
-    console.error(
-      "Locker Room GET error:",
-      error,
-    );
+    console.error("Locker Room GET error:", error);
 
     return NextResponse.json(
       {
         error:
-          "Could not load the Locker Room.",
+          error instanceof Error
+            ? error.message
+            : "Could not load the Locker Room.",
       },
       { status: 500 },
     );

@@ -240,6 +240,9 @@ function lockerUniformAsset(team: LockerTeam) {
   if (name.includes("kentucky") && team.sport === "College Basketball") {
     return "/uniforms/kentucky-basketball.webp";
   }
+  if (name.includes("kentucky") && team.sport === "Volleyball") {
+    return "/uniforms/kentucky-volleyball.webp";
+  }
   if (name.includes("atlanta braves") || name === "braves") {
     return "/uniforms/atlanta-braves.webp";
   }

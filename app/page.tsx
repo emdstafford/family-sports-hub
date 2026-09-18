@@ -1072,6 +1072,12 @@ export default function Home() {
   const [passportLoading, setPassportLoading] = useState(false);
   const [passportSaving, setPassportSaving] = useState(false);
   const [passportPhotoUploadingId, setPassportPhotoUploadingId] = useState<string | null>(null);
+  const [passportPhotoViewer, setPassportPhotoViewer] = useState<{
+    eventId: string;
+    url: string;
+    title: string;
+    canDelete: boolean;
+  } | null>(null);
   const [passportError, setPassportError] = useState<string | null>(null);
   const [stadiumSportFilter, setStadiumSportFilter] = useState<"All" | "Football" | "MLB" | "Tour">("All");
   const [passportAddMode, setPassportAddMode] = useState<"search" | "manual">("search");
@@ -4028,8 +4034,8 @@ export default function Home() {
   }
 
   async function deletePassportPhoto(eventId: string, photoUrl: string) {
-    if (!signedInPlayer) return;
-    if (!window.confirm("Delete this picture from the Passport entry?")) return;
+    if (!signedInPlayer) return false;
+    if (!window.confirm("Delete this picture from the Passport entry?")) return false;
 
     setPassportPhotoUploadingId(eventId);
     setPassportError(null);
@@ -4040,8 +4046,10 @@ export default function Home() {
           ? { ...entry, photos: entry.photos.filter((photo) => photo !== photoUrl) }
           : entry,
       ));
+      return true;
     } catch (error) {
       setPassportError(error instanceof Error ? error.message : "Could not delete picture.");
+      return false;
     } finally {
       setPassportPhotoUploadingId(null);
     }
@@ -5165,6 +5173,38 @@ export default function Home() {
         </section>
       )}
 
+      {passportPhotoViewer && (
+        <div className="fixed inset-0 z-[155] flex items-center justify-center bg-slate-950/85 p-3">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div className="min-w-0 truncate text-sm font-black text-[#10254a]">
+                {passportPhotoViewer.title}
+              </div>
+              <button type="button" onClick={()=>setPassportPhotoViewer(null)} className="flex min-h-11 min-w-11 items-center justify-center rounded-full bg-slate-100 font-black text-[#10254a]">✕</button>
+            </div>
+            <div className="bg-slate-950 p-2 sm:p-4">
+              <img src={passportPhotoViewer.url} alt={passportPhotoViewer.title} className="max-h-[68vh] w-full rounded-xl object-contain" />
+            </div>
+            <div className="flex justify-end gap-2 p-4">
+              <button type="button" onClick={()=>setPassportPhotoViewer(null)} className="min-h-11 rounded-xl border border-slate-300 px-4 text-xs font-black text-[#10254a]">Close</button>
+              {passportPhotoViewer.canDelete && (
+                <button
+                  type="button"
+                  disabled={passportPhotoUploadingId===passportPhotoViewer.eventId}
+                  onClick={async()=>{
+                    const deleted = await deletePassportPhoto(passportPhotoViewer.eventId, passportPhotoViewer.url);
+                    if (deleted) setPassportPhotoViewer(null);
+                  }}
+                  className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-black text-red-700 disabled:opacity-50"
+                >
+                  {passportPhotoUploadingId===passportPhotoViewer.eventId ? "Deleting…" : "Delete Photo"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {photoCrop && (
         <div className="fixed inset-0 z-[190] flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-sm">
           <div className="max-h-[94vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 text-[#10254a] shadow-2xl sm:p-5">
@@ -6200,7 +6240,7 @@ export default function Home() {
                                     {entry.photos.length > 0 && <div className="mb-3 grid grid-cols-3 gap-1.5 pr-16">{entry.photos.slice(0, 3).map((photo, index)=>{
                                       const fileName = decodeURIComponent(photo.split("?")[0].split("/").pop() ?? "");
                                       const canDeletePhoto = Boolean(signedInPlayer && (signedInPlayer.is_admin || fileName.startsWith(`${signedInPlayer.id}-`)));
-                                      return <div key={photo} className="relative"><img src={photo} alt={`${passportEntryTitle(entry)} photo ${index+1}`} className="aspect-square w-full rounded-lg object-cover" />{canDeletePhoto&&<button type="button" disabled={passportPhotoUploadingId===entry.id} onClick={()=>void deletePassportPhoto(entry.id,photo)} aria-label="Delete picture" className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-red-700/90 text-xs text-white shadow ring-2 ring-white disabled:opacity-50">✕</button>}</div>;
+                                      return <button key={photo} type="button" onClick={()=>setPassportPhotoViewer({eventId:entry.id,url:photo,title:`${passportEntryTitle(entry)} photo ${index+1}`,canDelete:canDeletePhoto})} className="block overflow-hidden rounded-lg text-left transition active:scale-[0.98]" aria-label={`Open ${passportEntryTitle(entry)} photo ${index+1}`}><img src={photo} alt={`${passportEntryTitle(entry)} photo ${index+1}`} className="aspect-square w-full object-cover" /></button>;
                                     })}</div>}
                                     <div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{entry.date} · {entry.sport==='Tour'?'Tour':entry.result||'Attended'}</div>
                                     <div className="mt-2 pr-20 text-base font-black">{passportEntryTitle(entry)}</div>
@@ -6247,11 +6287,6 @@ export default function Home() {
                     ) : passportEntries.map((e) => {
                       return (
                         <div key={e.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                          {e.photos.length > 0 && (
-                            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                              {e.photos.map((photo, index) => <img key={photo} src={photo} alt={`${passportEntryTitle(e)} photo ${index + 1}`} className="aspect-square w-full rounded-xl object-cover" />)}
-                            </div>
-                          )}
                           <div className="flex items-start gap-3">
                             <div className="text-3xl">{e.sport==='Tour'?'🎟️':e.sport==='MLB'?'⚾':'🏈'}</div>
                             <div className="min-w-0 flex-1">
@@ -6261,6 +6296,25 @@ export default function Home() {
                               {e.memories.length>0&&<div className="mt-3 space-y-2">{e.memories.map(m=><div key={m.playerId} className="rounded-lg border border-slate-200 bg-white p-3 text-[10px] text-slate-600"><span className="font-black text-[#06284a]">{m.playerName}:</span> {m.note}</div>)}</div>}
                             </div>
                           </div>
+                          {e.photos.length > 0 && (
+                            <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-200 pt-4 sm:grid-cols-3">
+                              {e.photos.map((photo, index) => {
+                                const fileName = decodeURIComponent(photo.split("?")[0].split("/").pop() ?? "");
+                                const canDeletePhoto = Boolean(signedInPlayer && (signedInPlayer.is_admin || fileName.startsWith(`${signedInPlayer.id}-`)));
+                                return (
+                                  <button
+                                    key={photo}
+                                    type="button"
+                                    onClick={()=>setPassportPhotoViewer({eventId:e.id,url:photo,title:`${passportEntryTitle(e)} photo ${index+1}`,canDelete:canDeletePhoto})}
+                                    className="block overflow-hidden rounded-xl bg-slate-100 transition active:scale-[0.98]"
+                                    aria-label={`Open ${passportEntryTitle(e)} photo ${index+1}`}
+                                  >
+                                    <img src={photo} alt={`${passportEntryTitle(e)} photo ${index + 1}`} className="aspect-[4/3] w-full object-cover" />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

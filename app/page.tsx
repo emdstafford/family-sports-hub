@@ -4634,7 +4634,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="divide-y divide-slate-200 px-3">
+          <div className="grid grid-cols-2 gap-2 p-3">
             {filteredGames
               .filter((game) => {
                 if (!game.startsAt) return false;
@@ -4678,24 +4678,24 @@ export default function Home() {
               .map((game) => (
               <article
                 key={game.id}
-                className="py-3"
+                className="rounded-xl border border-slate-200 bg-[#f9fafb] p-3 shadow-sm"
               >
-                <div className="flex gap-3">
-                  <div className="flex w-9 shrink-0 flex-col items-center justify-center text-center">
+                <div className="flex h-full flex-col">
+                  <div className="flex min-w-0 items-center gap-2 border-b border-slate-200 pb-2">
                     <div className="text-2xl">{game.icon}</div>
-                    <div className="mt-0.5 line-clamp-2 text-[6px] font-black uppercase leading-tight text-[#10254a]">
+                    <div className="min-w-0 truncate text-[7px] font-black uppercase leading-tight text-[#765800]">
                       {game.competition}
                     </div>
                   </div>
 
-                  <div className="min-w-0 flex-1">
+                  <div className="mt-2 min-w-0 flex-1">
                     <button
                       type="button"
                       onClick={() => openGameRoom(game)}
                       className="block w-full rounded-xl text-left active:bg-slate-50"
                       aria-label={`Open game details for ${game.away} vs ${game.home}`}
                     >
-                    <div className="text-[14px] font-black leading-tight text-[#10254a]">
+                    <div className="text-[12px] font-black leading-tight text-[#10254a]">
                       {game.sport === "College Football"
                         ? rankedTeamLabel(game.away, collegeFootballRankings)
                         : game.away}
@@ -4705,7 +4705,7 @@ export default function Home() {
                         : game.home}
                     </div>
 
-                    <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                    <div className="mt-1 text-[9px] font-semibold text-slate-500">
                       {formatGameTime(game.startsAt, game.startTimeTbd)}
                     </div>
 
@@ -4847,7 +4847,7 @@ export default function Home() {
 
                 return gameDay === todayDay;
               }).length === 0 && (
-              <div className="py-5 text-center text-xs font-bold text-slate-500">
+              <div className="col-span-2 py-5 text-center text-xs font-bold text-slate-500">
                 No games on your radar today.
               </div>
             )}
@@ -4870,7 +4870,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="divide-y divide-slate-200 px-3">
+            <div className="grid grid-cols-2 gap-2 p-3">
               {recentResults.map((game) => {
                 const hasScore =
                   game.awayScore !== null &&
@@ -4907,22 +4907,22 @@ export default function Home() {
                 );
 
                 return (
-                  <article key={game.id} className="py-1.5">
+                  <article key={game.id} className="rounded-xl border border-slate-200 bg-[#f9fafb] p-3 shadow-sm">
                     <button
                       type="button"
                       onClick={() => openGameRoom(game)}
                       className="block w-full rounded-xl text-left active:bg-slate-50"
                       aria-label={`Open final game details for ${game.away} vs ${game.home}`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="flex w-12 shrink-0 flex-col items-center justify-center text-center">
+                      <div className="flex h-full flex-col">
+                        <div className="flex min-w-0 items-center gap-2 border-b border-slate-200 pb-2">
                           <div className="text-2xl">{game.icon}</div>
-                          <div className="mt-1 text-[7px] font-black uppercase leading-tight text-[#10254a]">
+                          <div className="min-w-0 truncate text-[7px] font-black uppercase leading-tight text-[#765800]">
                             {game.competition}
                           </div>
                         </div>
 
-                        <div className="min-w-0 flex-1">
+                        <div className="mt-2 min-w-0 flex-1">
                           <div className="mb-0.5 flex items-center gap-1.5">
                             <span className="rounded-full bg-[#f7f4ec] px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-[#b28a2e]">
                               Final
@@ -6848,7 +6848,7 @@ export default function Home() {
           {[
             ["🏠", "Home"],
             ["🎯", "Challenge"],
-            ["🎪", "Events"],
+            ["⭐", "Events"],
             ["👕", "Locker Room"],
             ["🏆", "Trophy Room"],
           ].map(([icon, label], index) => (

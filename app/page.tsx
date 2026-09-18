@@ -5447,7 +5447,7 @@ export default function Home() {
 
             {trophyRoomPanel === null && (
               <div className="bg-[radial-gradient(circle_at_50%_0%,#694522_0%,#342116_46%,#1d120c_100%)] px-3 py-5 sm:px-6 sm:py-7">
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+                <div>
                   <div>
                     <div className="mb-3 flex items-end justify-between gap-3">
                       <div>
@@ -5519,14 +5519,14 @@ export default function Home() {
                               <div className="h-px flex-1 bg-[#8f6336]" />
                             </div>
                           )}
-                          <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[30.5%] gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:auto-cols-[23%] lg:grid-flow-row lg:grid-cols-4 lg:overflow-visible lg:pb-0">
+                          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
                             {shelf.trophies.map((trophy) => (
                               <button
                                 key={trophy.title}
                                 type="button"
                                 title={`${trophy.title}: ${trophy.note}`}
                                 onClick={() => setSelectedTrophy(trophy)}
-                                className="group relative aspect-[4/5] min-w-0 snap-start overflow-hidden rounded-t-lg border border-[#9b6a3b] border-b-0 bg-[#21140c] text-center shadow-[inset_0_1px_0_rgba(255,255,255,.1),0_8px_16px_rgba(0,0,0,.35)]"
+                                className="group relative aspect-[4/5] min-w-0 overflow-hidden rounded-t-lg border border-[#9b6a3b] border-b-0 bg-[#21140c] text-center shadow-[inset_0_1px_0_rgba(255,255,255,.1),0_8px_16px_rgba(0,0,0,.35)]"
                               >
                                 <img
                                   src="/trophy-bay-realistic.webp"
@@ -5557,70 +5557,6 @@ export default function Home() {
                     </div>
 
                   </div>
-
-                  <aside className="space-y-3">
-                    {signedInPlayer && (() => {
-                      const me = leaderboard.find((row) => row.player_id === signedInPlayer.id);
-                      return (
-                        <div className="rounded-xl border border-[#8a6139] bg-[#17100b] p-4 shadow-inner">
-                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
-                            Current Challenge
-                          </div>
-                          <div className="mt-1 text-xl font-black tracking-tight text-white">
-                            {signedInPlayer.display_name}'s Scoreboard
-                          </div>
-                          {me ? (
-                            <div className="mt-3 grid grid-cols-3 gap-2">
-                              {[
-                                [me.points, "Points"],
-                                [me.correct, "Correct"],
-                                [me.completed_picks > 0 ? `${Math.round(me.accuracy)}%` : "—", "Accuracy"],
-                              ].map(([value, label]) => (
-                                <div key={label} className="rounded-lg border border-[#6d4b2d] bg-[#2a1a10] p-2 text-center">
-                                  <div className="text-xl font-black text-[#f6d36f]">{value}</div>
-                                  <div className="mt-0.5 text-[10px] font-black uppercase tracking-wide text-slate-300">{label}</div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="mt-3 rounded-lg border border-dashed border-[#6d4b2d] p-3 text-xs font-semibold text-[#bca78d]">
-                              No scored challenge results yet.
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    <button
-                      type="button"
-                      onClick={() => setTrophyRoomPanel("records")}
-                      className="w-full rounded-xl border border-[#8a6139] bg-[linear-gradient(135deg,#3c2818,#24150d)] p-5 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-[#d3a23c]"
-                    >
-                      <div className="text-3xl">📖</div>
-                      <div className="mt-3 text-lg font-black tracking-tight text-white">Record Book</div>
-                      <div className="mt-1.5 text-sm font-semibold leading-5 text-[#d8c4aa]">Personal stats and the FamBam leaderboard live here.</div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setTrophyRoomPanel("passport")}
-                      className="w-full rounded-xl border border-[#8a6139] bg-[linear-gradient(135deg,#3c2818,#24150d)] p-5 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-[#d3a23c]"
-                    >
-                      <div className="text-3xl">🛂</div>
-                      <div className="mt-3 text-lg font-black tracking-tight text-white">Sports Passport</div>
-                      <div className="mt-1.5 text-sm font-semibold leading-5 text-[#d8c4aa]">Venues, games and trips will become real passport stamps.</div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setTrophyRoomPanel("memories")}
-                      className="w-full rounded-xl border border-[#8a6139] bg-[linear-gradient(135deg,#3c2818,#24150d)] p-5 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-[#d3a23c]"
-                    >
-                      <div className="text-3xl">📸</div>
-                      <div className="mt-3 text-lg font-black tracking-tight text-white">Memory Book</div>
-                      <div className="mt-1.5 text-sm font-semibold leading-5 text-[#d8c4aa]">Photos and stories will attach to real FamBam sports moments.</div>
-                    </button>
-                  </aside>
                 </div>
               </div>
             )}
@@ -6175,6 +6111,28 @@ export default function Home() {
                   <h2 className="mt-1 text-2xl font-black tracking-tight">
                     {signedInPlayer.display_name}&apos;s Picks
                   </h2>
+                </div>
+              </div>
+
+              <div className="border-b border-[#e5dcc5] bg-[#fffaf0] px-4 py-4">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b28a2e]">Current Challenge</div>
+                    <div className="mt-0.5 text-lg font-black tracking-tight text-[#06284a]">{signedInPlayer.display_name}&apos;s Scoreboard</div>
+                  </div>
+                  <div className="text-[9px] font-bold text-slate-400">Updates as games finish</div>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {[
+                    [trophyStanding?.points ?? 0, "Points"],
+                    [trophyStanding?.correct ?? 0, "Correct"],
+                    [trophyStanding?.completed_picks ? `${Math.round(trophyStanding.accuracy)}%` : "0%", "Accuracy"],
+                  ].map(([value, label]) => (
+                    <div key={label} className="rounded-xl border border-[#e5dcc5] bg-white p-3 text-center shadow-sm">
+                      <div className="text-2xl font-black text-[#b28a2e]">{value}</div>
+                      <div className="mt-0.5 text-[9px] font-black uppercase tracking-wide text-slate-500">{label}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

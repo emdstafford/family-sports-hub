@@ -5107,35 +5107,11 @@ export default function Home() {
 
       {activeSection === "Locker Room" && (
         <section className="min-h-[calc(100vh-64px)] bg-[#eef1f4]">
-          <div className="mx-auto max-w-[1500px] px-3 py-4 sm:px-5">
-            <div className="relative overflow-hidden rounded-[1.75rem] border border-[#7b542e] bg-[#1b110b] shadow-2xl">
-              <div className="relative flex min-h-[150px] items-center justify-center overflow-hidden border-b border-[#8b6235] bg-gradient-to-b from-[#0b2945] via-[#102c46] to-[#071b2e] px-4 py-7 sm:min-h-[180px]">
-                <div className="absolute left-[8%] top-0 h-full w-px bg-white/5" />
-                <div className="absolute right-[8%] top-0 h-full w-px bg-white/5" />
-                <div className="absolute left-1/2 top-0 h-8 w-px bg-[#80654a]" />
-                <div className="absolute left-[28%] top-3 h-2 w-2 rounded-full bg-[#f7d16d] shadow-[0_0_18px_7px_rgba(247,209,109,0.3)]" />
-                <div className="absolute right-[28%] top-3 h-2 w-2 rounded-full bg-[#f7d16d] shadow-[0_0_18px_7px_rgba(247,209,109,0.3)]" />
-
-                <div className="relative w-full max-w-2xl rotate-[-0.3deg] rounded-md border-[3px] border-[#5b351b] bg-gradient-to-b from-[#76502d] via-[#5d3b21] to-[#432814] px-5 py-4 text-center shadow-[0_12px_25px_rgba(0,0,0,0.55),inset_0_2px_0_rgba(255,255,255,0.12)] sm:px-10 sm:py-5">
-                  <div className="absolute inset-x-0 top-[32%] h-px bg-black/20" />
-                  <div className="absolute inset-x-0 top-[67%] h-px bg-black/20" />
-                  <div className="relative text-xs font-black uppercase tracking-[0.14em] text-[#f3c64f]">
-                    FamBam
-                  </div>
-                  <div className="relative mt-1 text-[clamp(1.35rem,5vw,2.7rem)] font-black uppercase leading-none tracking-tight text-[#f8efe0] drop-shadow-[0_3px_1px_rgba(0,0,0,0.65)]">
-                    {signedInPlayer?.display_name
-                      ? `${signedInPlayer.display_name}'s Locker Room`
-                      : "My Locker Room"}
-                  </div>
-                  <div className="relative mt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#e6d4b8] sm:text-xs">
-                    Play · Explore · Remember · Together
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-b from-[#15110f] via-[#2a1b12] to-[#100c0a] p-3 sm:p-5">
+          <div className="mx-auto max-w-[1500px] px-2 sm:px-5 sm:py-3">
+            <div className="relative overflow-hidden border-x border-[#7b542e] bg-[#1b110b] shadow-2xl sm:rounded-[1.75rem] sm:border">
+              <div className="bg-gradient-to-b from-[#15110f] via-[#2a1b12] to-[#100c0a] p-2 sm:p-5">
                 <div
-                  className="relative mt-4 flex min-h-[610px] snap-x snap-mandatory gap-0 overflow-x-auto rounded-xl border border-[#8b6235] bg-[#17110d] bg-cover bg-center pb-4 pr-[10vw] pt-2 shadow-[inset_0_0_55px_rgba(0,0,0,.55)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  className="relative flex min-h-[610px] snap-x snap-mandatory gap-0 overflow-x-auto rounded-xl border border-[#8b6235] bg-[#17110d] bg-cover bg-center pb-3 pr-[18vw] pt-2 shadow-[inset_0_0_55px_rgba(0,0,0,.55)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:pr-[8vw]"
                   style={{ backgroundImage: "linear-gradient(180deg,rgba(4,8,13,.08),rgba(7,5,3,.32)),url('/locker-room-realistic.png')" }}
                 >
                   {(lockerPlayers
@@ -5166,9 +5142,9 @@ export default function Home() {
                               setActiveSection("Games");
                             }
                           }}
-                          className="group w-[44vw] min-w-[176px] max-w-[300px] shrink-0 snap-start overflow-hidden border-r border-white/10 bg-black/10 text-left backdrop-blur-[.35px] transition hover:bg-black/5 sm:w-[34vw] sm:min-w-[235px] sm:max-w-[310px] lg:w-[24vw] lg:max-w-[330px]"
+                          className="group w-[72vw] min-w-[260px] max-w-[320px] shrink-0 snap-start overflow-hidden border-r border-white/10 bg-black/10 text-left backdrop-blur-[.35px] transition hover:bg-black/5 sm:w-[40vw] sm:min-w-[280px] sm:max-w-[330px] lg:w-[24vw] lg:max-w-[340px]"
                         >
-                          <div className="relative mx-3 mt-2 rounded-sm border border-[#b8874f] bg-[linear-gradient(180deg,rgba(92,55,29,.96),rgba(40,23,13,.96))] px-2 py-2.5 text-center shadow-[0_5px_12px_rgba(0,0,0,.55),inset_0_1px_0_rgba(255,255,255,.13)]">
+                          <div className="relative mx-3 mt-2 flex h-12 items-center justify-center rounded-sm border border-[#b8874f] bg-[linear-gradient(180deg,rgba(92,55,29,.96),rgba(40,23,13,.96))] px-2 text-center shadow-[0_5px_12px_rgba(0,0,0,.55),inset_0_1px_0_rgba(255,255,255,.13)]">
                             <div className="absolute left-2 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[#a77843] shadow-inner" />
                             <div className="absolute right-2 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[#a77843] shadow-inner" />
                             <div className="truncate text-xs font-black uppercase tracking-[0.08em] text-[#f3c64f]">
@@ -5176,12 +5152,12 @@ export default function Home() {
                             </div>
                           </div>
 
-                          <div className="relative flex min-h-[550px] flex-col overflow-hidden px-3 pb-3 pt-4 sm:px-4">
-                            <div className="absolute inset-x-3 bottom-3 h-[154px] rounded-lg border border-white/10 bg-[linear-gradient(180deg,rgba(20,13,9,.84),rgba(11,8,6,.95))] shadow-[0_10px_24px_rgba(0,0,0,.55)] backdrop-blur-sm" />
+                          <div className="relative flex min-h-[550px] flex-col overflow-hidden px-3 pb-3 pt-3 sm:px-4">
+                            <div className="absolute inset-x-3 bottom-3 h-[164px] rounded-lg border border-white/10 bg-[linear-gradient(180deg,rgba(20,13,9,.84),rgba(11,8,6,.95))] shadow-[0_10px_24px_rgba(0,0,0,.55)] backdrop-blur-sm" />
                             <div className="absolute left-1/2 top-0 h-8 w-px bg-[#a87845]" />
                             <div className="absolute left-1/2 top-7 h-2 w-7 -translate-x-1/2 rounded-full border border-[#a87845] bg-[#352012]" />
 
-                            <div className="relative mx-auto flex h-20 w-20 items-center justify-center p-2 drop-shadow-[0_8px_12px_rgba(0,0,0,.75)] sm:h-24 sm:w-24">
+                            <div className="relative mx-auto flex h-20 w-20 shrink-0 items-center justify-center p-2 drop-shadow-[0_8px_12px_rgba(0,0,0,.75)] sm:h-24 sm:w-24">
                               {team.logo_url ? (
                                 <img
                                   src={team.logo_url}
@@ -5195,15 +5171,17 @@ export default function Home() {
                               )}
                             </div>
 
-                            <div className="relative mt-1 line-clamp-2 min-h-[2.5rem] text-center text-sm font-black leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-base">
+                            <div className="relative mt-1 flex h-10 shrink-0 items-center justify-center text-center text-sm font-black leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-base">
+                              <span className="line-clamp-2">
                               {team.name}
+                              </span>
                             </div>
-                            <div className="relative mt-1 text-center text-xs font-semibold text-[#d7c2a7]">
+                            <div className="relative mt-1 h-5 shrink-0 text-center text-xs font-semibold text-[#d7c2a7]">
                               {team.sport}
                               {team.is_primary ? " · ⭐ Favorite" : ""}
                             </div>
 
-                            <div className="relative mt-1 h-[245px] overflow-visible">
+                            <div className="relative mt-1 h-[238px] shrink-0 overflow-visible">
                               {(() => {
                                 const colors = lockerTeamColors(team);
                                 const label = (team.short_name ?? team.name).replace(/\s+(FC|Football|Cheerleading)$/i, "");
@@ -5217,7 +5195,7 @@ export default function Home() {
                                         <img
                                           src={uniformAsset}
                                           alt={`${team.name} uniform hanging in the locker`}
-                                          className="absolute left-1/2 top-0 h-[228px] w-[94%] -translate-x-1/2 object-contain drop-shadow-[0_18px_14px_rgba(0,0,0,.8)]"
+                                          className="absolute left-1/2 top-0 h-[228px] w-[94%] -translate-x-1/2 object-contain object-top drop-shadow-[0_18px_14px_rgba(0,0,0,.8)]"
                                         />
                                         {team.logo_url && (
                                           <img
@@ -5271,13 +5249,13 @@ export default function Home() {
                               })()}
                             </div>
 
-                            <div className="relative mt-3 min-h-[92px] border-t border-[#8b6235]/80 pt-3">
+                            <div className="relative mt-2 min-h-[112px] border-t border-[#8b6235]/80 pt-3">
                               <div className="mb-1 text-[10px] font-black uppercase tracking-[0.1em] text-[#f3c64f]">
                                 {nextGame ? "Next Game" : "Team Locker"}
                               </div>
                               {nextGame ? (
                                 <>
-                                  <div className="line-clamp-2 text-sm font-black leading-tight text-[#f8efe0]">
+                                  <div className="line-clamp-2 min-h-9 text-sm font-black leading-tight text-[#f8efe0]">
                                     {teamIsHome ? "vs" : "at"} {opponent}
                                   </div>
                                   <div className="mt-1 text-[11px] font-semibold leading-tight text-[#cdb89e]">
@@ -5294,7 +5272,7 @@ export default function Home() {
                               )}
                             </div>
 
-                            <div className="relative mt-3 flex items-center justify-between border-t border-[#8b6235]/60 pt-2 text-[10px] font-black uppercase tracking-wide text-[#d7c2a7]">
+                            <div className="relative mt-auto flex items-center justify-between border-t border-[#8b6235]/60 pt-2 text-[10px] font-black uppercase tracking-wide text-[#d7c2a7]">
                               <span>{nextGame ? "Open Matchup" : "Browse Games"}</span>
                               <span className="text-[#f3c64f] transition group-hover:translate-x-1">→</span>
                             </div>

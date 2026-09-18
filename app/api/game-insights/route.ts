@@ -74,7 +74,9 @@ type Insight = {
     | "previous_meeting"
     | "why_it_matters"
     | "event_context"
-    | "final_score";
+    | "final_score"
+    | "matchup"
+    | "what_to_watch";
   title: string;
   text: string;
 };
@@ -452,6 +454,57 @@ function winnerText(
   if (homeScore > awayScore) return home;
   if (awayScore > homeScore) return away;
   return null;
+}
+
+function buildMatchupGuide(game: GameRow): Insight[] {
+  const sport = getName(game.sport) ?? "Sports";
+  const competition = getName(game.competition) ?? "Game";
+  const home = getName(game.home_team) ?? "Home";
+  const away = getName(game.away_team) ?? "Away";
+
+  if (sport === "Soccer") {
+    const competitionName = competition.toLowerCase();
+    const isCup = isKnockoutCompetition(competition);
+    const format = isCup
+      ? "This is a knockout match: one club advances and the other club’s cup run ends."
+      : competitionName.includes("champions league")
+        ? "This European match helps determine the clubs’ path through the Champions League."
+        : "This is a league match, where a win earns 3 points, a draw earns 1 and a loss earns 0.";
+
+    return [
+      {
+        type: "matchup",
+        title: "Matchup Guide",
+        text:
+          `${away} travels to ${home}. ${home} is the home side and is listed second on the fixture. ${format}`,
+      },
+      {
+        type: "what_to_watch",
+        title: "What to Watch",
+        text:
+          "Watch which team controls midfield, creates the better chances and wins set pieces. Counterattacks, corners and late substitutions can quickly change a close match.",
+      },
+    ];
+  }
+
+  if (sport === "College Football") {
+    return [
+      {
+        type: "matchup",
+        title: "Matchup Guide",
+        text:
+          `${away} visits ${home}. ${home} has home-field advantage in this ${competition} matchup.`,
+      },
+      {
+        type: "what_to_watch",
+        title: "What to Watch",
+        text:
+          "Turnovers, explosive plays, third-down stops and red-zone scoring usually decide close college football games. Also watch field position and whether either team can control the line of scrimmage.",
+      },
+    ];
+  }
+
+  return [];
 }
 
 function buildStoredGameInsights(game: GameRow): Insight[] {
@@ -996,8 +1049,10 @@ export async function GET(
     const game =
       data as unknown as GameRow;
 
-    let insights: Insight[] =
-      buildStoredGameInsights(game);
+    let insights: Insight[] = [
+      ...buildStoredGameInsights(game),
+      ...buildMatchupGuide(game),
+    ];
 
     if (getName(game.sport) === "College Football") {
       const collegeFootballInsights =

@@ -6575,6 +6575,56 @@ export default function Home() {
                           ],
                         },
                         {
+                          label: "Event Trophies",
+                          trophies: [
+                            {
+                              icon: "🎟️",
+                              title: "Event Explorer",
+                              note: "Make your first optional special-event pick",
+                              earned: Object.values(eventProgress).some((progress) => progress.trophies.firstEventPick),
+                              progress: Object.values(eventProgress).some((progress) => progress.trophies.firstEventPick) ? "Earned ✓" : "Make your first event pick",
+                              milestone: "Special events are optional and never affect weekly records",
+                            },
+                            {
+                              icon: "🎓",
+                              title: "Cup Expert",
+                              note: "Correctly pick three results in one special event",
+                              earned: Object.values(eventProgress).some((progress) => progress.trophies.cupExpert),
+                              progress: `${Math.max(0, ...Object.values(eventProgress).map((progress) => progress.correct))}/3 correct`,
+                              milestone: "Three correct picks in the same event",
+                            },
+                            {
+                              icon: "✨",
+                              title: "Perfect Round",
+                              note: "Get every pick right in an event round with at least three games",
+                              earned: Object.values(eventProgress).some((progress) => progress.trophies.perfectRound),
+                              progress: Object.values(eventProgress).some((progress) => progress.trophies.perfectRound) ? "Earned ✓" : "Complete a perfect event round",
+                              milestone: "At least three correct with no misses",
+                            },
+                            {
+                              icon: "🪄",
+                              title: "Giant Killer",
+                              note: "Correctly call a major cup upset",
+                              progress: "Upset tracking begins with graded cup games",
+                              milestone: "Pick a lower-level club to eliminate a favorite",
+                            },
+                            {
+                              icon: "🥇",
+                              title: "Round Champion",
+                              note: "Post the best score in one special-event round",
+                              progress: "Awarded after a round is complete",
+                              milestone: "Highest round score; ties share the honor",
+                            },
+                            {
+                              icon: "👑",
+                              title: "Event Champion",
+                              note: "Finish first when a full special event ends",
+                              progress: "Awarded at the event final",
+                              milestone: "FA Cup, Carabao Cup, March Madness and more",
+                            },
+                          ],
+                        },
+                        {
                           label: "Fan Trophies",
                           trophies: [
                           { icon: "⚽", title: "Soccer Supporter", note: "Follow your first soccer club", earned: hasTrophyTeam("soccer"), progress: hasTrophyTeam("soccer") ? "Earned ✓" : "Choose a soccer team", milestone: "Your first followed soccer club" },
@@ -7693,7 +7743,7 @@ export default function Home() {
                     Active Event Picks
                   </div>
                   <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
-                    These are separate from the regular 10-game Challenge.
+                    Optional · Separate from the regular 10-game Challenge · Skip any event with no penalty.
                   </div>
                 </div>
 

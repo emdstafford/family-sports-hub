@@ -5062,7 +5062,7 @@ export default function Home() {
       )}
 
       {activeSection === "Locker Room" && (
-        <section className="min-h-[calc(100vh-64px)] bg-[#071b2e]">
+        <section className="min-h-[calc(100vh-64px)] bg-[#eef1f4]">
           <div className="mx-auto max-w-[1500px] px-3 py-4 sm:px-5">
             <div className="relative overflow-hidden rounded-[1.75rem] border border-[#7b542e] bg-[#1b110b] shadow-2xl">
               <div className="relative flex min-h-[150px] items-center justify-center overflow-hidden border-b border-[#8b6235] bg-gradient-to-b from-[#0b2945] via-[#102c46] to-[#071b2e] px-4 py-7 sm:min-h-[180px]">
@@ -5281,8 +5281,8 @@ export default function Home() {
       )}
 
       {activeSection === "Trophy Room" && (
-        <section className="min-h-[calc(100vh-96px)] bg-[#061c31] pb-28 text-white">
-          <div className="mx-auto max-w-[1500px] overflow-hidden border-x border-[#81551f] bg-[#0a2841] shadow-2xl">
+        <section className="min-h-[calc(100vh-96px)] bg-[#eef1f4] pb-28 text-[#10254a]">
+          <div className="mx-auto max-w-[1500px] overflow-hidden bg-[#eef1f4]">
             <div className="relative overflow-hidden border-b border-[#9a6727] bg-[linear-gradient(180deg,#123754_0%,#0b2942_100%)] px-4 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9">
               <div className="absolute inset-0 opacity-20 [background-image:repeating-linear-gradient(90deg,transparent_0,transparent_149px,#9ec1d8_150px)]" />
               <div className="absolute left-[28%] top-2 h-2 w-2 rounded-full bg-[#f6c64c] shadow-[0_0_18px_6px_rgba(246,198,76,.35)]" />
@@ -5493,7 +5493,7 @@ export default function Home() {
             )}
 
             {trophyRoomPanel === "records" && (
-              <div className="bg-[#071b2e] px-3 py-5 sm:px-6 sm:py-7">
+              <div className="bg-[#eef1f4] px-3 py-5 sm:px-6 sm:py-7">
                 <div className="grid gap-4 lg:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-lg sm:p-5">
                     <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">⭐ Personal Records</div>
@@ -5552,7 +5552,7 @@ export default function Home() {
             )}
 
             {trophyRoomPanel === "passport" && (
-              <div className="bg-[#071b2e] px-3 py-5 sm:px-6 sm:py-7">
+              <div className="bg-[#eef1f4] px-3 py-5 sm:px-6 sm:py-7">
                 <div className="mx-auto max-w-6xl overflow-hidden rounded-[1.4rem] border-[5px] border-[#18324f] bg-[#f3e4bd] text-[#3d2b17] shadow-2xl">
                   <div className="bg-[#102b49] p-5 text-white sm:p-7">
                     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -5586,7 +5586,7 @@ export default function Home() {
             )}
 
             {trophyRoomPanel === "memories" && (
-              <div className="bg-[#071b2e] px-3 py-5 sm:px-6 sm:py-7">
+              <div className="bg-[#eef1f4] px-3 py-5 sm:px-6 sm:py-7">
                 <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-xl sm:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#5f4228] pb-4"><div className="flex items-center gap-3"><div className="text-4xl">📸</div><div><div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">FamBam Memory Book</div><div className="text-xl font-black text-white">{signedInPlayer?.display_name ?? 'My'}'s sports memories</div></div></div><button type="button" onClick={openPassportAdd} className="min-h-11 rounded-full bg-[#f3c64f] px-4 py-2 text-[9px] font-black uppercase tracking-wide text-[#33200f]">+ Add Game/Match</button></div>
                   <div className="mt-5 space-y-3">{passportEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#6d4b2d] bg-[#251811] p-8 text-center text-sm font-bold text-[#c3ad90]">Your first shared sports memory is waiting.</div>:passportEntries.map(e=>{const mine=e.memories.find(m=>m.playerId===signedInPlayer?.id);return <div key={e.id} className="rounded-xl border border-[#6d4b2d] bg-[#251811] p-4"><div className="flex items-start gap-3"><div className="text-3xl">{e.sport==='MLB'?'⚾':'🏈'}</div><div className="min-w-0 flex-1"><div className="text-[8px] font-black uppercase tracking-widest text-[#f3c64f]">{e.date} · {e.venue}</div><div className="mt-1 text-base font-black text-white">{e.away} at {e.home}</div><div className="mt-1 text-[9px] font-semibold text-[#c3ad90]">With {e.attendeeNames.join(' · ')}</div>{e.memories.length>0&&<div className="mt-3 space-y-2">{e.memories.map(m=><div key={m.playerId} className="rounded-lg bg-[#1b110b] p-3 text-[10px] text-[#e1cfb8]"><span className="font-black text-[#f6d36f]">{m.playerName}:</span> {m.note}</div>)}</div>}<button type="button" onClick={()=>{setPassportMemoryEvent(e);setPassportMemoryNote(mine?.note||'')}} className="mt-3 min-h-11 rounded-full border border-[#8a6139] px-4 text-[9px] font-black uppercase text-[#f3c64f]">{mine?'Edit My Memory':'+ Add My Memory'}</button></div></div></div>})}</div>

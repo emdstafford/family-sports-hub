@@ -5008,9 +5008,16 @@ export default function Home() {
               </h2>
             </div>
 
-            <div className="text-[10px] font-black uppercase text-slate-500">
-              Next 7 Days
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSection("Games");
+                setActiveSport("All");
+              }}
+              className="rounded-full bg-[#f7f4ec] px-3 py-1.5 text-[9px] font-black uppercase text-[#164d9b] active:scale-95"
+            >
+              View All Games →
+            </button>
           </div>
 
           <div className="divide-y divide-slate-200 px-3">
@@ -6841,7 +6848,7 @@ export default function Home() {
           {[
             ["🏠", "Home"],
             ["🎯", "Challenge"],
-            ["⚽", "Games"],
+            ["🎪", "Events"],
             ["👕", "Locker Room"],
             ["🏆", "Trophy Room"],
           ].map(([icon, label], index) => (
@@ -6857,9 +6864,8 @@ export default function Home() {
                   openPicks();
                 }
 
-                if (label === "Games") {
-                  setActiveSection("Games");
-                  setActiveSport("All");
+                if (label === "Events") {
+                  setActiveSection("Events");
                 }
 
                 if (label === "Locker Room") {

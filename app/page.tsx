@@ -4950,9 +4950,7 @@ export default function Home() {
                             </div>
                           </div>
 
-                          <div className="mt-1 text-[8px] font-black text-[#164d9b]">
-                            Game Details &amp; FamBam Picks →
-                          </div>
+
                         </div>
                       </div>
                     </button>

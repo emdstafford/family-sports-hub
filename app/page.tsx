@@ -213,15 +213,10 @@ function lockerTeamMatchesGame(team: LockerTeam, game: BrowserGame) {
   const away = normalizeLockerTeamName(game.away);
 
   const candidates = [lockerName, shortName].filter((name) => name.length >= 3);
-  return candidates.some(
-    (name) =>
-      home === name ||
-      away === name ||
-      home.includes(name) ||
-      away.includes(name) ||
-      name.includes(home) ||
-      name.includes(away),
-  );
+
+  // Locker matching must be exact after normalization. Partial matching made
+  // "Kentucky" incorrectly match schools such as Kentucky Wesleyan.
+  return candidates.some((name) => home === name || away === name);
 }
 
 function nextLockerGame(team: LockerTeam, games: BrowserGame[]) {
@@ -5102,8 +5097,10 @@ export default function Home() {
                       const nextGame = nextLockerGame(team, realGames);
                       const opponent = nextGame ? lockerOpponent(team, nextGame) : null;
                       const teamIsHome = nextGame
-                        ? normalizeLockerTeamName(nextGame.home).includes(normalizeLockerTeamName(team.short_name ?? team.name)) ||
-                          normalizeLockerTeamName(team.name).includes(normalizeLockerTeamName(nextGame.home))
+                        ? [team.name, team.short_name ?? ""]
+                            .map(normalizeLockerTeamName)
+                            .filter((name) => name.length >= 3)
+                            .includes(normalizeLockerTeamName(nextGame.home))
                         : false;
 
                       return (
@@ -6807,9 +6804,3 @@ export default function Home() {
                 ? "Adding..."
                 : "Add to Challenge →"}
             </button>
-          </div>
-        </div>
-      )}
-    </main>
-  );
-}

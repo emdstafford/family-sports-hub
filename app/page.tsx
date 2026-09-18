@@ -228,8 +228,23 @@ function lockerUniformAsset(team: LockerTeam) {
   if (name.includes("arsenal")) return "/uniforms/arsenal.webp";
   if (name.includes("liverpool")) return "/uniforms/liverpool.webp";
   if (name.includes("wimbledon")) return "/uniforms/afc-wimbledon.webp";
+  if (name.includes("vancouver") || name.includes("canucks")) {
+    return "/uniforms/vancouver-canucks.webp";
+  }
   if (name.includes("kentucky") && team.sport === "Cheerleading") {
     return "/uniforms/kentucky-cheer.webp";
+  }
+  if (name.includes("kentucky") && team.sport === "College Football") {
+    return "/uniforms/kentucky-football.webp";
+  }
+  if (name.includes("kentucky") && team.sport === "College Basketball") {
+    return "/uniforms/kentucky-basketball.webp";
+  }
+  if (name.includes("atlanta braves") || name === "braves") {
+    return "/uniforms/atlanta-braves.webp";
+  }
+  if (name.includes("chicago cubs") || name === "cubs") {
+    return "/uniforms/chicago-cubs.webp";
   }
 
   return null;

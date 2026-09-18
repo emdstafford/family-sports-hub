@@ -5406,8 +5406,8 @@ export default function Home() {
       )}
 
       {activeSection === "Trophy Room" && (
-        <section className="min-h-[calc(100vh-96px)] bg-[#eef1f4] pb-28 text-[#10254a]">
-          <div className="mx-auto max-w-[1500px] overflow-hidden bg-[#eef1f4]">
+        <section className={`min-h-[calc(100vh-96px)] pb-28 text-[#10254a] ${trophyRoomPanel === null ? "bg-[#1b110b]" : "bg-[#eef1f4]"}`}>
+          <div className={`mx-auto min-h-[calc(100vh-96px)] max-w-[1500px] overflow-hidden ${trophyRoomPanel === null ? "bg-[#1b110b]" : "bg-[#eef1f4]"}`}>
             <div className="border-b border-[#8b5c2d] bg-[linear-gradient(180deg,#302016_0%,#1d120c_100%)] px-3 pb-3 pt-4 sm:px-6 sm:pt-5">
               <div className="mb-3 flex items-end justify-between gap-3 px-1">
                 <div>
@@ -5566,7 +5566,7 @@ export default function Home() {
                           <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
                             Current Challenge
                           </div>
-                          <div className="mt-1 text-lg font-black text-white">
+                          <div className="mt-1 text-xl font-black tracking-tight text-white">
                             {signedInPlayer.display_name}'s Scoreboard
                           </div>
                           {me ? (
@@ -5578,7 +5578,7 @@ export default function Home() {
                               ].map(([value, label]) => (
                                 <div key={label} className="rounded-lg border border-[#6d4b2d] bg-[#2a1a10] p-2 text-center">
                                   <div className="text-xl font-black text-[#f6d36f]">{value}</div>
-                                  <div className="text-[9px] font-black uppercase text-slate-400">{label}</div>
+                                  <div className="mt-0.5 text-[10px] font-black uppercase tracking-wide text-slate-300">{label}</div>
                                 </div>
                               ))}
                             </div>
@@ -5594,31 +5594,31 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => setTrophyRoomPanel("records")}
-                      className="w-full rounded-xl border border-[#8a6139] bg-[linear-gradient(135deg,#3c2818,#24150d)] p-4 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-[#d3a23c]"
+                      className="w-full rounded-xl border border-[#8a6139] bg-[linear-gradient(135deg,#3c2818,#24150d)] p-5 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-[#d3a23c]"
                     >
-                      <div className="text-2xl">📖</div>
-                      <div className="mt-2 text-sm font-black text-white">Record Book</div>
-                      <div className="mt-1 text-[9px] font-semibold leading-4 text-[#cbb79b]">Personal stats and the FamBam leaderboard live here.</div>
+                      <div className="text-3xl">📖</div>
+                      <div className="mt-3 text-lg font-black tracking-tight text-white">Record Book</div>
+                      <div className="mt-1.5 text-sm font-semibold leading-5 text-[#d8c4aa]">Personal stats and the FamBam leaderboard live here.</div>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setTrophyRoomPanel("passport")}
-                      className="w-full rounded-xl border border-[#8a6139] bg-[linear-gradient(135deg,#3c2818,#24150d)] p-4 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-[#d3a23c]"
+                      className="w-full rounded-xl border border-[#8a6139] bg-[linear-gradient(135deg,#3c2818,#24150d)] p-5 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-[#d3a23c]"
                     >
-                      <div className="text-2xl">🛂</div>
-                      <div className="mt-2 text-sm font-black text-white">Sports Passport</div>
-                      <div className="mt-1 text-[9px] font-semibold leading-4 text-[#cbb79b]">Venues, games and trips will become real passport stamps.</div>
+                      <div className="text-3xl">🛂</div>
+                      <div className="mt-3 text-lg font-black tracking-tight text-white">Sports Passport</div>
+                      <div className="mt-1.5 text-sm font-semibold leading-5 text-[#d8c4aa]">Venues, games and trips will become real passport stamps.</div>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setTrophyRoomPanel("memories")}
-                      className="w-full rounded-xl border border-[#8a6139] bg-[linear-gradient(135deg,#3c2818,#24150d)] p-4 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-[#d3a23c]"
+                      className="w-full rounded-xl border border-[#8a6139] bg-[linear-gradient(135deg,#3c2818,#24150d)] p-5 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-[#d3a23c]"
                     >
-                      <div className="text-2xl">📸</div>
-                      <div className="mt-2 text-sm font-black text-white">Memory Book</div>
-                      <div className="mt-1 text-[9px] font-semibold leading-4 text-[#cbb79b]">Photos and stories will attach to real FamBam sports moments.</div>
+                      <div className="text-3xl">📸</div>
+                      <div className="mt-3 text-lg font-black tracking-tight text-white">Memory Book</div>
+                      <div className="mt-1.5 text-sm font-semibold leading-5 text-[#d8c4aa]">Photos and stories will attach to real FamBam sports moments.</div>
                     </button>
                   </aside>
                 </div>

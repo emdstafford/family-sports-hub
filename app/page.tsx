@@ -887,6 +887,7 @@ export default function Home() {
       progress?: string;
       milestone?: string;
       repeatable?: boolean;
+      earned?: boolean;
     } | null>(null);
 
   const [passportView, setPassportView] =
@@ -5162,7 +5163,7 @@ export default function Home() {
                               setActiveSection("Games");
                             }
                           }}
-                          className="group w-[27vw] min-w-[118px] max-w-[215px] shrink-0 snap-start overflow-hidden rounded-t-md rounded-b-xl border border-[#8b6235] bg-[#24150d] text-left shadow-[0_18px_28px_rgba(0,0,0,0.4)] transition hover:-translate-y-1 hover:border-[#c18a45] sm:w-[22vw] sm:max-w-[245px] lg:w-[18vw] lg:max-w-[260px]"
+                          className="group w-[42vw] min-w-[170px] max-w-[285px] shrink-0 snap-start overflow-hidden rounded-t-md rounded-b-xl border border-[#8b6235] bg-[#24150d] text-left shadow-[0_18px_28px_rgba(0,0,0,0.4)] transition hover:-translate-y-1 hover:border-[#c18a45] sm:w-[34vw] sm:min-w-[235px] sm:max-w-[310px] lg:w-[28vw] lg:max-w-[330px]"
                         >
                           <div className="relative border-b border-[#a9783f] bg-gradient-to-b from-[#56341d] to-[#2b190e] px-2 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                             <div className="absolute left-2 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[#a77843] shadow-inner" />
@@ -5172,13 +5173,13 @@ export default function Home() {
                             </div>
                           </div>
 
-                          <div className="relative min-h-[235px] overflow-hidden bg-gradient-to-r from-[#2d190e] via-[#4b2d18] to-[#2d190e] px-3 pb-3 pt-4 sm:min-h-[285px] sm:px-4">
+                          <div className="relative flex min-h-[390px] flex-col overflow-hidden bg-gradient-to-r from-[#2d190e] via-[#4b2d18] to-[#2d190e] px-3 pb-3 pt-4 sm:min-h-[440px] sm:px-4">
                             <div className="absolute inset-y-0 left-[8%] w-px bg-white/[0.04]" />
                             <div className="absolute inset-y-0 right-[8%] w-px bg-black/20" />
                             <div className="absolute left-1/2 top-0 h-8 w-px bg-[#a87845]" />
                             <div className="absolute left-1/2 top-7 h-2 w-7 -translate-x-1/2 rounded-full border border-[#a87845] bg-[#352012]" />
 
-                            <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-lg border border-white/10 bg-black/15 p-2 shadow-[0_8px_18px_rgba(0,0,0,0.35)] sm:h-28 sm:w-28 sm:p-3">
+                            <div className="relative mx-auto flex h-28 w-28 items-center justify-center rounded-lg border border-white/10 bg-black/15 p-3 shadow-[0_8px_18px_rgba(0,0,0,0.35)] sm:h-32 sm:w-32 sm:p-3">
                               {team.logo_url ? (
                                 <img
                                   src={team.logo_url}
@@ -5200,7 +5201,19 @@ export default function Home() {
                               {team.is_primary ? " · ⭐ Favorite" : ""}
                             </div>
 
-                            <div className="relative mt-3 border-t border-[#8b6235]/80 pt-3">
+                            <div className="relative mt-3 flex min-h-[58px] items-center justify-center gap-3 border-y border-[#8b6235]/60 bg-black/10 px-2 py-2">
+                              <span className="text-2xl drop-shadow-lg">
+                                {team.sport === "Soccer" ? "🧣" : team.sport === "College Football" ? "🏈" : team.sport === "College Basketball" ? "🏀" : team.sport === "Hockey" ? "🏒" : team.sport === "Baseball" ? "⚾" : team.sport === "Volleyball" ? "🏐" : "🎟️"}
+                              </span>
+                              <div className="text-left">
+                                <div className="text-[7px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">Locker Memorabilia</div>
+                                <div className="mt-0.5 text-[9px] font-bold text-[#d7c2a7]">
+                                  {team.sport === "Soccer" ? "Match scarf · club colors" : team.sport === "College Football" ? "Game ball · team colors" : team.sport === "College Basketball" ? "Court ball · team colors" : team.sport === "Hockey" ? "Stick & puck · team colors" : team.sport === "Baseball" ? "Ball & cap · team colors" : team.sport === "Volleyball" ? "Game ball · team colors" : "Team keepsakes"}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="relative mt-3 min-h-[92px] border-t border-[#8b6235]/80 pt-3">
                               <div className="mb-1 text-[8px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
                                 {nextGame ? "Next Game" : "Team Locker"}
                               </div>
@@ -5345,14 +5358,14 @@ export default function Home() {
                           { icon: "💯", title: "Perfect 10", note: "Go 10-for-10 without a miss in one challenge", progress: `${perfectTenProgress}/10`, milestone: "Repeat it and the trophy count increases" },
                         ],
                         [
-                          { icon: "⚽", title: "Soccer Star", note: "Earn soccer-specific prediction achievements", repeatable: true, progress: "Sport milestones", milestone: "More soccer achievements unlock higher tiers" },
-                          { icon: "🏈", title: "Gridiron Guru", note: "Earn football-specific prediction achievements", repeatable: true, progress: "Sport milestones", milestone: "More football achievements unlock higher tiers" },
-                          { icon: "🧠", title: "Upset Genius", note: "Correctly call a meaningful upset", repeatable: true, progress: "× each correct upset", milestone: "5 upset calls unlock the next tier" },
-                          { icon: "🥇", title: "Back-to-Back", note: "Win two FamBam Challenges in a row", repeatable: true, progress: "2 straight wins", milestone: "Three straight earns a bigger streak trophy" },
+                          { icon: "⚽", title: "Soccer Supporter", note: "Follow your first soccer club", earned: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Soccer") ?? false), progress: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Soccer") ?? false) ? "Earned ✓" : "Choose a soccer team", milestone: "Your first followed soccer club" },
+                          { icon: "🏈", title: "CFB Fan", note: "Follow your first college football team", earned: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="College Football") ?? false), progress: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="College Football") ?? false) ? "Earned ✓" : "Choose a CFB team", milestone: "Your first followed college football team" },
+                          { icon: "🏒", title: "Hockey Fan", note: "Follow your first hockey team", earned: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Hockey") ?? false), progress: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Hockey") ?? false) ? "Earned ✓" : "Choose a hockey team", milestone: "Your first followed hockey team" },
+                          { icon: "⚾", title: "Baseball Fan", note: "Follow your first baseball team", earned: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Baseball") ?? false), progress: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Baseball") ?? false) ? "Earned ✓" : "Choose a baseball team", milestone: "Your first followed baseball team" },
                         ],
                         [
-                          { icon: "🌎", title: "World Traveler", note: "Build your Sports Passport with attended games and places", progress: "0/5 places", milestone: "5 → 10 → 25 places" },
-                          { icon: "🏟️", title: "Stadium Hopper", note: "Attend games at different sports venues", repeatable: true, progress: "0/5 venues", milestone: "1st venue earns a stamp · 5 unlocks the next trophy" },
+                          { icon: "🌎", title: "Traveler", note: "Visit your first state and keep exploring", earned: visitedStates.length > 0, progress: visitedStates.length > 0 ? `${visitedStates.length} state${visitedStates.length===1?"":"s"} · Earned ✓` : "0/1 states", milestone: "1 → 5 → 10 → 25 → 50 states" },
+                          { icon: "🏟️", title: "Stadium Hopper", note: "Attend a game at your first sports venue", earned: new Set(passportEntries.map(e=>e.venue).filter(Boolean)).size > 0, repeatable: true, progress: `${new Set(passportEntries.map(e=>e.venue).filter(Boolean)).size} venue${new Set(passportEntries.map(e=>e.venue).filter(Boolean)).size===1?"":"s"}`, milestone: "1 → 5 → 10 → 25 stadiums" },
                           { icon: "👑", title: "FamBam Legend", note: "Reach major FamBam milestones across Challenges, Passport and Memories", progress: "Multi-category", milestone: "Built from real accomplishments across the app" },
                           { icon: "❤️", title: "FamBam Forever", note: "Build shared family sports memories together", repeatable: true, progress: "0 memories", milestone: "5 → 10 → 25 shared memories" },
                         ],
@@ -5367,11 +5380,11 @@ export default function Home() {
                                 onClick={() => setSelectedTrophy(trophy)}
                                 className="group relative min-w-0 rounded-t-lg border border-[#8a6139] border-b-0 bg-[linear-gradient(180deg,#3c281a_0%,#25160e_100%)] px-1.5 pb-2 pt-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.05)] sm:px-3 sm:pb-3"
                               >
-                                <div className="absolute right-1.5 top-1.5 rounded-full bg-black/40 px-1.5 py-0.5 text-[8px] opacity-90">🔒</div>
+                                <div className={`absolute right-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[8px] font-black ${trophy.earned ? "bg-[#f3c64f] text-[#33200f]" : "bg-black/40 text-white"}`}>{trophy.earned ? "✓" : "🔒"}</div>
                                 {trophy.repeatable && (
                                   <div className="absolute left-1.5 top-1.5 rounded-full border border-[#7f6c4a] bg-[#21150d] px-1.5 py-0.5 text-[7px] font-black uppercase text-[#f3c64f]">Repeat</div>
                                 )}
-                                <div className="mx-auto flex h-14 items-end justify-center text-3xl grayscale opacity-25 transition group-hover:opacity-40 sm:h-20 sm:text-5xl">
+                                <div className={`mx-auto flex h-14 items-end justify-center text-3xl transition sm:h-20 sm:text-5xl ${trophy.earned ? "drop-shadow-[0_0_12px_rgba(243,198,79,.45)]" : "grayscale opacity-25 group-hover:opacity-40"}`}>
                                   {trophy.icon}
                                 </div>
                                 <div className="mt-1 line-clamp-1 text-[7px] font-black uppercase tracking-wide text-[#cdb89e] sm:text-[9px]">
@@ -5393,7 +5406,7 @@ export default function Home() {
                         <div className="flex items-start gap-4">
                           <div className="text-4xl grayscale opacity-40">{selectedTrophy.icon}</div>
                           <div className="min-w-0 flex-1">
-                            <div className="text-[8px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">🔒 How to earn it</div>
+                            <div className="text-[8px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">{selectedTrophy.earned ? "🏆 Earned" : "🔒 How to earn it"}</div>
                             <div className="mt-1 text-lg font-black text-white">{selectedTrophy.title}</div>
                             <div className="mt-1 text-xs font-semibold leading-5 text-[#d8c2a4]">{selectedTrophy.note}.</div>
                             {selectedTrophy.progress && (
@@ -5624,6 +5637,8 @@ export default function Home() {
 
                 if (label === "Trophy Room") {
                   setActiveSection("Trophy Room");
+                  void loadLockerRoom();
+                  void loadPassport();
                 }
               }}
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${

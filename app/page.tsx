@@ -221,6 +221,20 @@ function lockerTeamColors(team: LockerTeam) {
   return { primary: "#10254a", secondary: "#f3c64f", accent: "#FFFFFF" };
 }
 
+function lockerUniformAsset(team: LockerTeam) {
+  const name = team.name.toLowerCase();
+
+  if (name.includes("aston villa")) return "/uniforms/aston-villa.webp";
+  if (name.includes("arsenal")) return "/uniforms/arsenal.webp";
+  if (name.includes("liverpool")) return "/uniforms/liverpool.webp";
+  if (name.includes("wimbledon")) return "/uniforms/afc-wimbledon.webp";
+  if (name.includes("kentucky") && team.sport === "Cheerleading") {
+    return "/uniforms/kentucky-cheer.webp";
+  }
+
+  return null;
+}
+
 function lockerTeamMatchesGame(team: LockerTeam, game: BrowserGame) {
   if (team.sport !== game.sport) return false;
 
@@ -5176,6 +5190,33 @@ export default function Home() {
                                 const colors = lockerTeamColors(team);
                                 const label = (team.short_name ?? team.name).replace(/\s+(FC|Football|Cheerleading)$/i, "");
                                 const ball = team.sport === "College Football" ? "🏈" : team.sport === "College Basketball" ? "🏀" : team.sport === "Volleyball" ? "🏐" : team.sport === "Baseball" ? "⚾" : "";
+                                const uniformAsset = lockerUniformAsset(team);
+
+                                if (uniformAsset) {
+                                  return (
+                                    <div className="absolute inset-0 flex items-start justify-center">
+                                      <div className="relative h-full w-full">
+                                        <img
+                                          src={uniformAsset}
+                                          alt={`${team.name} uniform hanging in the locker`}
+                                          className="absolute left-1/2 top-0 h-[228px] w-[94%] -translate-x-1/2 object-contain drop-shadow-[0_18px_14px_rgba(0,0,0,.8)]"
+                                        />
+                                        {team.logo_url && (
+                                          <img
+                                            src={team.logo_url}
+                                            alt=""
+                                            className={`absolute left-1/2 z-10 -translate-x-1/2 object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,.8)] ${
+                                              team.sport === "Cheerleading"
+                                                ? "top-[82px] h-12 w-12"
+                                                : "top-[91px] h-10 w-10"
+                                            }`}
+                                          />
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+
                                 return (
                                   <div className="absolute inset-0">
                                     <div className="absolute left-3 right-3 top-4 h-[3px] rounded-full bg-[linear-gradient(180deg,#d9b17c,#6c4527)] shadow-[0_3px_5px_rgba(0,0,0,.65)]" />

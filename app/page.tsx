@@ -1014,6 +1014,7 @@ export default function Home() {
   const [photoCropX, setPhotoCropX] = useState(0);
   const [photoCropY, setPhotoCropY] = useState(0);
   const [photoCropSaving, setPhotoCropSaving] = useState(false);
+  const [photoCropError, setPhotoCropError] = useState<string | null>(null);
 
   const [profileSports, setProfileSports] =
     useState<ProfileSport[]>([]);
@@ -2472,7 +2473,11 @@ export default function Home() {
         headers: { "x-fambam-session": sessionToken },
         body: form,
       });
-      const body = await response.json();
+      const responseText = await response.text();
+      const body = responseText ? (() => {
+        try { return JSON.parse(responseText); }
+        catch { return { error: `Picture service returned an unreadable response (${response.status}).` }; }
+      })() : { error: `Picture service returned an empty response (${response.status}).` };
 
       if (!response.ok) throw new Error(body.error || "Could not upload picture.");
 
@@ -3968,9 +3973,18 @@ export default function Home() {
         headers: { "x-fambam-session": token },
         body: form,
       });
-      const body = await response.json();
+      const responseText = await response.text();
+      const body = responseText ? (() => {
+        try { return JSON.parse(responseText); }
+        catch { return { error: `Picture service returned an unreadable response (${response.status}).` }; }
+      })() : { error: `Picture service returned an empty response (${response.status}).` };
       if (!response.ok) throw new Error(body.error || "Could not upload picture.");
-      await loadPassport();
+      setPassportEntries((current) => current.map((entry) =>
+        entry.id === eventId && !entry.photos.includes(body.url)
+          ? { ...entry, photos: [body.url, ...entry.photos] }
+          : entry,
+      ));
+      return body.url as string;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not upload picture.";
       setPassportError(message);
@@ -3990,17 +4004,20 @@ export default function Home() {
     setPhotoCropZoom(1);
     setPhotoCropX(0);
     setPhotoCropY(0);
+    setPhotoCropError(null);
   }
 
   function closePhotoCrop() {
     if (photoCrop) URL.revokeObjectURL(photoCrop.previewUrl);
     setPhotoCrop(null);
     setPhotoCropSaving(false);
+    setPhotoCropError(null);
   }
 
   async function saveCroppedPhoto() {
     if (!photoCrop) return;
     setPhotoCropSaving(true);
+    setPhotoCropError(null);
     setProfileError(null);
     setPassportError(null);
 
@@ -4017,6 +4034,8 @@ export default function Home() {
         await uploadProfilePhoto(cropped);
       } else if (photoCrop.eventId) {
         await uploadPassportPhoto(photoCrop.eventId, cropped);
+      } else {
+        throw new Error("This Passport entry could not be identified. Close the crop window and try again.");
       }
 
       closePhotoCrop();
@@ -4024,6 +4043,7 @@ export default function Home() {
       const message = error instanceof Error ? error.message : "Could not crop this picture.";
       if (photoCrop.purpose === "profile") setProfileError(message);
       else setPassportError(message);
+      setPhotoCropError(message);
       setPhotoCropSaving(false);
     }
   }
@@ -5129,6 +5149,12 @@ export default function Home() {
               </label>
             </div>
 
+            {photoCropError && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
+                {photoCropError}
+              </div>
+            )}
+
             <div className="mt-5 grid grid-cols-2 gap-2">
               <button type="button" onClick={closePhotoCrop} disabled={photoCropSaving} className="min-h-12 rounded-xl border border-slate-300 bg-white text-sm font-black">Cancel</button>
               <button type="button" onClick={()=>void saveCroppedPhoto()} disabled={photoCropSaving} className="min-h-12 rounded-xl bg-[#f3c64f] text-sm font-black text-[#06284a] disabled:opacity-60">{photoCropSaving ? "Saving…" : "Use This Crop"}</button>
@@ -6151,9 +6177,6 @@ export default function Home() {
                     {passportEntries.length===0 ? (
                       <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">Your first shared sports memory is waiting.</div>
                     ) : passportEntries.map((e) => {
-                      const mine = e.memories.find((m) => m.playerId === signedInPlayer?.id);
-                      const canAddPhoto = Boolean(signedInPlayer && e.attendeeIds.includes(signedInPlayer.id));
-                      const canEdit = Boolean(signedInPlayer && (e.createdByPlayerId === signedInPlayer.id || signedInPlayer.is_admin));
                       return (
                         <div key={e.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                           {e.photos.length > 0 && (
@@ -6168,11 +6191,6 @@ export default function Home() {
                               <div className="mt-1 text-base font-black text-[#10254a]">{passportEntryTitle(e)}</div>
                               <div className="mt-1 text-[9px] font-semibold text-slate-500">With {e.attendeeNames.join(' · ')}</div>
                               {e.memories.length>0&&<div className="mt-3 space-y-2">{e.memories.map(m=><div key={m.playerId} className="rounded-lg border border-slate-200 bg-white p-3 text-[10px] text-slate-600"><span className="font-black text-[#06284a]">{m.playerName}:</span> {m.note}</div>)}</div>}
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                <button type="button" onClick={()=>{setPassportMemoryEvent(e);setPassportMemoryNote(mine?.note||'')}} className="min-h-11 rounded-full border border-[#06284a] bg-white px-4 text-[9px] font-black uppercase text-[#06284a]">{mine?'Edit My Memory':'+ Add My Memory'}</button>
-                                {canAddPhoto && <label className="flex min-h-11 cursor-pointer items-center rounded-full bg-[#f3c64f] px-4 text-[9px] font-black uppercase text-[#33200f]">{passportPhotoUploadingId===e.id?'Uploading…':'+ Add Picture'}<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" disabled={passportPhotoUploadingId===e.id} className="sr-only" onChange={(event)=>{const file=event.target.files?.[0];if(file)beginPhotoCrop(file,"passport",e.id);event.currentTarget.value=''}}/></label>}
-                                {canEdit && <button type="button" onClick={()=>openPassportEdit(e)} className="min-h-11 rounded-full border border-[#77511f] bg-[#fff7e6] px-4 text-[9px] font-black uppercase text-[#77511f]">✏️ Edit Entry</button>}
-                              </div>
                             </div>
                           </div>
                         </div>

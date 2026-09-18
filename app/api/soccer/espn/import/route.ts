@@ -662,7 +662,24 @@ export async function POST(request: Request) {
 
       const cursor = new Date(startDate);
 
-      while (cursor <= endDate) {
+      /*
+       * EFL Trophy group matches are spaced farther apart than
+       * ordinary league fixtures. Keep its automatic window open
+       * far enough to reach the next group date, while leaving the
+       * lighter 21-day window in place for every other competition.
+       * Explicit date/range requests still use exactly what was asked.
+       */
+      const competitionEndDate =
+        !requestedDate &&
+        !(requestedStart && requestedEnd) &&
+        config.espnSlug === "eng.trophy"
+          ? new Date(
+              Date.now() +
+                75 * 24 * 60 * 60 * 1000,
+            )
+          : endDate;
+
+      while (cursor <= competitionEndDate) {
         const espnUrl =
           new URL(
             `https://site.api.espn.com/apis/site/v2/sports/soccer/${config.espnSlug}/scoreboard`,

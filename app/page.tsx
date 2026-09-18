@@ -5090,52 +5090,6 @@ export default function Home() {
               </div>
 
               <div className="bg-gradient-to-b from-[#2c190e] via-[#422817] to-[#17100b] p-3 sm:p-5">
-                <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {[
-                    "All",
-                    ...Array.from(
-                      new Set(
-                        lockerPlayers
-                          .find((player) => player.id === signedInPlayer?.id)
-                          ?.teams.map((team) => team.sport) ?? [],
-                      ),
-                    ),
-                  ].map((sport) => (
-                    <button
-                      key={sport}
-                      type="button"
-                      onClick={() => setLockerSportFilter(sport)}
-                      className={`shrink-0 rounded-full border px-3 py-2 text-[10px] font-black ${
-                        lockerSportFilter === sport
-                          ? "border-[#f3c64f] bg-[#f3c64f] text-[#33200f]"
-                          : "border-[#9a7047] bg-black/20 text-[#f4e6d2]"
-                      }`}
-                    >
-                      {sport}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-2 flex items-center justify-between gap-3 border-y border-[#7b542e] py-3">
-                  <div>
-                    <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
-                      My Teams
-                    </div>
-                    <div className="mt-0.5 text-xs font-bold text-[#d7c2a7]">
-                      {lockerSportFilter === "All"
-                        ? "Everything I follow"
-                        : lockerSportFilter}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void openProfile()}
-                    className="rounded-xl border border-[#f3c64f] bg-black/20 px-3 py-2 text-[10px] font-black text-[#f3c64f]"
-                  >
-                    + Edit Teams
-                  </button>
-                </div>
-
                 <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 pr-[10vw] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {(lockerPlayers
                     .find((player) => player.id === signedInPlayer?.id)
@@ -5269,6 +5223,52 @@ export default function Home() {
                     )}
                 </div>
 
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {[
+                    "All",
+                    ...Array.from(
+                      new Set(
+                        lockerPlayers
+                          .find((player) => player.id === signedInPlayer?.id)
+                          ?.teams.map((team) => team.sport) ?? [],
+                      ),
+                    ),
+                  ].map((sport) => (
+                    <button
+                      key={sport}
+                      type="button"
+                      onClick={() => setLockerSportFilter(sport)}
+                      className={`shrink-0 rounded-full border px-3 py-2 text-[10px] font-black ${
+                        lockerSportFilter === sport
+                          ? "border-[#f3c64f] bg-[#f3c64f] text-[#33200f]"
+                          : "border-[#9a7047] bg-black/20 text-[#f4e6d2]"
+                      }`}
+                    >
+                      {sport}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-2 flex items-center justify-between gap-3 border-y border-[#7b542e] py-3">
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
+                      My Teams
+                    </div>
+                    <div className="mt-0.5 text-xs font-bold text-[#d7c2a7]">
+                      {lockerSportFilter === "All"
+                        ? "Everything I follow"
+                        : lockerSportFilter}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void openProfile()}
+                    className="rounded-xl border border-[#f3c64f] bg-black/20 px-3 py-2 text-[10px] font-black text-[#f3c64f]"
+                  >
+                    + Edit Teams
+                  </button>
+                </div>
+
                 <div className="mt-4 rounded-xl border border-[#7b542e] bg-[#1a100a] px-4 py-4 text-center">
                   <div className="text-sm font-black text-[#f4e6d2]">
                     Good teams make great memories. 💛
@@ -5332,7 +5332,7 @@ export default function Home() {
             </div>
 
             {trophyRoomPanel === null && (
-              <div className="bg-[linear-gradient(180deg,#3b2415_0%,#26160e_100%)] px-3 py-5 sm:px-6 sm:py-7">
+              <div className="bg-[linear-gradient(180deg,#563720_0%,#342116_100%)] px-3 py-5 sm:px-6 sm:py-7">
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
                   <div>
                     <div className="mb-3 flex items-end justify-between gap-3">
@@ -5364,7 +5364,7 @@ export default function Home() {
                           { icon: "⚾", title: "Baseball Fan", note: "Follow your first baseball team", earned: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Baseball") ?? false), progress: (lockerPlayers.find(p=>p.id===signedInPlayer?.id)?.teams.some(t=>t.sport==="Baseball") ?? false) ? "Earned ✓" : "Choose a baseball team", milestone: "Your first followed baseball team" },
                         ],
                         [
-                          { icon: "🌎", title: "Traveler", note: "Visit your first state and keep exploring", earned: visitedStates.length > 0, progress: visitedStates.length > 0 ? `${visitedStates.length} state${visitedStates.length===1?"":"s"} · Earned ✓` : "0/1 states", milestone: "1 → 5 → 10 → 25 → 50 states" },
+                          { icon: "🌎", title: "Traveler", note: "Visit your first state and keep exploring", earned: new Set([...visitedStates, ...passportEntries.map(e=>e.state).filter(Boolean)]).size > 0, progress: new Set([...visitedStates, ...passportEntries.map(e=>e.state).filter(Boolean)]).size > 0 ? `${new Set([...visitedStates, ...passportEntries.map(e=>e.state).filter(Boolean)]).size} state${new Set([...visitedStates, ...passportEntries.map(e=>e.state).filter(Boolean)]).size===1?"":"s"} · Earned ✓` : "0/1 states", milestone: "1 → 5 → 10 → 25 → 50 states" },
                           { icon: "🏟️", title: "Stadium Hopper", note: "Attend a game at your first sports venue", earned: new Set(passportEntries.map(e=>e.venue).filter(Boolean)).size > 0, repeatable: true, progress: `${new Set(passportEntries.map(e=>e.venue).filter(Boolean)).size} venue${new Set(passportEntries.map(e=>e.venue).filter(Boolean)).size===1?"":"s"}`, milestone: "1 → 5 → 10 → 25 stadiums" },
                           { icon: "👑", title: "FamBam Legend", note: "Reach major FamBam milestones across Challenges, Passport and Memories", progress: "Multi-category", milestone: "Built from real accomplishments across the app" },
                           { icon: "❤️", title: "FamBam Forever", note: "Build shared family sports memories together", repeatable: true, progress: "0 memories", milestone: "5 → 10 → 25 shared memories" },
@@ -5493,9 +5493,9 @@ export default function Home() {
             )}
 
             {trophyRoomPanel === "records" && (
-              <div className="bg-[linear-gradient(180deg,#3b2415_0%,#26160e_100%)] px-3 py-5 sm:px-6 sm:py-7">
+              <div className="bg-[#071b2e] px-3 py-5 sm:px-6 sm:py-7">
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-xl border border-[#8a6139] bg-[#17100b] p-4 shadow-inner sm:p-5">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-lg sm:p-5">
                     <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">⭐ Personal Records</div>
                     <div className="mt-1 text-xl font-black text-white">{signedInPlayer?.display_name ?? "My"}'s Record Book</div>
                     {signedInPlayer && leaderboard.length > 0 && (() => {
@@ -5525,7 +5525,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-[#8a6139] bg-[#17100b] p-4 shadow-inner sm:p-5">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-lg sm:p-5">
                     <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">👑 FamBam Records</div>
                     <div className="mt-1 text-xl font-black text-white">Family Record Book</div>
                     {leaderboard.length > 0 ? (
@@ -5552,7 +5552,7 @@ export default function Home() {
             )}
 
             {trophyRoomPanel === "passport" && (
-              <div className="bg-[linear-gradient(180deg,#3b2415_0%,#26160e_100%)] px-3 py-5 sm:px-6 sm:py-7">
+              <div className="bg-[#071b2e] px-3 py-5 sm:px-6 sm:py-7">
                 <div className="mx-auto max-w-6xl overflow-hidden rounded-[1.4rem] border-[5px] border-[#18324f] bg-[#f3e4bd] text-[#3d2b17] shadow-2xl">
                   <div className="bg-[#102b49] p-5 text-white sm:p-7">
                     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -5567,7 +5567,7 @@ export default function Home() {
                   </div>
                   <div className="p-4 sm:p-6">
                     <div className="mb-5 grid grid-cols-3 gap-2">
-                      {[[passportEntries.length,'Games'],[new Set(passportEntries.map(x=>x.venue)).size,'Stadiums'],[visitedStates.length,'States']].map(([v,l])=><div key={String(l)} className="rounded-xl border border-[#ccb582] bg-[#f9edcf] p-3 text-center"><div className="text-2xl font-black">{v}</div><div className="text-[8px] font-black uppercase text-[#8b744e]">{l}</div></div>)}
+                      {[[passportEntries.length,'Games'],[new Set(passportEntries.map(x=>x.venue)).size,'Stadiums'],[new Set([...visitedStates,...passportEntries.map(x=>x.state).filter(Boolean)]).size,'States']].map(([v,l])=><div key={String(l)} className="rounded-xl border border-[#ccb582] bg-[#f9edcf] p-3 text-center"><div className="text-2xl font-black">{v}</div><div className="text-[8px] font-black uppercase text-[#8b744e]">{l}</div></div>)}
                     </div>
                     {passportView === 'year' && <div className="space-y-5">{passportEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center"><div className="text-5xl">🛂</div><div className="mt-3 font-black">Your first stamp is waiting.</div><button onClick={openPassportAdd} className="mt-4 rounded-full bg-[#77511f] px-4 py-2 text-[9px] font-black uppercase text-white">+ Add Game/Match</button></div>:Object.entries(passportEntries.reduce<Record<string,PassportEntry[]>>((a,e)=>{const y=e.date.slice(0,4)||'Undated';(a[y]??=[]).push(e);return a;},{})).sort(([a],[b])=>b.localeCompare(a)).map(([year,entries])=><div key={year}><div className="mb-3 text-xl font-black">{year}</div><div className="grid gap-3 md:grid-cols-2">{entries.map(e=><div key={e.id} className="relative overflow-hidden rounded-xl border border-[#c7aa70] bg-[#f8eccd] p-4"><div className="absolute right-3 top-3 rotate-[-10deg] rounded-full border-4 border-double border-[#a35b48] px-3 py-2 text-[8px] font-black uppercase text-[#a35b48] opacity-75">{e.sport==='MLB'?'⚾':'🏈'}<br/>VISITED</div><div className="text-[8px] font-black uppercase tracking-widest text-[#93691d]">{e.date} · {e.result||'Attended'}</div><div className="mt-2 pr-20 text-base font-black">{e.away} at {e.home}</div><div className="mt-1 text-xs font-bold">{e.awayScore||e.homeScore?`${e.awayScore||'–'} – ${e.homeScore||'–'}`:''}</div><div className="mt-3 text-[10px] font-semibold">🏟️ {e.venue}{e.city?` · ${e.city}, ${e.state}`:` · ${e.state}`}</div>{e.attendeeNames.length>0&&<div className="mt-1 text-[10px]">👨‍👩‍👧‍👦 {e.attendeeNames.join(" · ")}</div>}{e.memories.length>0&&<div className="mt-2 space-y-1 border-t border-[#d7c39b] pt-2">{e.memories.map(m=><div key={m.playerId} className="text-[10px] italic"><span className="font-black not-italic">{m.playerName}:</span> “{m.note}”</div>)}</div>}{signedInPlayer&&e.attendeeIds.includes(signedInPlayer.id)&&<button type="button" onClick={()=>{setPassportMemoryEvent(e);setPassportMemoryNote(e.memories.find(m=>m.playerId===signedInPlayer.id)?.note||"")}} className="mt-3 rounded-full border border-[#b99d68] bg-[#fff7e6] px-3 py-1.5 text-[8px] font-black uppercase text-[#77511f]">{e.memories.some(m=>m.playerId===signedInPlayer.id)?"Edit My Memory":"+ Add My Memory"}</button>}</div>)}</div></div>)}</div>}
                     {passportView === 'venue' && <div><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-widest text-[#93691d]">Stadium Collection</div><div className="text-xl font-black">All Your Stadiums</div></div><div className="flex flex-wrap gap-2">{(["All","Football","MLB"] as const).map(f=><button key={f} type="button" onClick={()=>setStadiumSportFilter(f)} className={`rounded-full px-3 py-2 text-[8px] font-black uppercase ${stadiumSportFilter===f?'bg-[#77511f] text-white':'border border-[#b99d68] bg-[#f7ebcd] text-[#77511f]'}`}>{f==='Football'?'🏈 Football':f==='MLB'?'⚾ MLB':'All'}</button>)}</div></div>{passportEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center text-sm font-bold">Add a game/match to start your stadium collection.</div>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(passportEntries.filter(e=>stadiumSportFilter==='All'||e.sport===stadiumSportFilter).reduce<Record<string,PassportEntry[]>>((a,e)=>{(a[e.venue]??=[]).push(e);return a;},{})).map(([venue,entries])=><div key={venue} className="rounded-xl border border-[#c7aa70] bg-[#f8eccd] p-4"><div className="text-4xl">🏟️</div><div className="mt-2 text-lg font-black">{venue}</div><div className="text-[9px] font-bold text-[#826b45]">{entries[0].city}{entries[0].city?', ':''}{entries[0].state}</div><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#77511f] px-2 py-1 text-[8px] font-black text-white">{entries.length} VISIT{entries.length===1?'':'S'}</span><span className="rounded-full border border-[#b99d68] px-2 py-1 text-[8px] font-black">{[...new Set(entries.map(e=>e.sport))].join(' · ')}</span></div><div className="mt-3 space-y-1 border-t border-[#d7c39b] pt-2">{entries.sort((a,b)=>b.date.localeCompare(a.date)).map(e=><div key={e.id} className="text-[9px] font-semibold">{e.date} · {e.away} at {e.home}</div>)}</div></div>)}</div>}</div>}
@@ -5586,8 +5586,8 @@ export default function Home() {
             )}
 
             {trophyRoomPanel === "memories" && (
-              <div className="bg-[linear-gradient(180deg,#3b2415_0%,#26160e_100%)] px-3 py-5 sm:px-6 sm:py-7">
-                <div className="mx-auto max-w-5xl rounded-xl border border-[#8a6139] bg-[#17100b] p-4 shadow-2xl sm:p-6">
+              <div className="bg-[#071b2e] px-3 py-5 sm:px-6 sm:py-7">
+                <div className="mx-auto max-w-5xl rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-xl sm:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#5f4228] pb-4"><div className="flex items-center gap-3"><div className="text-4xl">📸</div><div><div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">FamBam Memory Book</div><div className="text-xl font-black text-white">{signedInPlayer?.display_name ?? 'My'}'s sports memories</div></div></div><button type="button" onClick={openPassportAdd} className="min-h-11 rounded-full bg-[#f3c64f] px-4 py-2 text-[9px] font-black uppercase tracking-wide text-[#33200f]">+ Add Game/Match</button></div>
                   <div className="mt-5 space-y-3">{passportEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#6d4b2d] bg-[#251811] p-8 text-center text-sm font-bold text-[#c3ad90]">Your first shared sports memory is waiting.</div>:passportEntries.map(e=>{const mine=e.memories.find(m=>m.playerId===signedInPlayer?.id);return <div key={e.id} className="rounded-xl border border-[#6d4b2d] bg-[#251811] p-4"><div className="flex items-start gap-3"><div className="text-3xl">{e.sport==='MLB'?'⚾':'🏈'}</div><div className="min-w-0 flex-1"><div className="text-[8px] font-black uppercase tracking-widest text-[#f3c64f]">{e.date} · {e.venue}</div><div className="mt-1 text-base font-black text-white">{e.away} at {e.home}</div><div className="mt-1 text-[9px] font-semibold text-[#c3ad90]">With {e.attendeeNames.join(' · ')}</div>{e.memories.length>0&&<div className="mt-3 space-y-2">{e.memories.map(m=><div key={m.playerId} className="rounded-lg bg-[#1b110b] p-3 text-[10px] text-[#e1cfb8]"><span className="font-black text-[#f6d36f]">{m.playerName}:</span> {m.note}</div>)}</div>}<button type="button" onClick={()=>{setPassportMemoryEvent(e);setPassportMemoryNote(mine?.note||'')}} className="mt-3 min-h-11 rounded-full border border-[#8a6139] px-4 text-[9px] font-black uppercase text-[#f3c64f]">{mine?'Edit My Memory':'+ Add My Memory'}</button></div></div></div>})}</div>
                 </div>

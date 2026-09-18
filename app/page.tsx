@@ -3787,15 +3787,18 @@ export default function Home() {
       const attendees = body.attendees ?? [];
       const memories = body.memories ?? [];
       const photos = body.photos ?? {};
-      const mapped: PassportEntry[] = (body.events ?? []).map((event: any) => ({
+      const mapped: PassportEntry[] = (body.events ?? []).map((event: any) => {
+        const isTour = event.sport === "Tour" || event.away_team === "__STADIUM_TOUR__";
+
+        return {
         id: event.id,
         createdByPlayerId: event.created_by_player_id || undefined,
         gameId: event.game_id || undefined,
-        sport: event.sport === "Tour" ? "Tour" : event.sport === "MLB" ? "MLB" : "Football",
-        visitType: event.sport === "Tour" ? "tour" : "game",
+        sport: isTour ? "Tour" : event.sport === "MLB" ? "MLB" : "Football",
+        visitType: isTour ? "tour" : "game",
         date: event.event_date,
-        away: event.sport === "Tour" ? "Stadium Tour" : event.away_team,
-        home: event.sport === "Tour" ? event.venue_name : event.home_team,
+        away: isTour ? "Stadium Tour" : event.away_team,
+        home: isTour ? event.venue_name : event.home_team,
         venue: event.venue_name,
         city: event.city || "",
         state: event.state_code || "",
@@ -3806,7 +3809,8 @@ export default function Home() {
         attendeeNames: attendees.filter((a: any) => a.event_id === event.id).map((a: any) => Array.isArray(a.players) ? a.players[0]?.display_name : a.players?.display_name).filter(Boolean),
         memories: memories.filter((m: any) => m.event_id === event.id).map((m: any) => ({ playerId: m.player_id, playerName: (Array.isArray(m.players) ? m.players[0]?.display_name : m.players?.display_name) || "FamBam", note: m.note || "" })),
         photos: Array.isArray(photos[event.id]) ? photos[event.id] : [],
-      }));
+      };
+      });
       setPassportEntries(mapped);
       setVisitedStates(Array.isArray(body.visitedStates) ? body.visitedStates : []);
     } catch (error) {

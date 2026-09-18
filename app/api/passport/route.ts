@@ -100,9 +100,9 @@ export async function POST(request: Request) {
       const { data: event, error } = await db.from("passport_events").insert({
         game_id: d.gameId || null,
         created_by_player_id: playerId,
-        sport: isTour ? "Tour" : d.sport === "MLB" ? "MLB" : "Football",
+        sport: isTour ? "Football" : d.sport === "MLB" ? "MLB" : "Football",
         event_date: d.date,
-        away_team: isTour ? "" : d.away,
+        away_team: isTour ? "__STADIUM_TOUR__" : d.away,
         home_team: isTour ? "" : d.home,
         venue_name: d.venue,
         city: d.city || null,
@@ -150,9 +150,9 @@ export async function POST(request: Request) {
 
       const { error: updateError } = await db.from("passport_events").update({
         game_id: isTour ? null : d.gameId || null,
-        sport: isTour ? "Tour" : d.sport === "MLB" ? "MLB" : "Football",
+        sport: isTour ? "Football" : d.sport === "MLB" ? "MLB" : "Football",
         event_date: d.date,
-        away_team: isTour ? "" : d.away,
+        away_team: isTour ? "__STADIUM_TOUR__" : d.away,
         home_team: isTour ? "" : d.home,
         venue_name: d.venue,
         city: d.city || null,

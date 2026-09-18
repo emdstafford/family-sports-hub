@@ -8996,3 +8996,5 @@ export default function Home() {
     </main>
   );
 }
+
+// Deployment refresh: event pick confirmation

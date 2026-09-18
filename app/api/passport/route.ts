@@ -262,6 +262,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    if (body.action === "deletePhoto") {
+      const eventId = String(body.eventId ?? "");
+      const photoUrl = String(body.photoUrl ?? "");
+      const marker = `/storage/v1/object/public/${photoBucket}/`;
+      const markerIndex = photoUrl.indexOf(marker);
+      const path = markerIndex >= 0
+        ? decodeURIComponent(photoUrl.slice(markerIndex + marker.length).split("?")[0])
+        : "";
+
+      if (!eventId || !path.startsWith(`passport/${eventId}/`)) {
+        return NextResponse.json({ error: "That picture could not be identified." }, { status: 400 });
+      }
+
+      const [{ data: attendee }, { data: player }] = await Promise.all([
+        db.from("passport_event_attendees").select("event_id").eq("event_id", eventId).eq("player_id", playerId).maybeSingle(),
+        db.from("players").select("is_admin").eq("id", playerId).maybeSingle(),
+      ]);
+      const fileName = path.split("/").pop() ?? "";
+      const ownsPhoto = fileName.startsWith(`${playerId}-`);
+
+      if (!attendee || (!ownsPhoto && player?.is_admin !== true)) {
+        return NextResponse.json({ error: "You can only delete pictures you added." }, { status: 403 });
+      }
+
+      const { error } = await db.storage.from(photoBucket).remove([path]);
+      if (error) throw error;
+      return NextResponse.json({ ok: true });
+    }
+
     if (body.action === "toggleState") {
       const state = String(body.state ?? "");
       if (!validStates.has(state)) return NextResponse.json({ error: "Invalid state." }, { status: 400 });

@@ -311,6 +311,35 @@ export async function POST(
         "x-fambam-session",
       ) ?? "";
 
+    if (body.action === "deletePhoto") {
+      if (!playerId || !sessionToken || !(await verifySession(playerId, sessionToken))) {
+        return NextResponse.json(
+          { error: "Your FamBam session has expired. Please switch players and sign in again." },
+          { status: 401 },
+        );
+      }
+
+      const supabase = getAdminClient();
+      const { data: files, error: listError } = await supabase.storage
+        .from(photoBucket)
+        .list(`profiles/${playerId}`, { limit: 100 });
+      if (listError) throw listError;
+
+      const paths = (files ?? []).map((file) => `profiles/${playerId}/${file.name}`);
+      if (paths.length) {
+        const { error: removeError } = await supabase.storage.from(photoBucket).remove(paths);
+        if (removeError) throw removeError;
+      }
+
+      const { error: updateError } = await supabase
+        .from("players")
+        .update({ avatar_url: null })
+        .eq("id", playerId);
+      if (updateError) throw updateError;
+
+      return NextResponse.json({ ok: true });
+    }
+
     if (
       !playerId ||
       !displayName ||

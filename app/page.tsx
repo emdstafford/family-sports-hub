@@ -2495,6 +2495,39 @@ export default function Home() {
     }
   }
 
+  async function deleteProfilePhoto() {
+    if (!signedInPlayer || !profileAvatarUrl) return;
+    if (!window.confirm("Delete your profile picture? Your initials will show instead.")) return;
+
+    const sessionToken = window.localStorage.getItem("fambam_session_token");
+    if (!sessionToken) {
+      setProfileError("Your FamBam session has expired.");
+      return;
+    }
+
+    setProfilePhotoUploading(true);
+    setProfileError(null);
+    try {
+      const response = await fetch("/api/player-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-fambam-session": sessionToken },
+        body: JSON.stringify({ action: "deletePhoto", playerId: signedInPlayer.id }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Could not delete picture.");
+
+      setProfileAvatarUrl(null);
+      setPlayers((current) => current.map((player) =>
+        player.id === signedInPlayer.id ? { ...player, avatar_url: null } : player,
+      ));
+      setSignedInPlayer((current) => current ? { ...current, avatar_url: null } : current);
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Could not delete picture.");
+    } finally {
+      setProfilePhotoUploading(false);
+    }
+  }
+
   const [challengePickStatus, setChallengePickStatus] =
     useState<ChallengePickStatus>({});
 
@@ -3994,6 +4027,26 @@ export default function Home() {
     }
   }
 
+  async function deletePassportPhoto(eventId: string, photoUrl: string) {
+    if (!signedInPlayer) return;
+    if (!window.confirm("Delete this picture from the Passport entry?")) return;
+
+    setPassportPhotoUploadingId(eventId);
+    setPassportError(null);
+    try {
+      await passportPost({ action: "deletePhoto", eventId, photoUrl });
+      setPassportEntries((current) => current.map((entry) =>
+        entry.id === eventId
+          ? { ...entry, photos: entry.photos.filter((photo) => photo !== photoUrl) }
+          : entry,
+      ));
+    } catch (error) {
+      setPassportError(error instanceof Error ? error.message : "Could not delete picture.");
+    } finally {
+      setPassportPhotoUploadingId(null);
+    }
+  }
+
   function beginPhotoCrop(
     file: File,
     purpose: "profile" | "passport",
@@ -5237,6 +5290,17 @@ export default function Home() {
                       />
                     </label>
 
+                    {profileAvatarUrl && (
+                      <button
+                        type="button"
+                        disabled={profilePhotoUploading}
+                        onClick={() => void deleteProfilePhoto()}
+                        className="min-h-10 rounded-xl border border-white/25 bg-white/10 px-3 text-[8px] font-black uppercase text-white disabled:opacity-50"
+                      >
+                        Delete Photo
+                      </button>
+                    )}
+
                     <div className="min-w-0 flex-1">
                       <label className="text-[9px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
                         Display Name
@@ -6133,7 +6197,11 @@ export default function Home() {
                                 return (
                                   <div key={entry.id} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4">
                                     <div className="absolute right-3 top-3 rotate-[-10deg] rounded-full border-4 border-double border-[#a35b48] px-3 py-2 text-[8px] font-black uppercase text-[#a35b48] opacity-75">{entry.sport==='Tour'?'🎟️':entry.sport==='MLB'?'⚾':'🏈'}<br/>VISITED</div>
-                                    {entry.photos.length > 0 && <div className="mb-3 grid grid-cols-3 gap-1.5 pr-16">{entry.photos.slice(0, 3).map((photo, index)=><img key={photo} src={photo} alt={`${passportEntryTitle(entry)} photo ${index+1}`} className="aspect-square w-full rounded-lg object-cover" />)}</div>}
+                                    {entry.photos.length > 0 && <div className="mb-3 grid grid-cols-3 gap-1.5 pr-16">{entry.photos.slice(0, 3).map((photo, index)=>{
+                                      const fileName = decodeURIComponent(photo.split("?")[0].split("/").pop() ?? "");
+                                      const canDeletePhoto = Boolean(signedInPlayer && (signedInPlayer.is_admin || fileName.startsWith(`${signedInPlayer.id}-`)));
+                                      return <div key={photo} className="relative"><img src={photo} alt={`${passportEntryTitle(entry)} photo ${index+1}`} className="aspect-square w-full rounded-lg object-cover" />{canDeletePhoto&&<button type="button" disabled={passportPhotoUploadingId===entry.id} onClick={()=>void deletePassportPhoto(entry.id,photo)} aria-label="Delete picture" className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-red-700/90 text-xs text-white shadow ring-2 ring-white disabled:opacity-50">✕</button>}</div>;
+                                    })}</div>}
                                     <div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{entry.date} · {entry.sport==='Tour'?'Tour':entry.result||'Attended'}</div>
                                     <div className="mt-2 pr-20 text-base font-black">{passportEntryTitle(entry)}</div>
                                     <div className="mt-1 text-xs font-bold">{entry.awayScore||entry.homeScore?`${entry.awayScore||'–'} – ${entry.homeScore||'–'}`:''}</div>
@@ -6707,13 +6775,21 @@ export default function Home() {
                         className="min-w-0 text-center"
                       >
                         <div
-                          className={`relative mx-auto flex h-10 w-10 items-center justify-center rounded-full text-[9px] font-black ${
+                          className={`relative mx-auto flex h-10 w-10 items-center justify-center overflow-visible rounded-full text-[9px] font-black ${
                             isYou
                               ? "bg-[#06284a] text-white"
                               : "bg-[#f7f4ec] text-[#10254a] ring-1 ring-[#e5dcc5]"
                           }`}
                         >
-                          {player.initials ?? "?"}
+                          {player.avatar_url ? (
+                            <img
+                              src={player.avatar_url}
+                              alt={`${player.display_name} profile`}
+                              className="h-full w-full rounded-full object-cover"
+                            />
+                          ) : (
+                            player.initials ?? "?"
+                          )}
 
                           {ready && (
                             <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[8px] font-black text-white ring-2 ring-white">

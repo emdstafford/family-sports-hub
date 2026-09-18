@@ -299,7 +299,21 @@ function lockerUniformAsset(team: LockerTeam) {
 }
 
 function lockerTeamMatchesGame(team: LockerTeam, game: BrowserGame) {
-  if (team.sport !== game.sport) return false;
+  const sportFamily = (value: string) => {
+    const normalized = value.toLowerCase();
+    if (normalized.includes("football") || normalized === "cfb") return "football";
+    if (normalized.includes("basketball")) return "basketball";
+    if (normalized.includes("volleyball")) return "volleyball";
+    if (normalized.includes("soccer")) return "soccer";
+    if (normalized.includes("hockey") || normalized === "nhl") return "hockey";
+    if (normalized.includes("baseball") || normalized === "mlb") return "baseball";
+    return normalized.replace(/[^a-z0-9]+/g, " ").trim();
+  };
+
+  // Favorite-team records sometimes use a shorter sport label (for example,
+  // "Football") than the game feed ("College Football"). Match the sport
+  // family so a valid upcoming game is not hidden from the locker.
+  if (sportFamily(team.sport) !== sportFamily(game.sport)) return false;
 
   const lockerName = normalizeLockerTeamName(team.name);
   const shortName = normalizeLockerTeamName(team.short_name ?? "");
@@ -6056,7 +6070,7 @@ export default function Home() {
             <div className="relative overflow-hidden border-x border-[#7b542e] bg-[#1b110b] shadow-2xl sm:rounded-[1.75rem] sm:border">
               <div className="bg-gradient-to-b from-[#15110f] via-[#2a1b12] to-[#100c0a] p-2 sm:p-5">
                 <div
-                  className="relative flex min-h-[610px] snap-x snap-mandatory gap-0 overflow-x-auto rounded-xl border border-[#8b6235] bg-[#17110d] pb-3 pr-[18vw] pt-2 shadow-[inset_0_0_55px_rgba(0,0,0,.55)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:pr-[8vw]"
+                  className="relative flex min-h-[610px] snap-x snap-mandatory gap-0 overflow-x-auto rounded-xl border border-[#8b6235] bg-[#17110d] pb-3 pr-[12vw] pt-2 shadow-[inset_0_0_55px_rgba(0,0,0,.55)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:pr-[6vw]"
                 >
                   {(lockerPlayers
                     .find((player) => player.id === signedInPlayer?.id)
@@ -6086,7 +6100,7 @@ export default function Home() {
                               setActiveSection("Games");
                             }
                           }}
-                          className="group w-[72vw] min-w-[260px] max-w-[320px] shrink-0 snap-start overflow-hidden border-r border-[#714b2b] bg-[#28180e] bg-cover bg-top text-left transition sm:w-[40vw] sm:min-w-[280px] sm:max-w-[330px] lg:w-[24vw] lg:max-w-[340px]"
+                          className="group w-[64vw] min-w-[225px] max-w-[270px] shrink-0 snap-start overflow-hidden border-r border-[#714b2b] bg-[#28180e] bg-cover bg-top text-left transition sm:w-[34vw] sm:min-w-[240px] sm:max-w-[285px] lg:w-[20vw] lg:max-w-[300px]"
                           style={{
                             backgroundImage:
                               "linear-gradient(180deg,rgba(8,5,3,.06),rgba(6,4,3,.42)),url('/locker-bay-realistic.webp')",

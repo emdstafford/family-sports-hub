@@ -5169,47 +5169,49 @@ export default function Home() {
                               {team.is_primary ? " · ⭐ Favorite" : ""}
                             </div>
 
-                            <div className="relative mt-3 h-[190px] overflow-hidden border-y border-[#8b6235]/70 bg-[linear-gradient(90deg,#24140c_0%,#3d2415_48%,#25150c_100%)]">
+                            <div className="relative mt-3 h-[250px] overflow-hidden border-y border-[#8b6235]/70 bg-[radial-gradient(circle_at_50%_18%,rgba(255,220,160,.16),transparent_36%),linear-gradient(90deg,#1c100a_0%,#432817_48%,#21130b_100%)] shadow-[inset_0_0_35px_rgba(0,0,0,.7)]">
                               {(() => {
                                 const colors = lockerTeamColors(team);
                                 const label = (team.short_name ?? team.name).replace(/\s+(FC|Football|Cheerleading)$/i, "");
+                                const ball = team.sport === "College Football" ? "🏈" : team.sport === "College Basketball" ? "🏀" : team.sport === "Volleyball" ? "🏐" : team.sport === "Baseball" ? "⚾" : "";
                                 return (
                                   <div className="absolute inset-0">
-                                    <div className="absolute left-3 right-3 top-3 h-1 rounded-full bg-[#a87845] shadow-[0_2px_3px_rgba(0,0,0,.5)]" />
-                                    <div className="absolute left-1/2 top-3 h-4 w-px -translate-x-1/2 bg-[#b88a58]" />
-                                    <div className="absolute left-1/2 top-5 h-4 w-12 -translate-x-1/2 rounded-t-full border border-[#b88a58] border-b-0" />
+                                    <div className="absolute inset-y-0 left-[8%] w-px bg-white/[.035]" />
+                                    <div className="absolute inset-y-0 right-[8%] w-px bg-black/25" />
+                                    <div className="absolute left-3 right-3 top-4 h-[3px] rounded-full bg-[linear-gradient(180deg,#d0a06b,#6c4527)] shadow-[0_3px_5px_rgba(0,0,0,.65)]" />
+                                    <div className="absolute left-1/2 top-4 h-5 w-px -translate-x-1/2 bg-[#c89b67]" />
+                                    <div className="absolute left-1/2 top-7 h-5 w-14 -translate-x-1/2 rounded-t-full border-2 border-[#9f744b] border-b-0" />
 
-                                    <div
-                                      className="absolute left-1/2 top-7 h-[96px] w-[92px] -translate-x-1/2 drop-shadow-[0_8px_7px_rgba(0,0,0,.45)]"
-                                      style={{ color: colors.secondary }}
-                                    >
-                                      <div className="absolute left-0 top-2 h-8 w-7 -skew-y-6 rounded-l-md border-2" style={{ backgroundColor: colors.primary, borderColor: colors.secondary }} />
-                                      <div className="absolute right-0 top-2 h-8 w-7 skew-y-6 rounded-r-md border-2" style={{ backgroundColor: colors.primary, borderColor: colors.secondary }} />
-                                      <div className="absolute left-[18px] right-[18px] top-0 bottom-0 rounded-b-xl border-2" style={{ backgroundColor: colors.primary, borderColor: colors.secondary }}>
-                                        <div className="mt-4 truncate px-1 text-center text-[7px] font-black uppercase" style={{ color: colors.secondary }}>{label}</div>
-                                        {team.logo_url ? <img src={team.logo_url} alt="" className="mx-auto mt-2 h-8 w-8 object-contain" /> : <div className="mx-auto mt-2 h-7 w-7 rounded-full border" style={{ borderColor: colors.accent }} />}
+                                    <div className="absolute left-1/2 top-9 h-[126px] w-[112px] -translate-x-1/2 drop-shadow-[0_10px_9px_rgba(0,0,0,.6)]">
+                                      <div className="absolute left-0 top-4 h-10 w-9 -rotate-6 rounded-l-lg border-2" style={{ background: `linear-gradient(135deg,${colors.primary},${colors.primary} 62%,${colors.secondary})`, borderColor: colors.secondary }} />
+                                      <div className="absolute right-0 top-4 h-10 w-9 rotate-6 rounded-r-lg border-2" style={{ background: `linear-gradient(225deg,${colors.primary},${colors.primary} 62%,${colors.secondary})`, borderColor: colors.secondary }} />
+                                      <div className="absolute left-[22px] right-[22px] top-0 bottom-0 overflow-hidden rounded-b-[18px] border-2" style={{ background: `linear-gradient(100deg,${colors.primary} 0%,${colors.primary} 42%,rgba(255,255,255,.18) 49%,${colors.primary} 58%,${colors.primary} 100%)`, borderColor: colors.secondary }}>
+                                        <div className="absolute inset-x-0 top-0 h-4 opacity-50" style={{ backgroundColor: colors.secondary }} />
+                                        <div className="mt-6 truncate px-1 text-center text-[7px] font-black uppercase tracking-wide" style={{ color: colors.secondary }}>{label}</div>
+                                        {team.logo_url && <img src={team.logo_url} alt="" className="mx-auto mt-2 h-9 w-9 object-contain drop-shadow-md" />}
+                                        <div className="absolute bottom-2 left-3 right-3 h-px bg-white/15" />
                                       </div>
                                     </div>
 
-                                    <div className="absolute bottom-[43px] left-2 right-2 h-4 rounded-sm border border-[#9a6938] bg-[linear-gradient(180deg,#8a582c,#573219)] shadow-[0_5px_8px_rgba(0,0,0,.5)]" />
-                                    <div className="absolute bottom-2 left-4 h-[34px] w-2 bg-[#4b2b17]" />
-                                    <div className="absolute bottom-2 right-4 h-[34px] w-2 bg-[#4b2b17]" />
+                                    <div className="absolute bottom-[57px] left-2 right-2 h-5 rounded-[3px] border border-[#a36c38] bg-[linear-gradient(180deg,#a16b37_0%,#71451f_42%,#4b2b15_100%)] shadow-[0_7px_10px_rgba(0,0,0,.7),inset_0_1px_0_rgba(255,255,255,.2)]" />
+                                    <div className="absolute bottom-1 left-5 h-[58px] w-3 bg-[linear-gradient(90deg,#3d210f,#70421e,#321b0d)]" />
+                                    <div className="absolute bottom-1 right-5 h-[58px] w-3 bg-[linear-gradient(90deg,#3d210f,#70421e,#321b0d)]" />
 
-                                    <div className="absolute bottom-[54px] left-3 h-9 w-14 rounded-lg border border-white/10 bg-[#1b2531] shadow-md">
-                                      <div className="absolute -top-2 left-3 right-3 h-3 rounded-t-full border-2 border-[#1b2531]" />
-                                      <div className="pt-2 text-center text-[5px] font-black uppercase text-white/70">{label}</div>
+                                    <div className="absolute bottom-[72px] left-3 h-11 w-[66px] -rotate-2 rounded-[12px] border border-white/10 bg-[linear-gradient(145deg,#263442,#111a23)] shadow-[0_7px_9px_rgba(0,0,0,.6)]">
+                                      <div className="absolute -top-3 left-3 right-3 h-5 rounded-t-full border-[3px] border-[#202c37] border-b-0" />
+                                      <div className="pt-3 text-center text-[5px] font-black uppercase tracking-wide text-white/65">{label}</div>
+                                      <div className="absolute bottom-1 left-2 right-2 h-px bg-white/10" />
                                     </div>
-                                    <div className="absolute bottom-[55px] right-3 h-10 w-4 rounded-b-md rounded-t-lg border border-white/20" style={{ backgroundColor: colors.primary }}>
-                                      <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-sm bg-white/70" />
+                                    <div className="absolute bottom-[72px] right-4 h-12 w-5 rotate-2 rounded-b-lg rounded-t-[9px] border border-white/25 shadow-[0_5px_7px_rgba(0,0,0,.5)]" style={{ background: `linear-gradient(90deg,${colors.primary},rgba(255,255,255,.25),${colors.primary})` }}>
+                                      <div className="absolute -top-1 left-1/2 h-2 w-3 -translate-x-1/2 rounded-sm bg-[#d9d9d9]" />
                                     </div>
 
-                                    {team.sport === "Soccer" && <><div className="absolute bottom-[43px] left-[22%] right-[20%] h-4 -rotate-3 rounded-sm border border-white/25 text-center text-[5px] font-black uppercase leading-[14px] shadow" style={{ backgroundColor: colors.secondary, color: colors.primary }}>{label}</div><div className="absolute bottom-[15px] left-[35%] text-xl">👟</div></>}
-                                    {team.sport === "Cheerleading" && <><div className="absolute bottom-[49px] left-[30%] text-2xl">🎀</div><div className="absolute bottom-[47px] right-[23%] text-2xl">📣</div></>}
-                                    {team.sport === "Hockey" && <><div className="absolute bottom-[30px] left-[38%] h-2 w-24 -rotate-[63deg] rounded-full bg-[#c9a56f]" /><div className="absolute bottom-[16px] right-[27%] h-3 w-6 rounded-full bg-black" /></>}
-                                    {team.sport === "Baseball" && <><div className="absolute bottom-[49px] left-[34%] h-7 w-12 rounded-t-full border-2" style={{ backgroundColor: colors.primary, borderColor: colors.secondary }} /><div className="absolute bottom-[50px] right-[25%] text-xl">⚾</div></>}
-                                    {team.sport === "College Football" && <><div className="absolute bottom-[47px] left-[30%] text-2xl">🏈</div><div className="absolute bottom-[48px] right-[24%] text-2xl">🏈</div></>}
-                                    {team.sport === "College Basketball" && <div className="absolute bottom-[47px] left-[44%] text-2xl">🏀</div>}
-                                    {team.sport === "Volleyball" && <div className="absolute bottom-[47px] left-[44%] text-2xl">🏐</div>}
+                                    {team.sport === "Soccer" && <><div className="absolute bottom-[59px] left-[25%] right-[18%] h-5 -rotate-3 overflow-hidden rounded-sm border border-white/25 shadow-[0_4px_5px_rgba(0,0,0,.45)]" style={{ background: `repeating-linear-gradient(90deg,${colors.secondary} 0 14px,${colors.primary} 14px 28px)` }}><div className="text-center text-[5px] font-black uppercase leading-[18px]" style={{ color: colors.accent }}>{label}</div></div><div className="absolute bottom-[17px] left-[35%] h-4 w-10 -rotate-6 rounded-full bg-[#171717] shadow-md" /><div className="absolute bottom-[12px] left-[48%] h-4 w-10 rotate-6 rounded-full bg-[#202020] shadow-md" /></>}
+                                    {team.sport === "Cheerleading" && <><div className="absolute bottom-[62px] left-[29%] h-8 w-8 rotate-[-12deg]" style={{ background: `radial-gradient(circle at 50% 50%,${colors.secondary} 0 15%,transparent 16%),conic-gradient(${colors.primary},${colors.secondary},${colors.primary},${colors.secondary},${colors.primary})`, clipPath: "polygon(50% 45%,0 0,22% 50%,0 100%,50% 58%,100% 100%,78% 50%,100% 0)" }} /><div className="absolute bottom-[64px] right-[25%] h-7 w-10" style={{ background: `repeating-linear-gradient(12deg,${colors.primary} 0 4px,${colors.secondary} 4px 8px)`, clipPath: "polygon(50% 50%,0 15%,18% 55%,0 90%,50% 62%,100% 90%,82% 55%,100% 15%)" }} /></>}
+                                    {team.sport === "Hockey" && <><div className="absolute bottom-[30px] left-[37%] h-[5px] w-28 -rotate-[65deg] rounded-full bg-[linear-gradient(90deg,#d6b078,#80552d)] shadow-md" /><div className="absolute bottom-[14px] right-[25%] h-3 w-7 rounded-[50%] bg-[#090909] shadow-md" /></>}
+                                    {team.sport === "Baseball" && <><div className="absolute bottom-[64px] left-[34%] h-8 w-12 rounded-t-full border-2 shadow-md" style={{ background: `linear-gradient(145deg,${colors.primary},#111)`, borderColor: colors.secondary }} /><div className="absolute bottom-[64px] right-[25%] text-xl drop-shadow-md">⚾</div></>}
+                                    {ball && team.sport !== "Baseball" && <div className="absolute bottom-[61px] right-[25%] text-2xl drop-shadow-[0_4px_3px_rgba(0,0,0,.5)]">{ball}</div>}
+                                    <div className="absolute inset-x-0 bottom-0 h-3 bg-[linear-gradient(180deg,#160d08,#0c0705)] shadow-[inset_0_2px_4px_rgba(0,0,0,.8)]" />
                                   </div>
                                 );
                               })()}

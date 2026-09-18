@@ -943,6 +943,9 @@ export default function Home() {
   const [leaderboard, setLeaderboard] =
     useState<LeaderboardRow[]>([]);
 
+  const [recordBookLeaderboard, setRecordBookLeaderboard] =
+    useState<LeaderboardRow[]>([]);
+
   const [collegeFootballRankings, setCollegeFootballRankings] =
     useState<CollegeFootballRanking[]>([]);
 
@@ -2226,6 +2229,12 @@ export default function Home() {
 
       setProfileAvatarUrl(
         data.player?.avatar_url ?? null,
+      );
+
+      setRecordBookLeaderboard(
+        Array.isArray(data.recordBookLeaderboard)
+          ? data.recordBookLeaderboard
+          : [],
       );
 
       setProfileSports(
@@ -4024,6 +4033,7 @@ export default function Home() {
   const hasPrimaryFavorite = signedInLockerTeams.some((team) => team.is_primary);
 
   const passportVisitEntries = passportEntries.filter((entry) => entry.entryType !== "family");
+  const recordBookRows = recordBookLeaderboard.length > 0 ? recordBookLeaderboard : leaderboard;
 
   const savedMemoryCount = passportEntries.reduce(
     (total, entry) => total + entry.memories.filter((memory) => memory.note.trim().length > 0).length,
@@ -6218,13 +6228,13 @@ export default function Home() {
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-lg sm:p-5">
                     <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#06284a]">⭐ Personal Records</div>
                     <div className="mt-1 text-xl font-black text-[#10254a]">{signedInPlayer?.display_name ?? "My"}'s Record Book</div>
-                    {signedInPlayer && leaderboard.length > 0 && (() => {
-                      const me = leaderboard.find((row) => row.player_id === signedInPlayer.id);
+                    {signedInPlayer && recordBookRows.length > 0 && (() => {
+                      const me = recordBookRows.find((row) => row.player_id === signedInPlayer.id);
                       if (!me) return <div className="mt-3 text-xs font-semibold text-[#c3ad90]">No scored Challenge records yet.</div>;
                       return (
                         <div className="mt-4 grid grid-cols-3 gap-2">
                           {[
-                            [me.points, "Current Points"],
+                            [me.points, "All-Time Points"],
                             [me.correct, "Correct"],
                             [me.completed_picks > 0 ? `${Math.round(me.accuracy)}%` : "—", "Accuracy"],
                           ].map(([value, label]) => (
@@ -6248,9 +6258,9 @@ export default function Home() {
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-lg sm:p-5">
                     <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#06284a]">👑 FamBam Records</div>
                     <div className="mt-1 text-xl font-black text-[#10254a]">Family Record Book</div>
-                    {leaderboard.length > 0 ? (
+                    {recordBookRows.length > 0 ? (
                       <div className="mt-4 space-y-2">
-                        {[...leaderboard]
+                        {[...recordBookRows]
                           .sort((a, b) => b.points !== a.points ? b.points - a.points : b.correct - a.correct)
                           .map((row, index) => (
                             <div key={row.player_id} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${index === 0 ? "border-[#f3c64f] bg-[#fffaf0]" : "border-slate-200 bg-slate-50"}`}>

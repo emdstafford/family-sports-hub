@@ -7140,6 +7140,171 @@ export default function Home() {
                 </div>
               )}
 
+              {getStatusLabel(gameRoomGame) === "FINAL" &&
+                gameRoomPicksRevealed &&
+                (() => {
+                  const homeScore = gameRoomGame.homeScore ?? 0;
+                  const awayScore = gameRoomGame.awayScore ?? 0;
+                  const winningPick: PickChoice =
+                    homeScore === awayScore
+                      ? "draw"
+                      : homeScore > awayScore
+                        ? "home"
+                        : "away";
+                  const winners = gameRoomPicks.filter(
+                    (pick) => pick.pick_choice === winningPick,
+                  );
+
+                  return (
+                    <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8dba8] bg-gradient-to-br from-[#fff8dc] to-white shadow-sm">
+                      <div className="border-b border-[#e8dba8] px-3 py-2.5">
+                        <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
+                          🏁 FamBam Final Whistle
+                        </div>
+                      </div>
+
+                      <div className="p-3 text-center">
+                        <div className="text-sm font-black text-[#06284a]">
+                          {winners.length > 0
+                            ? `${winners.map((pick) => pick.display_name).join(", ")} ${winners.length === 1 ? "picked it right!" : "picked it right!"}`
+                            : "That result fooled the whole family!"}
+                        </div>
+                        <div className="mt-1 text-xs font-semibold text-slate-500">
+                          {gameRoomGame.away} {awayScore} · {gameRoomGame.home} {homeScore}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+              <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5">
+                  <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
+                    💬 Family Sideline
+                  </div>
+                  <div className="text-[9px] font-bold text-slate-400">
+                    Cheer together
+                  </div>
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto border-b border-slate-100 px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {["🔥", "👏", "😱", "Let’s go!", "Great pick!"].map(
+                    (reaction) => (
+                      <button
+                        key={reaction}
+                        type="button"
+                        onClick={() => void sendGameRoomMessage(reaction)}
+                        disabled={gameRoomSending}
+                        className="shrink-0 rounded-full border border-[#e8dba8] bg-[#fffaf0] px-3 py-1.5 text-xs font-black text-[#06284a] active:scale-95 disabled:opacity-50"
+                      >
+                        {reaction}
+                      </button>
+                    ),
+                  )}
+                </div>
+
+                <div className="max-h-64 space-y-2 overflow-y-auto bg-[#f7f4ec] p-3">
+                  {gameRoomMessages.length === 0 ? (
+                    <div className="py-4 text-center text-xs font-semibold text-slate-500">
+                      Be the first to cheer, react, or talk about the game!
+                    </div>
+                  ) : (
+                    gameRoomMessages.map((message) => {
+                      const mine =
+                        message.player_id === signedInPlayer.id;
+                      const messagePlayer = players.find(
+                        (player) => player.id === message.player_id,
+                      );
+
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}
+                        >
+                          {!mine && (
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#06284a] text-[8px] font-black text-white">
+                              {messagePlayer?.avatar_url ? (
+                                <img
+                                  src={messagePlayer.avatar_url}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                message.player_initials || "FB"
+                              )}
+                            </div>
+                          )}
+
+                          <div
+                            className={`max-w-[78%] rounded-2xl px-3 py-2 ${
+                              mine
+                                ? "rounded-br-md bg-[#06284a] text-white"
+                                : "rounded-bl-md border border-slate-200 bg-white text-[#10254a]"
+                            }`}
+                          >
+                            {!mine && (
+                              <div className="mb-0.5 text-[8px] font-black uppercase tracking-wide text-[#b28a2e]">
+                                {message.player_name}
+                              </div>
+                            )}
+                            <div className="break-words text-xs font-semibold">
+                              {message.message}
+                            </div>
+                            <div
+                              className={`mt-1 text-right text-[8px] font-semibold ${
+                                mine ? "text-white/55" : "text-slate-400"
+                              }`}
+                            >
+                              {new Date(message.created_at).toLocaleTimeString([], {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+
+                  {gameRoomTypingName && (
+                    <div className="text-[10px] font-bold italic text-slate-400">
+                      {gameRoomTypingName} is typing…
+                    </div>
+                  )}
+                  <div ref={gameRoomBottomRef} />
+                </div>
+
+                <div className="flex items-center gap-2 border-t border-slate-100 p-3">
+                  <input
+                    value={gameRoomMessage}
+                    onChange={(event) => {
+                      setGameRoomMessage(event.target.value);
+                      void signalGameRoomTyping();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void sendGameRoomMessage();
+                      }
+                    }}
+                    maxLength={240}
+                    placeholder="Say something about the game…"
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-[#10254a] outline-none focus:border-[#f3c64f]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void sendGameRoomMessage()}
+                    disabled={
+                      gameRoomSending ||
+                      gameRoomMessage.trim().length === 0
+                    }
+                    className="rounded-xl bg-[#f3c64f] px-3 py-2.5 text-xs font-black text-[#06284a] disabled:bg-slate-200 disabled:text-slate-400"
+                  >
+                    {gameRoomSending ? "…" : "Send"}
+                  </button>
+                </div>
+              </div>
+
               {gameRoomError && (
                 <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">
                   {gameRoomError}

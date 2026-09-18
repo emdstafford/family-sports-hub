@@ -4884,28 +4884,6 @@ export default function Home() {
                   hasScore &&
                   game.homeScore! > game.awayScore!;
 
-                const resultLabel = !hasScore
-                  ? "Result available"
-                  : game.homeScore === game.awayScore
-                    ? "Draw"
-                    : `${homeWon ? game.home : game.away} wins`;
-
-                const revealedPicks =
-                  challengeRevealedPicks[game.id] ?? [];
-
-                const winningChoice: PickChoice | null =
-                  !hasScore
-                    ? null
-                    : game.homeScore === game.awayScore
-                      ? "draw"
-                      : homeWon
-                        ? "home"
-                        : "away";
-
-                const correctPicks = revealedPicks.filter(
-                  (pick) => pick.pick_choice === winningChoice,
-                );
-
                 return (
                   <article key={game.id} className="rounded-xl border border-slate-200 bg-[#f9fafb] p-3 shadow-sm">
                     <button

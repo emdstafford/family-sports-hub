@@ -1184,6 +1184,8 @@ export default function Home() {
     useState<string | null>(null);
   const [eventPickMessage, setEventPickMessage] =
     useState<string | null>(null);
+  const [eventPickMessageEventId, setEventPickMessageEventId] =
+    useState<string | null>(null);
 
   const [adminGame, setAdminGame] =
     useState<BrowserGame | null>(null);
@@ -1595,42 +1597,113 @@ export default function Home() {
     pickChoice: "home" | "away",
   ) {
     if (!signedInPlayer) return;
-    const sessionToken = window.localStorage.getItem("fambam_session_token");
-    if (!sessionToken) return;
 
-    const savingKey = `${eventId}:${game.id}`;
+    const sessionToken =
+      window.localStorage.getItem(
+        "fambam_session_token",
+      );
+
+    setEventPickMessageEventId(eventId);
+
+    if (!sessionToken) {
+      setEventPickMessage(
+        "Please enter your PIN again to save this pick.",
+      );
+      setSelectedPlayer(signedInPlayer);
+      setSignedInPlayer(null);
+      window.localStorage.removeItem(
+        "fambam_player_id",
+      );
+      return;
+    }
+
+    const previousChoice =
+      eventPicks[eventId]?.[game.id];
+    const savingKey =
+      `${eventId}:${game.id}`;
+
+    setEventPicks((current) => ({
+      ...current,
+      [eventId]: {
+        ...(current[eventId] ?? {}),
+        [game.id]: pickChoice,
+      },
+    }));
     setEventPickSavingKey(savingKey);
-    setEventPickMessage(null);
+    setEventPickMessage("Saving your pick…");
 
     try {
-      const response = await fetch("/api/event-picks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-fambam-session": sessionToken,
+      const response = await fetch(
+        "/api/event-picks",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+            "x-fambam-session":
+              sessionToken,
+          },
+          body: JSON.stringify({
+            playerId:
+              signedInPlayer.id,
+            eventId,
+            gameId: game.id,
+            pickChoice,
+          }),
         },
-        body: JSON.stringify({
-          playerId: signedInPlayer.id,
-          eventId,
-          gameId: game.id,
-          pickChoice,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error ?? "Could not save this event pick.");
+      );
 
-      setEventPicks((current) => ({
-        ...current,
-        [eventId]: {
-          ...(current[eventId] ?? {}),
-          [game.id]: pickChoice,
-        },
-      }));
-      setEventPickMessage("Event pick saved! 🏆");
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setSelectedPlayer(
+            signedInPlayer,
+          );
+          setSignedInPlayer(null);
+          window.localStorage.removeItem(
+            "fambam_player_id",
+          );
+          window.localStorage.removeItem(
+            "fambam_session_token",
+          );
+        }
+
+        throw new Error(
+          data?.error ??
+            "Could not save this event pick.",
+        );
+      }
+
+      setEventPickMessage(
+        "Pick saved! 🏆",
+      );
       await loadEventPicks(eventId);
     } catch (error) {
+      setEventPicks((current) => {
+        const nextEventPicks = {
+          ...(current[eventId] ?? {}),
+        };
+
+        if (previousChoice) {
+          nextEventPicks[game.id] =
+            previousChoice;
+        } else {
+          delete nextEventPicks[game.id];
+        }
+
+        return {
+          ...current,
+          [eventId]:
+            nextEventPicks,
+        };
+      });
+
       setEventPickMessage(
-        error instanceof Error ? error.message : "Could not save this event pick.",
+        error instanceof Error
+          ? error.message
+          : "Could not save this event pick.",
       );
     } finally {
       setEventPickSavingKey(null);
@@ -3413,8 +3486,15 @@ export default function Home() {
         localStorage.getItem(
           "fambam_player_id",
         );
+      const storedSessionToken =
+        localStorage.getItem(
+          "fambam_session_token",
+        );
 
-      if (storedPlayerId) {
+      if (
+        storedPlayerId &&
+        storedSessionToken
+      ) {
         const rememberedPlayer =
           loadedPlayers.find(
             (player) =>
@@ -3430,7 +3510,14 @@ export default function Home() {
           localStorage.removeItem(
             "fambam_player_id",
           );
+          localStorage.removeItem(
+            "fambam_session_token",
+          );
         }
+      } else if (storedPlayerId) {
+        localStorage.removeItem(
+          "fambam_player_id",
+        );
       }
 
       setLoading(false);
@@ -7766,9 +7853,10 @@ export default function Home() {
                                         type="button"
                                         disabled={saving}
                                         onClick={() => void saveEventPick(event.id, game, choice)}
-                                        className={`rounded-lg px-2 py-2 text-[8px] font-black transition ${
+                                        aria-pressed={selected === choice}
+                                        className={`min-h-11 rounded-lg px-2 py-2 text-[8px] font-black transition active:scale-[0.98] ${
                                           selected === choice
-                                            ? "bg-[#06284a] text-white"
+                                            ? "bg-[#06284a] text-white ring-2 ring-[#f3c64f]"
                                             : "border border-slate-200 bg-white text-[#10254a]"
                                         }`}
                                       >
@@ -7785,15 +7873,16 @@ export default function Home() {
                             The next fixtures are refreshing now. Once published, they will appear here automatically for picks.
                           </div>
                         )}
+
+                        {eventPickMessage &&
+                          eventPickMessageEventId === event.id && (
+                            <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-center text-[10px] font-black text-[#765800]">
+                              {eventPickMessage}
+                            </div>
+                          )}
                       </div>
                     );
                   })}
-
-                  {eventPickMessage && (
-                    <div className="rounded-xl bg-[#fff8dc] px-3 py-2 text-center text-[10px] font-black text-[#765800]">
-                      {eventPickMessage}
-                    </div>
-                  )}
                 </div>
               </div>
 

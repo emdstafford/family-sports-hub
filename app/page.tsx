@@ -7782,7 +7782,7 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-4 p-3">
-                  {[{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]},{"id":"stanley-cup","icon":"🏒","name":"Stanley Cup","sport":"Hockey","season":"April–June","format":"Best-of-Seven Playoffs","description":"The NHL playoff path to hockey’s biggest trophy.","dates":["Regular season ends: April","Four playoff rounds: April–June","Stanley Cup Final: June"],"learning":"Learn playoff seeding, best-of-seven series, home-ice advantage and how a team advances by winning four games.","matches":["nhl"]}].map((event) => {
+                  {[{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}].map((event) => {
                     const eventGames = realGames
                       .filter((game) => {
                         const competition = game.competition.toLowerCase();
@@ -7820,12 +7820,8 @@ export default function Home() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`rounded-full px-2 py-1 text-[8px] font-black ${
-                              event.id === "stanley-cup"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-emerald-100 text-emerald-700"
-                            }`}>
-                              {event.id === "stanley-cup" ? "COMING UP" : "ACTIVE"}
+                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[8px] font-black text-emerald-700">
+                              ACTIVE
                             </span>
                             <span className="text-xs font-black text-[#b28a2e]">ⓘ</span>
                           </div>
@@ -7936,6 +7932,20 @@ export default function Home() {
                       description: "European competition full of underdog stories.",
                       dates: ["League phase: September–December", "Knockout rounds: February–May", "Final: May"],
                       learning: "Discover clubs from across Europe and learn how league-phase results lead into knockout rounds.",
+                    },
+                    {
+                      icon: "🌟", name: "Women’s Champions League", sport: "Soccer",
+                      season: "September–May", format: "League + Knockout",
+                      description: "Europe’s top women’s club competition.",
+                      dates: ["Qualifying: summer–September", "League phase: autumn–winter", "Knockout rounds and final: spring"],
+                      learning: "Follow the league phase, qualification places, aggregate scoring and Europe’s leading women’s clubs.",
+                    },
+                    {
+                      icon: "🏒", name: "Stanley Cup", sport: "Hockey",
+                      season: "April–June", format: "Best-of-Seven Playoffs",
+                      description: "The NHL playoff path to hockey’s biggest trophy.",
+                      dates: ["Regular season ends: April", "Four playoff rounds: April–June", "Stanley Cup Final: June"],
+                      learning: "Learn playoff seeding, best-of-seven series, home-ice advantage and how a team advances by winning four games.",
                     },
                     {
                       icon: "🏆", name: "EFL Trophy", sport: "Soccer",

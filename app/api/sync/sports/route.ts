@@ -110,6 +110,18 @@ async function runSync(request: NextRequest) {
   );
 
   /*
+   * Keep Kentucky volleyball dates and opponents current.
+   * Existing live/final scores are preserved by the schedule
+   * importer and updated from ESPN on the Home page.
+   */
+  results.push(
+    await callInternalRoute(
+      request,
+      "/api/college-volleyball/import",
+    ),
+  );
+
+  /*
    * CollegeFootballData is intentionally NOT called by
    * the hourly sports sync.
    *

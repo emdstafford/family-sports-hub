@@ -972,6 +972,165 @@ export async function GET(request: NextRequest) {
           : providerGame.periodDescriptor
               ?.periodType ?? null;
       liveProvider = "nhl";
+    } else if (
+      typedGame.external_provider ===
+      "ukathletics"
+    ) {
+      if (!typedGame.starts_at) {
+        return NextResponse.json(
+          {
+            error:
+              "This Kentucky volleyball match has no date.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const homeTeamName =
+        getTeamName(typedGame.home_team);
+      const awayTeamName =
+        getTeamName(typedGame.away_team);
+
+      if (!homeTeamName || !awayTeamName) {
+        return NextResponse.json(
+          {
+            error:
+              "This Kentucky volleyball match is missing a team.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const gameDate = new Date(
+        typedGame.starts_at,
+      );
+      const espnDate = [
+        gameDate.getUTCFullYear(),
+        String(
+          gameDate.getUTCMonth() + 1,
+        ).padStart(2, "0"),
+        String(
+          gameDate.getUTCDate(),
+        ).padStart(2, "0"),
+      ].join("");
+
+      const espnUrl = new URL(
+        "https://site.api.espn.com/apis/site/v2/sports/volleyball/womens-college-volleyball/scoreboard",
+      );
+      espnUrl.searchParams.set(
+        "dates",
+        espnDate,
+      );
+      espnUrl.searchParams.set("limit", "500");
+
+      const providerResponse = await fetch(
+        espnUrl,
+        {
+          cache: "no-store",
+          headers: {
+            Accept: "application/json",
+          },
+        },
+      );
+
+      if (!providerResponse.ok) {
+        return NextResponse.json(
+          {
+            error:
+              "Could not refresh this Kentucky volleyball match.",
+            providerStatus:
+              providerResponse.status,
+          },
+          { status: 502 },
+        );
+      }
+
+      const scoreboard =
+        (await providerResponse.json()) as EspnScoreboard;
+      const providerGame =
+        (scoreboard.events ?? []).find(
+          (event) => {
+            const competitors =
+              event.competitions?.[0]
+                ?.competitors ?? [];
+            const names = competitors
+              .map(
+                (competitor) =>
+                  competitor.team
+                    ?.displayName ??
+                  competitor.team
+                    ?.shortDisplayName ??
+                  competitor.team?.name ??
+                  "",
+              )
+              .filter(Boolean);
+
+            return (
+              names.some((name) =>
+                teamNamesMatch(
+                  homeTeamName,
+                  name,
+                ),
+              ) &&
+              names.some((name) =>
+                teamNamesMatch(
+                  awayTeamName,
+                  name,
+                ),
+              )
+            );
+          },
+        );
+
+      if (!providerGame) {
+        return NextResponse.json(
+          {
+            error:
+              "ESPN did not return this Kentucky volleyball match.",
+          },
+          { status: 404 },
+        );
+      }
+
+      const competitors =
+        providerGame.competitions?.[0]
+          ?.competitors ?? [];
+      const competitorName = (
+        competitor: EspnCompetitor,
+      ) =>
+        competitor.team?.displayName ??
+        competitor.team?.shortDisplayName ??
+        competitor.team?.name ??
+        "";
+      const home = competitors.find(
+        (competitor) =>
+          teamNamesMatch(
+            homeTeamName,
+            competitorName(competitor),
+          ),
+      );
+      const away = competitors.find(
+        (competitor) =>
+          teamNamesMatch(
+            awayTeamName,
+            competitorName(competitor),
+          ),
+      );
+
+      homeScore = scoreToNumber(home?.score);
+      awayScore = scoreToNumber(away?.score);
+      status = normalizeEspnStatus(
+        providerGame,
+      );
+      startsAt = providerGame.date ?? startsAt;
+      liveDetail =
+        providerGame.status?.type
+          ?.shortDetail ??
+        providerGame.status?.type?.detail ??
+        providerGame.status?.type
+          ?.description ??
+        null;
+      liveProvider = "espn";
     } else {
       return NextResponse.json(
         {

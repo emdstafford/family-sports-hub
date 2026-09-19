@@ -150,15 +150,15 @@ export async function POST(request: Request) {
       (await nhlResponse.json()) as NhlScheduleResponse;
 
     /*
-     * The NHL schedule endpoint returns a week-shaped
-     * response. For an import request, keep only the
-     * exact requested calendar date so repeated imports
-     * stay predictable.
+     * The NHL schedule endpoint returns a full week.
+     * Import that entire week so the Events page always
+     * has upcoming games while the hourly sync continues
+     * refreshing live scores and completed results.
      */
     const games =
       schedule.gameWeek
-        ?.find((day) => day.date === date)
-        ?.games ?? [];
+        ?.flatMap((day) => day.games ?? []) ??
+      [];
 
     let teamsProcessed = 0;
     let gamesImported = 0;
@@ -266,7 +266,9 @@ export async function POST(request: Request) {
               game.startTimeUTC,
             start_time_tbd: false,
             source_notes:
-              `NHL ${game.season}`,
+              game.gameType === 3
+                ? `NHL ${game.season} · Stanley Cup Playoffs`
+                : `NHL ${game.season}`,
             home_score:
               typeof game.homeTeam.score ===
               "number"

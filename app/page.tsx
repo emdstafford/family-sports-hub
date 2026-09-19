@@ -3111,7 +3111,8 @@ export default function Home() {
           game.sport !== "Soccer" &&
           game.sport !== "College Football" &&
           game.sport !== "Baseball" &&
-          game.sport !== "Hockey"
+          game.sport !== "Hockey" &&
+          game.sport !== "Volleyball"
         ) {
           return false;
         }

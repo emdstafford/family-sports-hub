@@ -181,6 +181,20 @@ function teamNamesMatch(
   );
 }
 
+function volleyballTeamNamesMatch(
+  fambamName: string,
+  providerName: string,
+) {
+  return fambamName
+    .split(/\s+or\s+/i)
+    .some((candidate) =>
+      teamNamesMatch(
+        candidate,
+        providerName,
+      ),
+    );
+}
+
 function scoreToNumber(
   value: string | undefined,
 ) {
@@ -466,15 +480,26 @@ export async function GET(request: NextRequest) {
       const gameDate = new Date(
         typedGame.starts_at,
       );
-      const espnDate = [
-        gameDate.getUTCFullYear(),
-        String(
-          gameDate.getUTCMonth() + 1,
-        ).padStart(2, "0"),
-        String(
-          gameDate.getUTCDate(),
-        ).padStart(2, "0"),
-      ].join("");
+      const easternDateParts =
+        Object.fromEntries(
+          new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/New_York",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          })
+            .formatToParts(gameDate)
+            .filter(
+              (part) =>
+                part.type !== "literal",
+            )
+            .map((part) => [
+              part.type,
+              part.value,
+            ]),
+        );
+      const espnDate =
+        `${easternDateParts.year}${easternDateParts.month}${easternDateParts.day}`;
 
       const espnUrl = new URL(
         `https://site.api.espn.com/apis/site/v2/sports/soccer/${espnSlug}/scoreboard`,
@@ -1004,15 +1029,26 @@ export async function GET(request: NextRequest) {
       const gameDate = new Date(
         typedGame.starts_at,
       );
-      const espnDate = [
-        gameDate.getUTCFullYear(),
-        String(
-          gameDate.getUTCMonth() + 1,
-        ).padStart(2, "0"),
-        String(
-          gameDate.getUTCDate(),
-        ).padStart(2, "0"),
-      ].join("");
+      const easternDateParts =
+        Object.fromEntries(
+          new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/New_York",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          })
+            .formatToParts(gameDate)
+            .filter(
+              (part) =>
+                part.type !== "literal",
+            )
+            .map((part) => [
+              part.type,
+              part.value,
+            ]),
+        );
+      const espnDate =
+        `${easternDateParts.year}${easternDateParts.month}${easternDateParts.day}`;
 
       const espnUrl = new URL(
         "https://site.api.espn.com/apis/site/v2/sports/volleyball/womens-college-volleyball/scoreboard",
@@ -1067,13 +1103,13 @@ export async function GET(request: NextRequest) {
 
             return (
               names.some((name) =>
-                teamNamesMatch(
+                volleyballTeamNamesMatch(
                   homeTeamName,
                   name,
                 ),
               ) &&
               names.some((name) =>
-                teamNamesMatch(
+                volleyballTeamNamesMatch(
                   awayTeamName,
                   name,
                 ),
@@ -1104,14 +1140,14 @@ export async function GET(request: NextRequest) {
         "";
       const home = competitors.find(
         (competitor) =>
-          teamNamesMatch(
+          volleyballTeamNamesMatch(
             homeTeamName,
             competitorName(competitor),
           ),
       );
       const away = competitors.find(
         (competitor) =>
-          teamNamesMatch(
+          volleyballTeamNamesMatch(
             awayTeamName,
             competitorName(competitor),
           ),

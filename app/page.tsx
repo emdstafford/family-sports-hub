@@ -7879,7 +7879,7 @@ export default function Home() {
                       Coming Up Next
                     </h3>
                     <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
-                      In season order. Tap any event to learn how it works and when it happens.
+                      Soonest first, based on the usual event months. Events awaiting dates appear last. Tap for details.
                     </div>
                   </div>
                   <div className="text-[8px] font-black uppercase text-[#b28a2e]">
@@ -8010,8 +8010,26 @@ export default function Home() {
                   ]
                     .filter((event) => !["Carabao Cup", "Champions League", "EFL Trophy"].includes(event.name))
                     .sort((a, b) => {
-                      const order = ["September–May", "November–December", "December–January", "January", "March–April", "First Saturday in May", "May–June", "Tournament years", "Every two years"];
-                      return order.indexOf(a.season) - order.indexOf(b.season);
+                      const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                      const now = new Date(currentTime ?? Date.now());
+                      const month = Number(new Intl.DateTimeFormat("en-US", {
+                        timeZone: "America/New_York", month: "numeric",
+                      }).format(now)) - 1;
+                      const nextMonthOffset = (season: string) => {
+                        const mentioned = [...season.matchAll(new RegExp(months.join("|"), "g"))]
+                          .map((match) => months.indexOf(match[0]));
+                        if (mentioned.length === 0) return Number.POSITIVE_INFINITY;
+                        const start = mentioned[0];
+                        const end = mentioned[mentioned.length - 1];
+                        const inSeason = start <= end
+                          ? month >= start && month <= end
+                          : month >= start || month <= end;
+                        return inSeason ? 0 : (start - month + 12) % 12;
+                      };
+                      const aOffset = nextMonthOffset(a.season);
+                      const bOffset = nextMonthOffset(b.season);
+                      // Preserve the existing order for ties and undated events.
+                      return aOffset === bOffset ? 0 : aOffset - bOffset;
                     }).map((event) => (
                     <button
                       key={event.name}

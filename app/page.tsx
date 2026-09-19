@@ -244,6 +244,17 @@ function lockerTeamCountsForTrophy(team: LockerTeam, target: TrophyTeamSport) {
   return sport.includes("baseball") || sport === "mlb" || ["braves", "cubs"].some((name) => teamName.includes(name));
 }
 
+function lockerTeamLogo(team: LockerTeam) {
+  const name = team.name.trim().toLowerCase();
+  if (
+    team.sport === "College Football" &&
+    ["georgia", "georgia bulldogs", "georgia bulldogs football", "university of georgia"].includes(name)
+  ) {
+    return "https://a.espncdn.com/i/teamlogos/ncaa/500/61.png";
+  }
+  return team.logo_url;
+}
+
 function lockerTeamColors(team: LockerTeam) {
   const name = team.name.toLowerCase();
 
@@ -6439,6 +6450,7 @@ export default function Home() {
                         team.sport === lockerSportFilter,
                     ) ?? [])
                     .map((team) => {
+                      const logoUrl = lockerTeamLogo(team);
                       const nextGame = nextLockerGame(team, realGames);
                       const opponent = nextGame ? lockerOpponent(team, nextGame) : null;
                       const teamIsHome = nextGame
@@ -6479,9 +6491,9 @@ export default function Home() {
                             <div className="absolute left-1/2 top-7 h-2 w-7 -translate-x-1/2 rounded-full border border-[#a87845] bg-[#352012]" />
 
                             <div className="relative mx-auto flex h-20 w-20 shrink-0 items-center justify-center p-2 drop-shadow-[0_8px_12px_rgba(0,0,0,.75)] sm:h-24 sm:w-24">
-                              {team.logo_url ? (
+                              {logoUrl ? (
                                 <img
-                                  src={team.logo_url}
+                                  src={logoUrl}
                                   alt={team.name}
                                   className="h-full w-full object-contain drop-shadow-xl"
                                 />
@@ -6535,7 +6547,7 @@ export default function Home() {
                                       <div className="absolute left-[28px] right-[28px] top-0 bottom-0 overflow-hidden rounded-b-[22px] border" style={{ background: `linear-gradient(100deg,${colors.primary} 0%,${colors.primary} 35%,rgba(255,255,255,.20) 43%,${colors.primary} 52%,rgba(0,0,0,.22) 69%,${colors.primary} 100%)`, borderColor: `${colors.secondary}bb`, clipPath: "polygon(18% 0,34% 8%,50% 12%,66% 8%,82% 0,100% 11%,92% 100%,8% 100%,0 11%)" }}>
                                         <div className="absolute inset-x-0 top-0 h-4 opacity-50" style={{ backgroundColor: colors.secondary }} />
                                         <div className="mt-6 truncate px-1 text-center text-[7px] font-black uppercase tracking-wide" style={{ color: colors.secondary }}>{label}</div>
-                                        {team.logo_url && <img src={team.logo_url} alt="" className="mx-auto mt-2 h-9 w-9 object-contain drop-shadow-md" />}
+                                        {logoUrl && <img src={logoUrl} alt="" className="mx-auto mt-2 h-9 w-9 object-contain drop-shadow-md" />}
                                         <div className="absolute bottom-2 left-3 right-3 h-px bg-white/15" />
                                       </div>
                                     </div>
@@ -7976,6 +7988,13 @@ export default function Home() {
                       description: "Cheer on the University of Kentucky at college nationals.",
                       dates: ["Competition: mid-January 2027", "Preliminaries and semifinals", "Division finals and awards"],
                       learning: "Learn how routines are scored for stunts, pyramids, tumbling, jumps, synchronization and overall impression—and how deductions can change the final standings.",
+                    },
+                    {
+                      icon: "🏐", name: "SEC Volleyball Tournament", sport: "Volleyball",
+                      season: "November 20–24, 2026", format: "Conference Tournament",
+                      description: "Follow Kentucky and the SEC in Savannah, Georgia.",
+                      dates: ["Opening round: November 20", "Second round: November 21", "Quarterfinals: November 22", "Semifinals: November 23", "Championship: November 24 at 7 p.m. Eastern"],
+                      learning: "Follow the conference bracket as teams advance toward the SEC tournament title. Kentucky’s opponents and entry round depend on the bracket. Picks will open once matchups are connected.",
                     },
                     {
                       icon: "🏐", name: "NCAA Volleyball Tournament", sport: "Volleyball",

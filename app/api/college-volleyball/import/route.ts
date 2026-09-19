@@ -199,6 +199,38 @@ export async function POST() {
     let gamesSkipped = 0;
     let teamsProcessed = 1;
 
+    const {
+      data: existingGameRows,
+      error: existingGamesError,
+    } = await supabase
+      .from("games")
+      .select(
+        "external_id, status, home_score, away_score",
+      )
+      .eq(
+        "external_provider",
+        "ukathletics",
+      );
+
+    if (existingGamesError) {
+      return NextResponse.json(
+        {
+          error:
+            "Could not load existing Kentucky volleyball matches.",
+          details:
+            existingGamesError.message,
+        },
+        { status: 500 },
+      );
+    }
+
+    const existingGames = new Map(
+      (existingGameRows ?? []).map((game) => [
+        game.external_id,
+        game,
+      ]),
+    );
+
     const teamCache = new Map<string, string>();
 
     for (const event of regularSeasonEvents) {
@@ -273,6 +305,9 @@ export async function POST() {
       const externalId =
         `kentucky-wvball-2026-${datePart}-${slug(opponentName)}`;
 
+      const existingGame =
+        existingGames.get(externalId);
+
       const { error: gameError } = await supabase
         .from("games")
         .upsert(
@@ -289,7 +324,13 @@ export async function POST() {
             start_time_tbd: false,
             source_notes:
               event.location?.name ?? "Kentucky Volleyball",
-            status: "scheduled",
+            home_score:
+              existingGame?.home_score ?? null,
+            away_score:
+              existingGame?.away_score ?? null,
+            status:
+              existingGame?.status ??
+              "scheduled",
             external_provider: "ukathletics",
             external_id: externalId,
           },

@@ -64,6 +64,10 @@ const COMPETITIONS: CompetitionConfig[] = [
     espnSlug: "eng.trophy",
     fambamName: "EFL Trophy",
   },
+  {
+    espnSlug: "uefa.champions",
+    fambamName: "UEFA Champions League",
+  },
 ];
 
 /*

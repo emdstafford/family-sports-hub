@@ -1040,6 +1040,15 @@ export default function Home() {
   const [profileOpen, setProfileOpen] =
     useState(false);
 
+  useEffect(() => {
+    if (!profileOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [profileOpen]);
+
   const [profileLoading, setProfileLoading] =
     useState(false);
 
@@ -5886,8 +5895,8 @@ export default function Home() {
       )}
 
       {profileOpen && signedInPlayer && (
-        <div className="fixed inset-0 z-[140] overflow-y-auto bg-[#eef1f4]">
-          <div className="sticky top-0 z-20 border-b border-white/10 bg-[#06284a] text-white shadow-sm">
+        <div className="fixed inset-0 z-[140] flex h-[100dvh] flex-col overflow-hidden bg-[#eef1f4]">
+          <div className="shrink-0 border-b border-white/10 bg-[#06284a] text-white shadow-sm">
             <div
               className="mx-auto flex max-w-5xl items-center justify-between px-4 pb-3"
               style={{
@@ -5905,22 +5914,32 @@ export default function Home() {
                 </div>
               </div>
 
+              <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void saveProfile()}
+                disabled={profileLoading || profileSaving}
+                className="min-h-11 rounded-xl bg-[#f3c64f] px-3 py-2 text-sm font-black text-[#06284a] disabled:opacity-60"
+              >
+                {profileSaving ? "Saving…" : "Save ✓"}
+              </button>
               <button
                 onClick={() =>
                   setProfileOpen(false)
                 }
-                className="rounded-xl bg-white/10 px-4 py-2 text-xs font-black active:bg-white/20"
+                className="min-h-11 rounded-xl bg-white/10 px-3 py-2 text-sm font-black active:bg-white/20"
               >
                 Close ✕
               </button>
+              </div>
             </div>
           </div>
 
           <div
-            className="mx-auto max-w-2xl px-3 py-4"
+            className="mx-auto min-h-0 w-full max-w-2xl flex-1 overflow-y-auto overscroll-contain px-3 py-4"
             style={{
               paddingBottom:
-                "calc(env(safe-area-inset-bottom, 0px) + 30px)",
+                "calc(env(safe-area-inset-bottom, 0px) + 100px)",
             }}
           >
             {profileLoading ? (
@@ -6406,18 +6425,6 @@ export default function Home() {
                     </div>
                   )}
                 </section>
-
-                <button
-                  onClick={() =>
-                    void saveProfile()
-                  }
-                  disabled={profileSaving}
-                  className="mt-4 w-full rounded-2xl bg-[#f3c64f] px-4 py-4 text-sm font-black text-[#06284a] shadow-sm disabled:opacity-60"
-                >
-                  {profileSaving
-                    ? "Saving…"
-                    : "Save My Profile ✓"}
-                </button>
 
                 <button
                   onClick={() => {
@@ -7130,7 +7137,7 @@ export default function Home() {
       )}
 
       {/* APP NAV */}
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]">
+      <nav className={`fixed inset-x-0 bottom-0 ${profileOpen ? "z-[145]" : "z-50"} border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]`}>
         <div
           className="mx-auto grid max-w-5xl grid-cols-5"
           style={{
@@ -7148,6 +7155,7 @@ export default function Home() {
             <button
               key={label}
               onClick={() => {
+                setProfileOpen(false);
                 if (label === "Home") {
                   setActiveSection("Home");
                   setActiveSport("All");

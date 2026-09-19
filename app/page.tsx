@@ -5929,7 +5929,7 @@ export default function Home() {
                 }
                 className="min-h-11 rounded-xl bg-white/10 px-3 py-2 text-sm font-black active:bg-white/20"
               >
-                Close ✕
+                ← Back
               </button>
               </div>
             </div>

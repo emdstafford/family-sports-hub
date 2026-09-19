@@ -7,6 +7,7 @@ const validEvents = new Set([
   "carabao-cup",
   "champions-league",
   "efl-trophy",
+  "stanley-cup",
 ]);
 
 type EventPick = {
@@ -153,7 +154,9 @@ export async function POST(request: NextRequest) {
     const pickChoice = body.pickChoice === "home" || body.pickChoice === "away"
       ? body.pickChoice
       : null;
-    const sessionToken = request.headers.get("x-fambam-session") ?? "";
+    const sessionToken = typeof body.sessionToken === "string"
+      ? body.sessionToken.trim()
+      : request.headers.get("x-fambam-session")?.trim() ?? "";
 
     if (!playerId || !validEvents.has(eventId) || !gameId || !pickChoice || !sessionToken) {
       return NextResponse.json({ error: "Choose a team before saving." }, { status: 400 });

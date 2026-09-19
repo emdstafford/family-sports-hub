@@ -157,18 +157,6 @@ function normalizeStatus(event: EspnEvent) {
   return "scheduled";
 }
 
-function formatEspnDate(date: Date) {
-  const year = date.getUTCFullYear();
-  const month = String(
-    date.getUTCMonth() + 1,
-  ).padStart(2, "0");
-  const day = String(
-    date.getUTCDate(),
-  ).padStart(2, "0");
-
-  return `${year}${month}${day}`;
-}
-
 export async function POST(request: Request) {
   try {
     const supabaseUrl =
@@ -656,94 +644,106 @@ export async function POST(request: Request) {
       }
 
       /*
-       * ESPN's soccer scoreboard is more reliable when queried
-       * one calendar day at a time. Range-style dates can be
-       * rejected by ESPN/Akamai even though each individual day
-       * is available.
+       * A four-digit `dates` value returns ESPN's calendar-year
+       * scoreboard in one request. This is both faster and more
+       * reliable than making one request for every day in the
+       * import window (which could time out before later
+       * competitions such as Champions League were reached).
        */
       const events: EspnEvent[] = [];
       const seenEventIds = new Set<string>();
 
-      const cursor = new Date(startDate);
-
       /*
-       * EFL Trophy group matches are spaced farther apart than
-       * ordinary league fixtures. Keep its automatic window open
-       * far enough to reach the next group date, while leaving the
-       * lighter 21-day window in place for every other competition.
-       * Explicit date/range requests still use exactly what was asked.
+       * Cup rounds are often scheduled more than three weeks apart.
+       * Keep every cup's automatic window open for 120 days so the
+       * next Carabao, FA Cup, EFL Trophy, and Champions League round
+       * appears as soon as ESPN publishes it. League One retains the
+       * lighter 21-day default. Explicit requests still use exactly
+       * the requested date range.
        */
       const competitionEndDate =
         !requestedDate &&
         !(requestedStart && requestedEnd) &&
-        config.espnSlug === "eng.trophy"
+        config.espnSlug !== "eng.3"
           ? new Date(
               Date.now() +
-                75 * 24 * 60 * 60 * 1000,
+                120 * 24 * 60 * 60 * 1000,
             )
           : endDate;
 
-      while (cursor <= competitionEndDate) {
-        const espnUrl =
-          new URL(
-            `https://site.api.espn.com/apis/site/v2/sports/soccer/${config.espnSlug}/scoreboard`,
+      const windowStart = new Date(startDate);
+      windowStart.setUTCHours(0, 0, 0, 0);
+
+      const windowEnd = new Date(competitionEndDate);
+      windowEnd.setUTCHours(23, 59, 59, 999);
+
+      const years: number[] = [];
+
+      for (
+        let year = windowStart.getUTCFullYear();
+        year <= windowEnd.getUTCFullYear();
+        year += 1
+      ) {
+        years.push(year);
+      }
+
+      const scoreboards = await Promise.all(
+        years.map(async (year) => {
+          const espnUrl =
+            new URL(
+              `https://site.api.espn.com/apis/site/v2/sports/soccer/${config.espnSlug}/scoreboard`,
+            );
+
+          espnUrl.searchParams.set(
+            "dates",
+            String(year),
           );
 
-        espnUrl.searchParams.set(
-          "dates",
-          formatEspnDate(cursor),
-        );
+          espnUrl.searchParams.set(
+            "limit",
+            "500",
+          );
 
-        espnUrl.searchParams.set(
-          "limit",
-          "500",
-        );
-
-        const response = await fetch(
-          espnUrl,
-          {
-            cache: "no-store",
-            headers: {
-              Accept:
-                "application/json",
-            },
-          },
-        );
-
-        if (!response.ok) {
-          const details =
-            await response.text();
-
-          return NextResponse.json(
+          const response = await fetch(
+            espnUrl,
             {
-              error:
-                `ESPN request failed for ${config.fambamName} on ${formatEspnDate(cursor)}.`,
-              status:
-                response.status,
-              details,
-            },
-            {
-              status:
-                response.status,
+              cache: "no-store",
+              headers: {
+                Accept:
+                  "application/json",
+              },
             },
           );
-        }
 
-        const scoreboard =
-          (await response.json()) as EspnScoreboard;
+          if (!response.ok) {
+            const details =
+              await response.text();
 
+            throw new Error(
+              `ESPN request failed for ${config.fambamName} in ${year} (${response.status}): ${details}`,
+            );
+          }
+
+          return (await response.json()) as EspnScoreboard;
+        }),
+      );
+
+      for (const scoreboard of scoreboards) {
         for (
           const event of scoreboard.events ?? []
         ) {
-          if (!seenEventIds.has(event.id)) {
+          const eventDate = new Date(event.date);
+
+          if (
+            !Number.isNaN(eventDate.getTime()) &&
+            eventDate >= windowStart &&
+            eventDate <= windowEnd &&
+            !seenEventIds.has(event.id)
+          ) {
             seenEventIds.add(event.id);
             events.push(event);
           }
         }
-
-        cursor.setUTCDate(
-          cursor.getUTCDate() + 1,
-        );
       }
 
       let competitionImported = 0;
@@ -915,4 +915,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

@@ -3109,7 +3109,9 @@ export default function Home() {
       const gamesToRefresh = realGames.filter((game) => {
         if (
           game.sport !== "Soccer" &&
-          game.sport !== "College Football"
+          game.sport !== "College Football" &&
+          game.sport !== "Baseball" &&
+          game.sport !== "Hockey"
         ) {
           return false;
         }

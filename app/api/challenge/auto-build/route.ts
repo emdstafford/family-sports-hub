@@ -715,14 +715,32 @@ export async function POST(request: Request) {
      * the strongest ones rather than letting
      * the Challenge grow beyond its target.
      */
-    const selected = mandatory.slice(
-      0,
-      TARGET_GAMES,
+    const pickedIds = new Set(
+      (picksResult.data ?? []).map(
+        (row: { game_id: string }) =>
+          row.game_id,
+      ),
     );
 
-    for (const candidate of optional) {
+    /*
+     * A saved pick permanently reserves that game on this
+     * week's card. The hourly builder may fill empty slots,
+     * but it must never swap out a game the family already
+     * picked just because a newer fixture now ranks higher.
+     */
+    const selected: Candidate[] = [];
+
+    const remainingCandidates = [
+      ...mandatory,
+      ...optional,
+    ].filter(
+      (candidate) =>
+        !pickedIds.has(candidate.game.id),
+    );
+
+    for (const candidate of remainingCandidates) {
       if (
-        selected.length >=
+        pickedIds.size + selected.length >=
         TARGET_GAMES
       ) {
         break;
@@ -738,21 +756,19 @@ export async function POST(request: Request) {
       ),
     );
 
-    const pickedIds = new Set(
-      (picksResult.data ?? []).map(
-        (row: { game_id: string }) =>
-          row.game_id,
-      ),
-    );
-
     /*
      * We need information about existing games
      * even when they're outside the new
      * seven-day candidate window.
      */
-    const existingIds = existing.map(
-      (row) => row.game_id,
-    );
+    const existingIds = [
+      ...new Set([
+        ...existing.map(
+          (row) => row.game_id,
+        ),
+        ...pickedIds,
+      ]),
+    ];
 
     const existingGameMap =
       new Map<string, {
@@ -832,18 +848,19 @@ export async function POST(request: Request) {
     }
 
     /*
-     * The active Weekly Challenge must contain
-     * only the games selected by this week's
-     * builder. TARGET_GAMES caps this at 10.
-     *
-     * Picks themselves remain stored separately,
-     * so an old picked game does not need to stay
-     * in challenge_games just to preserve history.
+     * Keep every protected game attached to the Challenge.
+     * This also repairs the current week automatically: if a
+     * previous hourly run detached a game that still has saved
+     * picks, pickedIds puts it back into desiredIds below.
      */
-    const desiredIds =
-      new Set<string>(
-        selectedIds,
-      );
+    pickedIds.forEach((gameId) =>
+      protectedIds.add(gameId),
+    );
+
+    const desiredIds = new Set<string>([
+      ...selectedIds,
+      ...protectedIds,
+    ]);
 
     const removeIds =
       existing
@@ -891,23 +908,27 @@ export async function POST(request: Request) {
       );
 
     const rowsToInsert =
-      selected
+      [...desiredIds]
         .filter(
-          (candidate) =>
-            !existingAfterRemoval.has(
-              candidate.game.id,
-            ),
+          (gameId) =>
+            !existingAfterRemoval.has(gameId),
         )
-        .map((candidate) => ({
-          challenge_id:
-            openChallenge.id,
-          game_id:
-            candidate.game.id,
-          selection_source:
-            "auto",
-          selection_reason:
-            candidate.reason,
-        }));
+        .map((gameId) => {
+          const candidate = selected.find(
+            (item) => item.game.id === gameId,
+          );
+
+          return {
+            challenge_id:
+              openChallenge.id,
+            game_id: gameId,
+            selection_source:
+              "auto" as const,
+            selection_reason:
+              candidate?.reason ??
+              "Restored saved pick",
+          };
+        });
 
     if (rowsToInsert.length > 0) {
       const {
@@ -1077,10 +1098,3 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Could not build the FamBam Challenge.",
-        details,
-      },
-      { status: 500 },
-    );
-  }
-}

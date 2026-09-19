@@ -98,6 +98,18 @@ async function runSync(request: NextRequest) {
   );
 
   /*
+   * NHL's schedule response includes the current week.
+   * Refresh it hourly for upcoming games, live scores,
+   * final results, and Stanley Cup playoff fixtures.
+   */
+  results.push(
+    await callInternalRoute(
+      request,
+      "/api/nhl/import",
+    ),
+  );
+
+  /*
    * CollegeFootballData is intentionally NOT called by
    * the hourly sports sync.
    *

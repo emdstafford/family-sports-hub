@@ -984,7 +984,6 @@ type PhotoCropRequest = {
 };
 
 const EVENT_NAMES: Record<string, string> = {
-  "mamas-hockey": "Mama’s Hockey Challenge",
   "mlb-playoffs-world-series": "MLB Playoffs & World Series",
   "nfl-playoffs-super-bowl": "NFL Playoffs & Super Bowl",
   "sec-basketball-tournaments": "SEC Basketball Tournaments",
@@ -1872,10 +1871,17 @@ export default function Home() {
       return;
     }
 
-    ["fa-cup", "carabao-cup", "champions-league", "efl-trophy", "stanley-cup", "mamas-hockey"].forEach(
+    ["fa-cup", "carabao-cup", "champions-league", "efl-trophy", "stanley-cup"].forEach(
       (eventId) => void loadEventPicks(eventId),
     );
-  }, [activeSection, signedInPlayer?.id]);
+
+    const signedInPlayerIsMama =
+      signedInPlayer.display_name.trim().toLowerCase() === "mama";
+
+    if (signedInPlayerIsMama && challenge?.id) {
+      void loadEventPicks(`mamas-hockey-${challenge.id}`);
+    }
+  }, [activeSection, signedInPlayer?.id, challenge?.id]);
 
   async function openGameRoom(game: BrowserGame) {
     if (!signedInPlayer) {
@@ -3739,26 +3745,81 @@ export default function Home() {
   const isMama =
     signedInPlayer?.display_name.trim().toLowerCase() === "mama";
 
+  const mamasHockeyEventId =
+    isMama && challenge?.id
+      ? `mamas-hockey-${challenge.id}`
+      : null;
+
   const mamasHockeyTeams = new Set([
     "vancouver canucks",
     "kentucky hockey",
     "athens rock lobsters",
   ]);
 
-  const mamasHockeyGames = thisWeekGames
+  const challengeStartsAt = challenge?.starts_at
+    ? new Date(challenge.starts_at).getTime()
+    : null;
+  const challengeEndsAt = challenge?.ends_at
+    ? new Date(challenge.ends_at).getTime()
+    : null;
+
+  const weeklyHockeyCandidates = realGames
     .filter((game) => {
-      if (game.sport !== "Hockey") return false;
+      if (
+        game.sport !== "Hockey" ||
+        !game.startsAt ||
+        challengeStartsAt === null ||
+        challengeEndsAt === null
+      ) {
+        return false;
+      }
+
+      const gameTime = new Date(game.startsAt).getTime();
+      return gameTime >= challengeStartsAt && gameTime <= challengeEndsAt;
+    })
+    .sort((a, b) => {
+      const competitionScore = (game: BrowserGame) => {
+        const competition = game.competition.toLowerCase();
+        if (competition.includes("nhl")) return 300;
+        if (competition.includes("acha")) return 220;
+        if (competition.includes("sphl")) return 200;
+        return 100;
+      };
+
+      const importanceDifference =
+        competitionScore(b) + getWatchInfo(b, collegeFootballRankings).score -
+        (competitionScore(a) + getWatchInfo(a, collegeFootballRankings).score);
+
+      if (importanceDifference !== 0) return importanceDifference;
+      return new Date(a.startsAt ?? 0).getTime() - new Date(b.startsAt ?? 0).getTime();
+    });
+
+  const isMamasFavoriteHockeyGame = (game: BrowserGame) => {
       const home = game.home.trim().toLowerCase();
       const away = game.away.trim().toLowerCase();
       return mamasHockeyTeams.has(home) || mamasHockeyTeams.has(away);
-    })
-    .filter((game) => !gameIsLocked(game, currentTime))
+  };
+
+  const favoriteHockeyGames = weeklyHockeyCandidates
+    .filter(isMamasFavoriteHockeyGame)
+    .slice(0, 3);
+  const featuredHockeyGames = weeklyHockeyCandidates
+    .filter((game) => !isMamasFavoriteHockeyGame(game))
+    .slice(0, Math.max(0, 5 - favoriteHockeyGames.length));
+  const initiallySelectedHockeyIds = new Set(
+    [...favoriteHockeyGames, ...featuredHockeyGames].map((game) => game.id),
+  );
+  const mamasHockeyGames = [
+    ...favoriteHockeyGames,
+    ...featuredHockeyGames,
+    ...weeklyHockeyCandidates.filter((game) => !initiallySelectedHockeyIds.has(game.id)),
+  ]
+    .slice(0, 5)
     .sort(
       (a, b) =>
         new Date(a.startsAt ?? 0).getTime() -
         new Date(b.startsAt ?? 0).getTime(),
-    )
-    .slice(0, 10);
+    );
 
   const personalTeamSports = new Set([
     "Hockey",
@@ -7974,7 +8035,7 @@ export default function Home() {
             </div>
 
             <div className="space-y-4 px-3 py-4">
-              {isMama && (
+              {isMama && mamasHockeyEventId && (
                 <div className="overflow-hidden rounded-2xl border border-[#8eb6d8] bg-white shadow-sm">
                   <div className="bg-[linear-gradient(135deg,#06284a,#0b4a72)] px-4 py-4 text-white">
                     <div className="flex items-start justify-between gap-3">
@@ -7982,13 +8043,13 @@ export default function Home() {
                         <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">
                           🏒 Personal Challenge
                         </div>
-                        <div className="mt-1 text-xl font-black">Mama’s Hockey Challenge</div>
+                        <div className="mt-1 text-xl font-black">Mama’s Weekly Hockey Challenge</div>
                         <div className="mt-1 text-[10px] font-semibold text-blue-100">
-                          Vancouver · Kentucky Hockey · Athens Rock Lobsters
+                          5 hockey games · your teams get first priority
                         </div>
                       </div>
                       <div className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-[9px] font-black">
-                        {eventProgress["mamas-hockey"]?.correct ?? 0} correct
+                        {eventProgress[mamasHockeyEventId]?.made ?? 0}/5 picks · {eventProgress[mamasHockeyEventId]?.correct ?? 0} correct
                       </div>
                     </div>
                     <div className="mt-3 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-[9px] font-semibold leading-relaxed text-blue-50">
@@ -8000,8 +8061,9 @@ export default function Home() {
                     {mamasHockeyGames.length > 0 ? (
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {mamasHockeyGames.map((game) => {
-                          const selected = eventPicks["mamas-hockey"]?.[game.id];
-                          const saving = eventPickSavingKey === `mamas-hockey:${game.id}`;
+                          const selected = eventPicks[mamasHockeyEventId]?.[game.id];
+                          const saving = eventPickSavingKey === `${mamasHockeyEventId}:${game.id}`;
+                          const locked = gameIsLocked(game, currentTime);
 
                           return (
                             <div key={game.id} className="rounded-xl border border-slate-200 bg-[#f7f4ec] p-3">
@@ -8028,13 +8090,15 @@ export default function Home() {
                                   <button
                                     key={choice}
                                     type="button"
-                                    disabled={saving}
-                                    onClick={() => void saveEventPick("mamas-hockey", game, choice)}
+                                    disabled={saving || locked}
+                                    onClick={() => void saveEventPick(mamasHockeyEventId, game, choice)}
                                     aria-pressed={selected === choice}
                                     className={`min-h-11 rounded-lg px-2 py-2 text-[8px] font-black transition active:scale-[0.98] ${
                                       selected === choice
                                         ? "bg-[#06284a] text-white ring-2 ring-[#f3c64f]"
-                                        : "border border-slate-200 bg-white text-[#10254a]"
+                                        : locked
+                                          ? "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400"
+                                          : "border border-slate-200 bg-white text-[#10254a]"
                                     }`}
                                   >
                                     {selected === choice ? "✓ " : ""}{team}
@@ -8047,11 +8111,11 @@ export default function Home() {
                       </div>
                     ) : (
                       <div className="rounded-xl border border-dashed border-slate-300 bg-[#f7f4ec] px-4 py-4 text-center text-[10px] font-semibold text-slate-500">
-                        No Vancouver, Kentucky Hockey or Rock Lobsters games fall in the next seven days. Your next hockey picks will appear here automatically.
+                        No hockey games fall in this challenge week yet. Your five picks will appear here automatically when the schedule is available.
                       </div>
                     )}
 
-                    {eventPickMessage && eventPickMessageEventId === "mamas-hockey" && (
+                    {eventPickMessage && eventPickMessageEventId === mamasHockeyEventId && (
                       <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-center text-[10px] font-black text-[#765800]">
                         {eventPickMessage}
                       </div>

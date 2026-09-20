@@ -8,8 +8,30 @@ const validEvents = new Set([
   "champions-league",
   "efl-trophy",
   "stanley-cup",
-  "mamas-hockey",
 ]);
+
+const mamaHockeyEventPattern =
+  /^mamas-hockey-[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isAllowedEvent(eventId: string) {
+  return validEvents.has(eventId) || mamaHockeyEventPattern.test(eventId);
+}
+
+async function verifyMamaHockeyPlayer(
+  supabase: ReturnType<typeof getAdminClient>,
+  playerId: string,
+  eventId: string,
+) {
+  if (!mamaHockeyEventPattern.test(eventId)) return true;
+
+  const { data, error } = await supabase
+    .from("players")
+    .select("display_name")
+    .eq("id", playerId)
+    .maybeSingle();
+
+  return !error && data?.display_name?.trim().toLowerCase() === "mama";
+}
 
 type EventPick = {
   playerId: string;
@@ -85,13 +107,16 @@ export async function GET(request: NextRequest) {
     const eventId = request.nextUrl.searchParams.get("eventId") ?? "";
     const sessionToken = request.headers.get("x-fambam-session") ?? "";
 
-    if (!playerId || !validEvents.has(eventId) || !sessionToken) {
+    if (!playerId || !isAllowedEvent(eventId) || !sessionToken) {
       return NextResponse.json({ error: "Missing event pick information." }, { status: 400 });
     }
 
     const supabase = getAdminClient();
     if (!(await verifySession(supabase, playerId, sessionToken))) {
       return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
+    }
+    if (!(await verifyMamaHockeyPlayer(supabase, playerId, eventId))) {
+      return NextResponse.json({ error: "This personal challenge belongs to Mama." }, { status: 403 });
     }
 
     const picks = await readPicks(supabase, eventId);
@@ -159,13 +184,16 @@ export async function POST(request: NextRequest) {
       ? body.sessionToken.trim()
       : request.headers.get("x-fambam-session")?.trim() ?? "";
 
-    if (!playerId || !validEvents.has(eventId) || !gameId || !pickChoice || !sessionToken) {
+    if (!playerId || !isAllowedEvent(eventId) || !gameId || !pickChoice || !sessionToken) {
       return NextResponse.json({ error: "Choose a team before saving." }, { status: 400 });
     }
 
     const supabase = getAdminClient();
     if (!(await verifySession(supabase, playerId, sessionToken))) {
       return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
+    }
+    if (!(await verifyMamaHockeyPlayer(supabase, playerId, eventId))) {
+      return NextResponse.json({ error: "This personal challenge belongs to Mama." }, { status: 403 });
     }
 
     const { data: game, error: gameError } = await supabase

@@ -264,6 +264,7 @@ function lockerTeamColors(team: LockerTeam) {
   if (name.includes("wimbledon")) return { primary: "#0047AB", secondary: "#FFD100", accent: "#FFFFFF" };
   if (name.includes("kentucky")) return { primary: "#0033A0", secondary: "#FFFFFF", accent: "#C8C9C7" };
   if (name.includes("vancouver") || name.includes("canucks")) return { primary: "#00205B", secondary: "#00843D", accent: "#FFFFFF" };
+  if (name.includes("rock lobster")) return { primary: "#E21D2D", secondary: "#071B36", accent: "#FFFFFF" };
   if (name.includes("georgia")) return { primary: "#BA0C2F", secondary: "#000000", accent: "#FFFFFF" };
   if (name.includes("atlanta braves") || name.includes("braves")) return { primary: "#CE1141", secondary: "#13274F", accent: "#FFFFFF" };
   if (name.includes("atlanta vibe") || name === "vibe") return { primary: "#27C7D4", secondary: "#10254A", accent: "#FF5E78" };
@@ -280,6 +281,12 @@ function lockerUniformAsset(team: LockerTeam) {
   if (name.includes("wimbledon")) return "/uniforms/afc-wimbledon.webp";
   if (name.includes("vancouver") || name.includes("canucks")) {
     return "/uniforms/vancouver-canucks.webp";
+  }
+  if (name.includes("rock lobster")) {
+    return "/uniforms/athens-rock-lobsters.png";
+  }
+  if (name.includes("kentucky") && team.sport === "Hockey") {
+    return "/uniforms/kentucky-hockey.png";
   }
   if (name.includes("kentucky") && team.sport === "Cheerleading") {
     return "/uniforms/kentucky-cheer.webp";
@@ -980,6 +987,8 @@ const EVENT_NAMES: Record<string, string> = {
   "conference-league": "Conference League",
   "womens-champions-league": "Women’s Champions League",
   "stanley-cup": "Stanley Cup",
+  "acha-college-hockey-postseason": "ACHA College Hockey Postseason",
+  "sphl-presidents-cup": "SPHL President’s Cup Playoffs",
   "efl-trophy": "EFL Trophy",
   "fa-cup": "FA Cup",
   "bowl-pickem": "Bowl Pick’em",
@@ -8119,6 +8128,20 @@ export default function Home() {
                       description: "The NHL playoff path to hockey’s biggest trophy.",
                       dates: ["Regular season ends: April", "Four playoff rounds: April–June", "Stanley Cup Final: June"],
                       learning: "Learn playoff seeding, best-of-seven series, home-ice advantage and how a team advances by winning four games.",
+                    },
+                    {
+                      icon: "🏒", name: "ACHA College Hockey Postseason", sport: "Hockey",
+                      season: "February–March", format: "Conference + National Tournaments",
+                      description: "Follow Kentucky Hockey from the ACCHL tournament toward the ACHA Division I national championship.",
+                      dates: ["ACCHL tournament: February", "National tournament field: announced after conference play", "ACHA Division I championship: March"],
+                      learning: "College club hockey uses conference and national postseason paths. Kentucky must advance or qualify to keep its championship run going; matchups will appear when the brackets are published.",
+                    },
+                    {
+                      icon: "🦞", name: "SPHL President’s Cup Playoffs", sport: "Hockey",
+                      season: "April", format: "Professional Playoff Series",
+                      description: "Follow the Athens Rock Lobsters if they qualify for the SPHL postseason.",
+                      dates: ["Regular season ends: early April", "President’s Cup playoff field: set from the standings", "Series matchups: announced after qualification"],
+                      learning: "Learn playoff qualification, series results and how the Rock Lobsters can advance toward the President’s Cup. Picks will open when the bracket is official.",
                     },
                     {
                       icon: "🏆", name: "EFL Trophy", sport: "Soccer",

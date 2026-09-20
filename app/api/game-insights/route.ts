@@ -504,6 +504,88 @@ function buildMatchupGuide(game: GameRow): Insight[] {
     ];
   }
 
+  if (sport === "Hockey") {
+    const league = competition.toLowerCase();
+    const isCollege = league.includes("acha");
+    const isSphl = league.includes("sphl");
+    const isRivalry = `${home} ${away}`.toLowerCase().includes("louisville") &&
+      `${home} ${away}`.toLowerCase().includes("kentucky");
+    const setting = isCollege
+      ? "an ACHA Division I college club hockey game"
+      : isSphl
+        ? "an SPHL professional hockey game"
+        : `a ${competition} game`;
+
+    return [
+      {
+        type: "matchup",
+        title: "Matchup Guide",
+        text: `${away} visits ${home} for ${setting}. ${home} wears the home sweater and gets the final line change after stoppages.`,
+      },
+      {
+        type: "what_to_watch",
+        title: "What to Watch",
+        text: "Watch the forecheck, shots on goal, power plays and goalie saves. A penalty gives the other team a power play, and quick line changes help players stay fresh for short, fast shifts.",
+      },
+      {
+        type: "event_context",
+        title: isRivalry ? "Kentucky–Louisville Rivalry" : "League & Postseason",
+        text: isRivalry
+          ? "Kentucky and Louisville are in-state rivals, so this is one of the most spirited games on UK Hockey’s schedule."
+          : isCollege
+            ? "Kentucky competes in ACHA Men’s Division I. Its season can lead through the ACCHL postseason and into the ACHA national tournament."
+            : isSphl
+              ? "The SPHL regular season determines qualification and positioning for the President’s Cup Playoffs. Athens plays its home games at Akins Ford Arena—nicknamed The Tank."
+              : "NHL teams build their regular-season records toward Stanley Cup Playoff qualification.",
+      },
+    ];
+  }
+
+  if (sport === "Baseball") {
+    return [
+      {
+        type: "matchup",
+        title: "Matchup Guide",
+        text: `${away} visits ${home}. Baseball games are divided into nine innings, and each team gets three outs in its half-inning.`,
+      },
+      {
+        type: "what_to_watch",
+        title: "What to Watch",
+        text: "Watch the starting pitchers, strike-zone command, runners in scoring position and bullpen decisions. A home run scores the batter and every runner already on base.",
+      },
+    ];
+  }
+
+  if (sport === "College Basketball") {
+    return [
+      {
+        type: "matchup",
+        title: "Matchup Guide",
+        text: `${away} visits ${home} in ${competition}. College games use two 20-minute halves, and the higher score wins.`,
+      },
+      {
+        type: "what_to_watch",
+        title: "What to Watch",
+        text: "Watch turnovers, rebounds, three-point shooting and foul trouble. Teams that win the rebounding battle often create valuable second-chance points.",
+      },
+    ];
+  }
+
+  if (sport === "Volleyball") {
+    return [
+      {
+        type: "matchup",
+        title: "Matchup Guide",
+        text: `${away} visits ${home}. College and professional matches are usually best-of-five sets, so the first team to win three sets wins the match.`,
+      },
+      {
+        type: "what_to_watch",
+        title: "What to Watch",
+        text: "Watch serve pressure, first-pass quality, blocks and hitting efficiency. Most sets go to 25 points and must be won by two; a fifth set usually goes to 15.",
+      },
+    ];
+  }
+
   return [];
 }
 

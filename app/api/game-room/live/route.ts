@@ -213,6 +213,24 @@ function scoreToNumber(
     : null;
 }
 
+function easternDateParts(value: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+
+  return {
+    year: part("year"),
+    month: part("month"),
+    day: part("day"),
+  };
+}
+
 function normalizeFootballDataStatus(
   status: FootballDataMatch["status"],
 ) {
@@ -597,17 +615,14 @@ export async function GET(request: NextRequest) {
         awayTeamName
       ) {
         try {
-          const gameDate =
-            new Date(typedGame.starts_at);
+          const gameDate = easternDateParts(
+            typedGame.starts_at,
+          );
 
           const espnDate = [
-            gameDate.getUTCFullYear(),
-            String(
-              gameDate.getUTCMonth() + 1,
-            ).padStart(2, "0"),
-            String(
-              gameDate.getUTCDate(),
-            ).padStart(2, "0"),
+            gameDate.year,
+            gameDate.month,
+            gameDate.day,
           ].join("");
 
           const espnUrl = new URL(
@@ -862,11 +877,14 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const gameDate = new Date(
+      const easternGameDate = easternDateParts(
         typedGame.starts_at,
-      )
-        .toISOString()
-        .slice(0, 10);
+      );
+      const gameDate = [
+        easternGameDate.year,
+        easternGameDate.month,
+        easternGameDate.day,
+      ].join("-");
       const providerResponse = await fetch(
         `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${gameDate}`,
         { cache: "no-store" },

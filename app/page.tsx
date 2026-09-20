@@ -246,6 +246,12 @@ function lockerTeamCountsForTrophy(team: LockerTeam, target: TrophyTeamSport) {
 
 function lockerTeamLogo(team: LockerTeam) {
   const name = team.name.trim().toLowerCase();
+  if (name.includes("rock lobster")) {
+    return "/logos/athens-rock-lobsters.webp";
+  }
+  if (name.includes("kentucky") && team.sport === "Hockey") {
+    return "/logos/kentucky-hockey.webp";
+  }
   if (
     team.sport === "College Football" &&
     ["georgia", "georgia bulldogs", "georgia bulldogs football", "university of georgia"].includes(name)

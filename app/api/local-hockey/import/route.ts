@@ -153,9 +153,9 @@ export async function POST() {
       const cached = teamCache.get(cacheKey);
       if (cached) return cached;
       const featuredLogo = name === "Kentucky Hockey"
-        ? "/uniforms/kentucky-hockey.png"
+        ? "/logos/kentucky-hockey.webp"
         : name === "Athens Rock Lobsters"
-          ? "/uniforms/athens-rock-lobsters.png"
+          ? "/logos/athens-rock-lobsters.webp"
           : null;
       const result = await supabase.from("teams").upsert({
         sport_id: hockeySportId,

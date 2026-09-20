@@ -283,10 +283,10 @@ function lockerUniformAsset(team: LockerTeam) {
     return "/uniforms/vancouver-canucks.webp";
   }
   if (name.includes("rock lobster")) {
-    return "/uniforms/athens-rock-lobsters.png";
+    return "/uniforms/athens-rock-lobsters.webp";
   }
   if (name.includes("kentucky") && team.sport === "Hockey") {
-    return "/uniforms/kentucky-hockey.png";
+    return "/uniforms/kentucky-hockey.webp";
   }
   if (name.includes("kentucky") && team.sport === "Cheerleading") {
     return "/uniforms/kentucky-cheer.webp";
@@ -6647,8 +6647,47 @@ export default function Home() {
                                         <img
                                           src={uniformAsset}
                                           alt={`${team.name} uniform hanging in the locker`}
-                                          className="absolute left-1/2 top-0 h-[228px] w-[94%] -translate-x-1/2 object-contain object-top drop-shadow-[0_18px_14px_rgba(0,0,0,.8)]"
+                                          className="absolute left-1/2 top-0 z-10 h-[228px] w-[94%] -translate-x-1/2 object-contain object-top drop-shadow-[0_18px_14px_rgba(0,0,0,.8)]"
+                                          onError={(event) => {
+                                            event.currentTarget.style.display = "none";
+                                            event.currentTarget.nextElementSibling?.classList.remove("hidden");
+                                          }}
                                         />
+                                        <div
+                                          aria-hidden="true"
+                                          className="absolute inset-0 hidden"
+                                        >
+                                          <div className="absolute left-1/2 top-0 h-5 w-px -translate-x-1/2 bg-[#c89b67]" />
+                                          <div className="absolute left-1/2 top-3 h-5 w-14 -translate-x-1/2 rounded-t-full border-2 border-[#9f744b] border-b-0" />
+                                          <div
+                                            className="absolute left-1/2 top-8 h-[160px] w-[142px] -translate-x-1/2 overflow-hidden rounded-b-[22px] border drop-shadow-[0_16px_12px_rgba(0,0,0,.75)]"
+                                            style={{
+                                              background: `linear-gradient(100deg,${colors.primary} 0%,${colors.primary} 35%,rgba(255,255,255,.2) 43%,${colors.primary} 52%,rgba(0,0,0,.22) 69%,${colors.primary} 100%)`,
+                                              borderColor: `${colors.secondary}bb`,
+                                              clipPath: "polygon(18% 0,34% 8%,50% 12%,66% 8%,82% 0,100% 11%,92% 100%,8% 100%,0 11%)",
+                                            }}
+                                          >
+                                            <div
+                                              className="absolute inset-x-0 top-0 h-4 opacity-50"
+                                              style={{ backgroundColor: colors.secondary }}
+                                            />
+                                            <div
+                                              className="mt-7 truncate px-2 text-center text-[8px] font-black uppercase tracking-wide"
+                                              style={{ color: colors.secondary }}
+                                            >
+                                              {label}
+                                            </div>
+                                            {logoUrl && (
+                                              <img
+                                                src={logoUrl}
+                                                alt=""
+                                                className="mx-auto mt-3 h-12 w-12 object-contain drop-shadow-md"
+                                              />
+                                            )}
+                                          </div>
+                                          <div className="absolute bottom-3 left-[36%] h-[5px] w-28 -rotate-[65deg] rounded-full bg-[linear-gradient(90deg,#d6b078,#80552d)] shadow-md" />
+                                          <div className="absolute bottom-0 right-[24%] h-3 w-7 rounded-[50%] bg-[#090909] shadow-md" />
+                                        </div>
                                       </div>
                                     </div>
                                   );

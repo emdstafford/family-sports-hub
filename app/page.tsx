@@ -158,6 +158,8 @@ type RecordBookAchievement = {
   fullCards: number;
   perfectTens: number;
   bestWeekCorrect: number;
+  bestWeekAccuracy: number;
+  maxWinStreak: number;
   backToBack: boolean;
 };
 
@@ -7068,13 +7070,29 @@ export default function Home() {
                         </div>
                       );
                     })()}
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      {["Best Week","Longest Streak","Best Accuracy","Biggest Upset Pick","Most Correct Picks","Challenge Wins"].map((record) => (
-                        <div key={record} className="flex items-center justify-between rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-slate-600">
-                          <span>{record}</span><span className="text-[#846f59]">—</span>
+                    {signedInPlayer && (() => {
+                      const me = recordBookRows.find((row) => row.player_id === signedInPlayer.id);
+                      const stats = recordBookAchievements[signedInPlayer.id];
+                      const records = [
+                        ["Best Week", stats?.bestWeekCorrect ? `${stats.bestWeekCorrect} correct` : "Not yet"],
+                        ["Longest Win Streak", stats?.maxWinStreak ? `${stats.maxWinStreak} week${stats.maxWinStreak === 1 ? "" : "s"}` : "0 weeks"],
+                        ["Best Accuracy", stats?.bestWeekAccuracy ? `${Math.round(stats.bestWeekAccuracy)}%` : "Not yet"],
+                        ["Biggest Upset Pick", "Not tracked yet"],
+                        ["Most Correct Picks", me ? String(me.correct) : "0"],
+                        ["Challenge Wins", String(stats?.weeklyWins ?? 0)],
+                      ];
+
+                      return (
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                          {records.map(([record, value]) => (
+                            <div key={record} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-slate-600">
+                              <span>{record}</span>
+                              <span className="shrink-0 text-right font-black text-[#846f59]">{value}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-white p-4 text-[#102b49] shadow-lg sm:p-5">

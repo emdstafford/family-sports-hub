@@ -236,11 +236,21 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
     fullCards: number;
     perfectTens: number;
     bestWeekCorrect: number;
+    bestWeekAccuracy: number;
+    maxWinStreak: number;
     backToBack: boolean;
   }> = {};
   const winStreaks = new Map<string, number>();
   for (const player of players ?? []) {
-    achievements[player.id] = { weeklyWins: 0, fullCards: 0, perfectTens: 0, bestWeekCorrect: 0, backToBack: false };
+    achievements[player.id] = {
+      weeklyWins: 0,
+      fullCards: 0,
+      perfectTens: 0,
+      bestWeekCorrect: 0,
+      bestWeekAccuracy: 0,
+      maxWinStreak: 0,
+      backToBack: false,
+    };
     winStreaks.set(player.id, 0);
   }
 
@@ -256,12 +266,19 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
       const score = scores.get(player.id) ?? { completed: 0, correct: 0 };
       const stats = achievements[player.id];
       stats.bestWeekCorrect = Math.max(stats.bestWeekCorrect, score.correct);
+      if (score.completed > 0) {
+        stats.bestWeekAccuracy = Math.max(
+          stats.bestWeekAccuracy,
+          (score.correct / score.completed) * 100,
+        );
+      }
       if (score.completed === cardSize) stats.fullCards += 1;
       if (cardSize >= 10 && score.completed >= 10 && score.correct >= 10) stats.perfectTens += 1;
 
       const won = winningScore > 0 && score.correct === winningScore;
       const streak = won ? (winStreaks.get(player.id) ?? 0) + 1 : 0;
       winStreaks.set(player.id, streak);
+      stats.maxWinStreak = Math.max(stats.maxWinStreak, streak);
       if (won) stats.weeklyWins += 1;
       if (streak >= 2) stats.backToBack = true;
     }

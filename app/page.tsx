@@ -3895,8 +3895,11 @@ export default function Home() {
   // upcoming games never appear as scored and an old 12-game card cannot
   // leak into the current 10-game challenge.
   const weeklyLeaderboard = leaderboard.map((row) => {
+    // Every player is scored against the same completed games on the
+    // shared weekly card. A missing pick is effectively an incorrect
+    // pick; it must not shrink that player's denominator and make the
+    // displayed accuracy look artificially better.
     const completedPicks = Math.min(
-      row.completed_picks,
       completedChallengeGameCount,
       challengeGames.length,
     );

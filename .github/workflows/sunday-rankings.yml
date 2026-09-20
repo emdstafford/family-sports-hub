@@ -1,0 +1,26 @@
+name: Sunday AP Rankings Refresh
+
+on:
+  schedule:
+    # 23:00 UTC is 7:00 PM Eastern during daylight-saving time,
+    # one hour before the Sunday-night FamBam Challenge rollover.
+    - cron: "0 23 * * 0"
+  workflow_dispatch:
+
+jobs:
+  rankings:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Import latest AP Top 25 rankings
+        run: |
+          curl --fail --silent --show-error \
+            -X POST \
+            "https://family-sports-hub.vercel.app/api/college-football/rankings/import?year=2026"
+
+      - name: Rebuild current FamBam Challenge with new rankings
+        run: |
+          curl --fail --silent --show-error \
+            -X POST \
+            https://family-sports-hub.vercel.app/api/challenge/auto-build \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

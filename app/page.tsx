@@ -984,6 +984,7 @@ type PhotoCropRequest = {
 };
 
 const EVENT_NAMES: Record<string, string> = {
+  "mamas-hockey": "Mama’s Hockey Challenge",
   "mlb-playoffs-world-series": "MLB Playoffs & World Series",
   "nfl-playoffs-super-bowl": "NFL Playoffs & Super Bowl",
   "sec-basketball-tournaments": "SEC Basketball Tournaments",
@@ -1871,7 +1872,7 @@ export default function Home() {
       return;
     }
 
-    ["fa-cup", "carabao-cup", "champions-league", "efl-trophy", "stanley-cup"].forEach(
+    ["fa-cup", "carabao-cup", "champions-league", "efl-trophy", "stanley-cup", "mamas-hockey"].forEach(
       (eventId) => void loadEventPicks(eventId),
     );
   }, [activeSection, signedInPlayer?.id]);
@@ -3734,6 +3735,30 @@ export default function Home() {
     .filter(
       (team): team is ProfileTeam => Boolean(team),
     );
+
+  const isMama =
+    signedInPlayer?.display_name.trim().toLowerCase() === "mama";
+
+  const mamasHockeyTeams = new Set([
+    "vancouver canucks",
+    "kentucky hockey",
+    "athens rock lobsters",
+  ]);
+
+  const mamasHockeyGames = thisWeekGames
+    .filter((game) => {
+      if (game.sport !== "Hockey") return false;
+      const home = game.home.trim().toLowerCase();
+      const away = game.away.trim().toLowerCase();
+      return mamasHockeyTeams.has(home) || mamasHockeyTeams.has(away);
+    })
+    .filter((game) => !gameIsLocked(game, currentTime))
+    .sort(
+      (a, b) =>
+        new Date(a.startsAt ?? 0).getTime() -
+        new Date(b.startsAt ?? 0).getTime(),
+    )
+    .slice(0, 10);
 
   const personalTeamSports = new Set([
     "Hockey",
@@ -7949,6 +7974,92 @@ export default function Home() {
             </div>
 
             <div className="space-y-4 px-3 py-4">
+              {isMama && (
+                <div className="overflow-hidden rounded-2xl border border-[#8eb6d8] bg-white shadow-sm">
+                  <div className="bg-[linear-gradient(135deg,#06284a,#0b4a72)] px-4 py-4 text-white">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">
+                          🏒 Personal Challenge
+                        </div>
+                        <div className="mt-1 text-xl font-black">Mama’s Hockey Challenge</div>
+                        <div className="mt-1 text-[10px] font-semibold text-blue-100">
+                          Vancouver · Kentucky Hockey · Athens Rock Lobsters
+                        </div>
+                      </div>
+                      <div className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-[9px] font-black">
+                        {eventProgress["mamas-hockey"]?.correct ?? 0} correct
+                      </div>
+                    </div>
+                    <div className="mt-3 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-[9px] font-semibold leading-relaxed text-blue-50">
+                      Your hockey picks are optional and completely separate from the regular 10-game FamBam Challenge, family standings and Record Book.
+                    </div>
+                  </div>
+
+                  <div className="p-3">
+                    {mamasHockeyGames.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {mamasHockeyGames.map((game) => {
+                          const selected = eventPicks["mamas-hockey"]?.[game.id];
+                          const saving = eventPickSavingKey === `mamas-hockey:${game.id}`;
+
+                          return (
+                            <div key={game.id} className="rounded-xl border border-slate-200 bg-[#f7f4ec] p-3">
+                              <button
+                                type="button"
+                                onClick={() => void openGameRoom(game)}
+                                className="w-full text-left"
+                              >
+                                <div className="text-[10px] font-black text-[#10254a]">
+                                  {game.away} at {game.home}
+                                </div>
+                                <div className="mt-0.5 text-[8px] font-semibold text-slate-500">
+                                  {formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}
+                                </div>
+                              </button>
+                              <div className="mt-2 grid grid-cols-2 gap-1.5">
+                                {([[
+                                  "away",
+                                  game.away,
+                                ], [
+                                  "home",
+                                  game.home,
+                                ]] as const).map(([choice, team]) => (
+                                  <button
+                                    key={choice}
+                                    type="button"
+                                    disabled={saving}
+                                    onClick={() => void saveEventPick("mamas-hockey", game, choice)}
+                                    aria-pressed={selected === choice}
+                                    className={`min-h-11 rounded-lg px-2 py-2 text-[8px] font-black transition active:scale-[0.98] ${
+                                      selected === choice
+                                        ? "bg-[#06284a] text-white ring-2 ring-[#f3c64f]"
+                                        : "border border-slate-200 bg-white text-[#10254a]"
+                                    }`}
+                                  >
+                                    {selected === choice ? "✓ " : ""}{team}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-300 bg-[#f7f4ec] px-4 py-4 text-center text-[10px] font-semibold text-slate-500">
+                        No Vancouver, Kentucky Hockey or Rock Lobsters games fall in the next seven days. Your next hockey picks will appear here automatically.
+                      </div>
+                    )}
+
+                    {eventPickMessage && eventPickMessageEventId === "mamas-hockey" && (
+                      <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-center text-[10px] font-black text-[#765800]">
+                        {eventPickMessage}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>

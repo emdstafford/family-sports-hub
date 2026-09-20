@@ -8,6 +8,7 @@ const validEvents = new Set([
   "champions-league",
   "efl-trophy",
   "stanley-cup",
+  "mamas-hockey",
 ]);
 
 type EventPick = {

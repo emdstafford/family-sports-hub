@@ -717,15 +717,6 @@ export async function POST(request: Request) {
      */
     const pickedIds = new Set<string>();
 
-    for (const row of existing) {
-      if (
-        row.selection_reason === "Restored saved pick" &&
-        pickedIds.size < TARGET_GAMES
-      ) {
-        pickedIds.add(row.game_id);
-      }
-    }
-
     const pickCounts = new Map<string, number>();
 
     for (const row of
@@ -749,10 +740,11 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Restored original games are authoritative. If fewer than ten
-     * are marked that way, the games picked by the most family
-     * members fill the remaining slots. Accidental replacement picks
-     * remain stored for safety without expanding the card past ten.
+     * The ten games picked by the most family members are the shared
+     * weekly card. This cleanly identifies the original card after the
+     * brief replacement-game issue because every player completed the
+     * original ten while only some picked the accidental additions.
+     * Extra pick records remain stored safely but are not scored.
      */
     const selected: Candidate[] = [];
 

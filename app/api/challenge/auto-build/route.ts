@@ -403,11 +403,14 @@ export async function POST(request: Request) {
 
       supabase
         .from("player_picks")
-        .select("game_id")
+        .select("game_id, created_at")
         .eq(
           "challenge_id",
           openChallenge.id,
-        ),
+        )
+        .order("created_at", {
+          ascending: true,
+        }),
     ]);
 
     if (gamesResult.error) {
@@ -715,18 +718,25 @@ export async function POST(request: Request) {
      * the strongest ones rather than letting
      * the Challenge grow beyond its target.
      */
-    const pickedIds = new Set(
-      (picksResult.data ?? []).map(
-        (row: { game_id: string }) =>
-          row.game_id,
-      ),
-    );
+    const pickedIds = new Set<string>();
+
+    for (const row of
+      (picksResult.data ?? []) as {
+        game_id: string;
+        created_at: string;
+      }[]) {
+      if (pickedIds.size >= TARGET_GAMES) {
+        break;
+      }
+
+      pickedIds.add(row.game_id);
+    }
 
     /*
-     * A saved pick permanently reserves that game on this
-     * week's card. The hourly builder may fill empty slots,
-     * but it must never swap out a game the family already
-     * picked just because a newer fixture now ranks higher.
+     * The first ten distinct games picked are the authoritative
+     * weekly card. This repairs the brief period when replacement
+     * games appeared: later picks remain stored for safety, but
+     * they do not expand the weekly Challenge beyond ten games.
      */
     const selected: Candidate[] = [];
 

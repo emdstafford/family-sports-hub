@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 
 const profileSettingsBucket = "fambam-profile-settings";
 
+type ProfileSettings = {
+  lockerTeamOrder: string[];
+  hiddenEventIds: string[];
+  updatedAt?: string;
+};
+
 async function ensureProfileSettingsBucket(supabase: ReturnType<typeof getAdminClient>) {
   const { data } = await supabase.storage.getBucket(profileSettingsBucket);
   if (data) return;
@@ -10,25 +16,61 @@ async function ensureProfileSettingsBucket(supabase: ReturnType<typeof getAdminC
   if (error && !error.message.toLowerCase().includes("already exists")) throw error;
 }
 
-async function readLockerOrder(supabase: ReturnType<typeof getAdminClient>, playerId: string) {
+async function readProfileSettings(
+  supabase: ReturnType<typeof getAdminClient>,
+  playerId: string,
+): Promise<ProfileSettings> {
   await ensureProfileSettingsBucket(supabase);
   const { data, error } = await supabase.storage.from(profileSettingsBucket).download(`${playerId}.json`);
-  if (error || !data) return [];
+  if (error || !data) {
+    return { lockerTeamOrder: [], hiddenEventIds: [] };
+  }
+
   try {
     const parsed = JSON.parse(await data.text());
-    return Array.isArray(parsed.lockerTeamOrder)
-      ? parsed.lockerTeamOrder.filter((value: unknown) => typeof value === "string")
-      : [];
+    return {
+      lockerTeamOrder: Array.isArray(parsed.lockerTeamOrder)
+        ? parsed.lockerTeamOrder.filter((value: unknown) => typeof value === "string")
+        : [],
+      hiddenEventIds: Array.isArray(parsed.hiddenEventIds)
+        ? parsed.hiddenEventIds.filter((value: unknown) => typeof value === "string")
+        : [],
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : undefined,
+    };
   } catch {
-    return [];
+    return { lockerTeamOrder: [], hiddenEventIds: [] };
   }
 }
 
 async function writeLockerOrder(supabase: ReturnType<typeof getAdminClient>, playerId: string, lockerTeamOrder: string[]) {
   await ensureProfileSettingsBucket(supabase);
+  const current = await readProfileSettings(supabase, playerId);
   const { error } = await supabase.storage.from(profileSettingsBucket).upload(
     `${playerId}.json`,
-    JSON.stringify({ lockerTeamOrder, updatedAt: new Date().toISOString() }),
+    JSON.stringify({
+      ...current,
+      lockerTeamOrder,
+      updatedAt: new Date().toISOString(),
+    }),
+    { contentType: "application/json", upsert: true },
+  );
+  if (error) throw error;
+}
+
+async function writeHiddenEventIds(
+  supabase: ReturnType<typeof getAdminClient>,
+  playerId: string,
+  hiddenEventIds: string[],
+) {
+  await ensureProfileSettingsBucket(supabase);
+  const current = await readProfileSettings(supabase, playerId);
+  const { error } = await supabase.storage.from(profileSettingsBucket).upload(
+    `${playerId}.json`,
+    JSON.stringify({
+      ...current,
+      hiddenEventIds: [...new Set(hiddenEventIds)].slice(0, 100),
+      updatedAt: new Date().toISOString(),
+    }),
     { contentType: "application/json", upsert: true },
   );
   if (error) throw error;
@@ -411,9 +453,9 @@ export async function GET(
       throw favoriteTeamsResult.error;
     }
 
-    const [recordBook, lockerTeamOrder, { data: playerAvatars, error: playerAvatarsError }] = await Promise.all([
+    const [recordBook, profileSettings, { data: playerAvatars, error: playerAvatarsError }] = await Promise.all([
       getRecordBookLeaderboard(supabase),
-      readLockerOrder(supabase, playerId),
+      readProfileSettings(supabase, playerId),
       supabase.from("players").select("id, avatar_url"),
     ]);
     if (playerAvatarsError) {
@@ -428,7 +470,8 @@ export async function GET(
         playerSportsResult.data ?? [],
       favoriteTeams:
         favoriteTeamsResult.data ?? [],
-      lockerTeamOrder,
+      lockerTeamOrder: profileSettings.lockerTeamOrder,
+      hiddenEventIds: profileSettings.hiddenEventIds,
       recordBookLeaderboard: recordBook.leaderboard,
       recordBookAchievements: recordBook.achievements,
       playerAvatars: playerAvatars ?? [],
@@ -533,6 +576,26 @@ export async function POST(
       if (updateError) throw updateError;
 
       return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === "hiddenEvents") {
+      if (!playerId || !sessionToken || !(await verifySession(playerId, sessionToken))) {
+        return NextResponse.json(
+          { error: "Your FamBam session has expired. Please switch players and sign in again." },
+          { status: 401 },
+        );
+      }
+
+      const hiddenEventIds = Array.isArray(body.hiddenEventIds)
+        ? body.hiddenEventIds.filter(
+            (value: unknown): value is string =>
+              typeof value === "string" && /^[a-z0-9-]{1,80}$/.test(value),
+          )
+        : [];
+
+      await writeHiddenEventIds(getAdminClient(), playerId, hiddenEventIds);
+
+      return NextResponse.json({ ok: true, hiddenEventIds });
     }
 
     if (

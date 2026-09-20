@@ -968,6 +968,42 @@ type PhotoCropRequest = {
   eventId?: string;
 };
 
+const EVENT_NAMES: Record<string, string> = {
+  "mlb-playoffs-world-series": "MLB Playoffs & World Series",
+  "nfl-playoffs-super-bowl": "NFL Playoffs & Super Bowl",
+  "sec-basketball-tournaments": "SEC Basketball Tournaments",
+  "college-world-series": "College World Series",
+  "pro-volleyball-playoffs": "Pro Volleyball Playoffs",
+  "carabao-cup": "Carabao Cup",
+  "champions-league": "Champions League",
+  "europa-league": "Europa League",
+  "conference-league": "Conference League",
+  "womens-champions-league": "Women’s Champions League",
+  "stanley-cup": "Stanley Cup",
+  "efl-trophy": "EFL Trophy",
+  "fa-cup": "FA Cup",
+  "bowl-pickem": "Bowl Pick’em",
+  "college-football-playoff": "College Football Playoff",
+  "mens-march-madness": "Men’s March Madness",
+  "womens-march-madness": "Women’s March Madness",
+  "uca-college-cheer-nationals": "UCA College Cheer Nationals",
+  "sec-volleyball-tournament": "SEC Volleyball Tournament",
+  "ncaa-volleyball-tournament": "NCAA Volleyball Tournament",
+  "kentucky-derby": "Kentucky Derby",
+  "triple-crown": "Triple Crown",
+  "world-cups-euros": "World Cups & Euros",
+  olympics: "Olympics",
+};
+
+function eventIdFromName(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/&/g, " ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [challenge, setChallenge] =
@@ -1206,6 +1242,10 @@ export default function Home() {
     useState<string | null>(null);
   const [eventPickMessageEventId, setEventPickMessageEventId] =
     useState<string | null>(null);
+  const [hiddenEventIds, setHiddenEventIds] = useState<string[]>([]);
+  const [showHiddenEvents, setShowHiddenEvents] = useState(false);
+  const [eventVisibilitySavingId, setEventVisibilitySavingId] = useState<string | null>(null);
+  const [eventVisibilityMessage, setEventVisibilityMessage] = useState<string | null>(null);
 
   const [adminGame, setAdminGame] =
     useState<BrowserGame | null>(null);
@@ -2674,6 +2714,14 @@ export default function Home() {
         orderedFavorites,
       );
 
+      setHiddenEventIds(
+        Array.isArray(data.hiddenEventIds)
+          ? data.hiddenEventIds.filter(
+              (eventId: unknown): eventId is string => typeof eventId === "string",
+            )
+          : [],
+      );
+
       const primaryBySport: Record<string, string> = {};
 
       for (const row of data.favoriteTeams ?? []) {
@@ -2701,6 +2749,58 @@ export default function Home() {
       );
     } finally {
       setProfileLoading(false);
+    }
+  }
+
+  async function setEventHidden(eventId: string, hidden: boolean) {
+    if (!signedInPlayer || eventVisibilitySavingId) return;
+
+    const sessionToken = window.localStorage.getItem("fambam_session_token");
+
+    if (!sessionToken) {
+      setEventVisibilityMessage("Please switch players and sign in again.");
+      return;
+    }
+
+    const nextHiddenEventIds = hidden
+      ? [...new Set([...hiddenEventIds, eventId])]
+      : hiddenEventIds.filter((savedId) => savedId !== eventId);
+
+    setEventVisibilitySavingId(eventId);
+    setEventVisibilityMessage(null);
+
+    try {
+      const response = await fetch("/api/player-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-fambam-session": sessionToken,
+        },
+        body: JSON.stringify({
+          action: "hiddenEvents",
+          playerId: signedInPlayer.id,
+          hiddenEventIds: nextHiddenEventIds,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Could not update this event.");
+      }
+
+      setHiddenEventIds(nextHiddenEventIds);
+      setEventVisibilityMessage(
+        hidden
+          ? "Event hidden from your Events screen."
+          : "Event added back to your Events screen.",
+      );
+    } catch (error) {
+      setEventVisibilityMessage(
+        error instanceof Error ? error.message : "Could not update this event.",
+      );
+    } finally {
+      setEventVisibilitySavingId(null);
     }
   }
 
@@ -7774,6 +7874,56 @@ export default function Home() {
             </div>
 
             <div className="space-y-4 px-3 py-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-black text-[#10254a]">Your Events</div>
+                    <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
+                      Hide events you do not want to follow. You can add them back anytime.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowHiddenEvents((current) => !current)}
+                    className="shrink-0 rounded-full border border-slate-200 bg-[#f7f4ec] px-3 py-2 text-[9px] font-black text-[#10254a]"
+                  >
+                    Hidden ({hiddenEventIds.length})
+                  </button>
+                </div>
+
+                {eventVisibilityMessage && (
+                  <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-[9px] font-bold text-[#765800]">
+                    {eventVisibilityMessage}
+                  </div>
+                )}
+
+                {showHiddenEvents && (
+                  <div className="mt-3 border-t border-slate-100 pt-3">
+                    {hiddenEventIds.length === 0 ? (
+                      <div className="text-[10px] font-semibold text-slate-500">You have not hidden any events.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {hiddenEventIds.map((eventId) => (
+                          <div key={eventId} className="flex items-center justify-between gap-3 rounded-xl bg-[#f7f4ec] px-3 py-2">
+                            <div className="text-[10px] font-black text-[#10254a]">
+                              {EVENT_NAMES[eventId] ?? eventId.replaceAll("-", " ")}
+                            </div>
+                            <button
+                              type="button"
+                              disabled={eventVisibilitySavingId === eventId}
+                              onClick={() => void setEventHidden(eventId, false)}
+                              className="rounded-full bg-[#06284a] px-3 py-1.5 text-[9px] font-black text-white disabled:opacity-50"
+                            >
+                              {eventVisibilitySavingId === eventId ? "Adding…" : "Add Back"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-200 px-4 py-3">
                   <div className="text-sm font-black uppercase tracking-wide text-[#10254a]">
@@ -7785,7 +7935,9 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-4 p-3">
-                  {[{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}].map((event) => {
+                  {[{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}]
+                    .filter((event) => !hiddenEventIds.includes(event.id))
+                    .map((event) => {
                     const eventGames = realGames
                       .filter((game) => {
                         const competition = game.competition.toLowerCase();
@@ -7808,11 +7960,12 @@ export default function Home() {
 
                     return (
                       <div key={event.id} className="rounded-xl bg-[#f7f4ec] p-3">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedEventGuide(event)}
-                          className="flex w-full items-center justify-between gap-3 text-left active:opacity-70"
-                        >
+                        <div className="flex items-center justify-between gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedEventGuide(event)}
+                            className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left active:opacity-70"
+                          >
                           <div className="flex min-w-0 items-center gap-2">
                             <span className="text-xl">{event.icon}</span>
                             <div className="min-w-0">
@@ -7828,7 +7981,16 @@ export default function Home() {
                             </span>
                             <span className="text-xs font-black text-[#b28a2e]">ⓘ</span>
                           </div>
-                        </button>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={eventVisibilitySavingId === event.id}
+                            onClick={() => void setEventHidden(event.id, true)}
+                            className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[8px] font-black text-slate-500 disabled:opacity-50"
+                          >
+                            {eventVisibilitySavingId === event.id ? "Hiding…" : "Hide"}
+                          </button>
+                        </div>
 
                         {eventGames.length > 0 ? (
                           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -8041,6 +8203,7 @@ export default function Home() {
                     },
                   ]
                     .filter((event) => !["Carabao Cup", "Champions League", "EFL Trophy"].includes(event.name))
+                    .filter((event) => !hiddenEventIds.includes(eventIdFromName(event.name)))
                     .sort((a, b) => {
                       const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                       const now = new Date(currentTime ?? Date.now());
@@ -8063,20 +8226,32 @@ export default function Home() {
                       // Preserve the existing order for ties and undated events.
                       return aOffset === bOffset ? 0 : aOffset - bOffset;
                     }).map((event) => (
-                    <button
+                    <div
                       key={event.name}
-                      type="button"
-                      onClick={() => setSelectedEventGuide(event)}
-                      className="rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition active:scale-[0.98]"
+                      className="relative rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="text-2xl">{event.icon}</div>
-                        <div className="text-[9px] font-black text-[#b28a2e]">→</div>
-                      </div>
-                      <div className="mt-2 text-xs font-black text-[#10254a]">{event.name}</div>
-                      <div className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-500">{event.description}</div>
-                      <div className="mt-2 inline-flex rounded-full bg-[#f7f4ec] px-2 py-1 text-[8px] font-black text-[#765800]">{event.season}</div>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEventGuide(event)}
+                        className="w-full pr-10 text-left transition active:scale-[0.98]"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-2xl">{event.icon}</div>
+                          <div className="text-[9px] font-black text-[#b28a2e]">→</div>
+                        </div>
+                        <div className="mt-2 text-xs font-black text-[#10254a]">{event.name}</div>
+                        <div className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-500">{event.description}</div>
+                        <div className="mt-2 inline-flex rounded-full bg-[#f7f4ec] px-2 py-1 text-[8px] font-black text-[#765800]">{event.season}</div>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={eventVisibilitySavingId === eventIdFromName(event.name)}
+                        onClick={() => void setEventHidden(eventIdFromName(event.name), true)}
+                        className="absolute right-2 top-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-[8px] font-black text-slate-500 disabled:opacity-50"
+                      >
+                        Hide
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>

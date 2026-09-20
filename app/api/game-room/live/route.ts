@@ -81,8 +81,18 @@ type NhlGame = {
   id: number;
   startTimeUTC: string;
   gameState: string;
-  awayTeam: { score?: number };
-  homeTeam: { score?: number };
+  awayTeam: {
+    score?: number;
+    commonName?: { default?: string };
+    placeName?: { default?: string };
+    abbrev?: string;
+  };
+  homeTeam: {
+    score?: number;
+    commonName?: { default?: string };
+    placeName?: { default?: string };
+    abbrev?: string;
+  };
   periodDescriptor?: {
     number?: number;
     periodType?: string;
@@ -229,6 +239,14 @@ function easternDateParts(value: string) {
     month: part("month"),
     day: part("day"),
   };
+}
+
+function nhlTeamName(team: NhlGame["homeTeam"]) {
+  const place = team.placeName?.default?.trim();
+  const common = team.commonName?.default?.trim();
+
+  if (place && common) return `${place} ${common}`;
+  return common || place || team.abbrev || "";
 }
 
 function normalizeFootballDataStatus(
@@ -390,6 +408,8 @@ export async function GET(request: NextRequest) {
     let liveDetail: string | null = null;
     let liveProvider =
       typedGame.external_provider;
+    let refreshedExternalId =
+      typedGame.external_id;
 
     if (
       typedGame.external_provider ===
@@ -972,13 +992,19 @@ export async function GET(request: NextRequest) {
 
       const schedule =
         (await providerResponse.json()) as NhlScheduleResponse;
-      const providerGame = schedule.gameWeek
-        ?.flatMap((day) => day.games ?? [])
-        .find(
-          (game) =>
-            String(game.id) ===
-            typedGame.external_id,
-        );
+      const providerGames = schedule.gameWeek
+        ?.flatMap((day) => day.games ?? []) ?? [];
+      const homeTeamName = getTeamName(typedGame.home_team);
+      const awayTeamName = getTeamName(typedGame.away_team);
+      const providerGame = providerGames.find(
+        (game) =>
+          String(game.id) === typedGame.external_id,
+      ) ?? providerGames.find(
+        (game) =>
+          Boolean(homeTeamName && awayTeamName) &&
+          teamNamesMatch(homeTeamName!, nhlTeamName(game.homeTeam)) &&
+          teamNamesMatch(awayTeamName!, nhlTeamName(game.awayTeam)),
+      );
 
       if (!providerGame) {
         return NextResponse.json(
@@ -1015,6 +1041,7 @@ export async function GET(request: NextRequest) {
           : providerGame.periodDescriptor
               ?.periodType ?? null;
       liveProvider = "nhl";
+      refreshedExternalId = String(providerGame.id);
     } else if (
       typedGame.external_provider ===
       "ukathletics"
@@ -1212,6 +1239,7 @@ export async function GET(request: NextRequest) {
           away_score: awayScore,
           status,
           starts_at: startsAt,
+          external_id: refreshedExternalId,
         })
         .eq("id", gameId);
 

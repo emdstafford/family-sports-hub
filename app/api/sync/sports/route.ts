@@ -122,6 +122,18 @@ async function runSync(request: NextRequest) {
   );
 
   /*
+   * Keep UK Hockey and the Athens Rock Lobsters on the family calendar.
+   * The importer is idempotent, so published schedule corrections are
+   * safely applied without creating duplicate games.
+   */
+  results.push(
+    await callInternalRoute(
+      request,
+      "/api/local-hockey/import",
+    ),
+  );
+
+  /*
    * CollegeFootballData is intentionally NOT called by
    * the hourly sports sync.
    *

@@ -403,14 +403,11 @@ export async function POST(request: Request) {
 
       supabase
         .from("player_picks")
-        .select("game_id, created_at")
+        .select("game_id")
         .eq(
           "challenge_id",
           openChallenge.id,
-        )
-        .order("created_at", {
-          ascending: true,
-        }),
+        ),
     ]);
 
     if (gamesResult.error) {
@@ -720,23 +717,42 @@ export async function POST(request: Request) {
      */
     const pickedIds = new Set<string>();
 
+    for (const row of existing) {
+      if (
+        row.selection_reason === "Restored saved pick" &&
+        pickedIds.size < TARGET_GAMES
+      ) {
+        pickedIds.add(row.game_id);
+      }
+    }
+
+    const pickCounts = new Map<string, number>();
+
     for (const row of
-      (picksResult.data ?? []) as {
-        game_id: string;
-        created_at: string;
-      }[]) {
+      (picksResult.data ?? []) as { game_id: string }[]) {
+      pickCounts.set(
+        row.game_id,
+        (pickCounts.get(row.game_id) ?? 0) + 1,
+      );
+    }
+
+    const pickedGamesByParticipation = [...pickCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([gameId]) => gameId);
+
+    for (const gameId of pickedGamesByParticipation) {
       if (pickedIds.size >= TARGET_GAMES) {
         break;
       }
 
-      pickedIds.add(row.game_id);
+      pickedIds.add(gameId);
     }
 
     /*
-     * The first ten distinct games picked are the authoritative
-     * weekly card. This repairs the brief period when replacement
-     * games appeared: later picks remain stored for safety, but
-     * they do not expand the weekly Challenge beyond ten games.
+     * Restored original games are authoritative. If fewer than ten
+     * are marked that way, the games picked by the most family
+     * members fill the remaining slots. Accidental replacement picks
+     * remain stored for safety without expanding the card past ten.
      */
     const selected: Candidate[] = [];
 

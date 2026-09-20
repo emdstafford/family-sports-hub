@@ -830,16 +830,13 @@ export async function POST(request: Request) {
     }
 
     const protectedIds =
-      new Set<string>();
+      new Set<string>(pickedIds);
 
     for (const row of existing) {
       const game =
         existingGameMap.get(
           row.game_id,
         );
-
-      const hasPick =
-        pickedIds.has(row.game_id);
 
       const hasStarted =
         game
@@ -850,22 +847,22 @@ export async function POST(request: Request) {
           : false;
 
       /*
-       * A picked or started game is ALWAYS
-       * protected.
+       * The authoritative picked games are already protected.
        *
-       * On normal weekly runs, intentional
-       * manual additions are also protected.
+       * If the family has picked fewer than ten distinct games,
+       * started or intentional manual games may occupy the open
+       * slots. They never expand the Challenge beyond ten.
        *
        * On reset=true, legacy manual rows may
        * be replaced unless they have a pick or
        * have already started.
        */
       if (
-        hasPick ||
-        hasStarted ||
-        (!reset &&
-          row.selection_source ===
-            "manual")
+        protectedIds.size < TARGET_GAMES &&
+        (hasStarted ||
+          (!reset &&
+            row.selection_source ===
+              "manual"))
       ) {
         protectedIds.add(
           row.game_id,
@@ -879,10 +876,6 @@ export async function POST(request: Request) {
      * previous hourly run detached a game that still has saved
      * picks, pickedIds puts it back into desiredIds below.
      */
-    pickedIds.forEach((gameId) =>
-      protectedIds.add(gameId),
-    );
-
     const desiredIds = new Set<string>([
       ...selectedIds,
       ...protectedIds,

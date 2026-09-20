@@ -161,6 +161,18 @@ type RecordBookAchievement = {
   bestWeekAccuracy: number;
   maxWinStreak: number;
   backToBack: boolean;
+  correctPickCount: number;
+  correctPickMilestones: Record<string, string>;
+  sportCorrect: Record<string, number>;
+  sportMilestones: Record<string, Record<string, string>>;
+};
+
+type TrophyTier = "bronze" | "silver" | "gold";
+
+type TrophyMilestone = {
+  target: number;
+  label: string;
+  achievedAt: string | null;
 };
 
 type CollegeFootballRanking = {
@@ -1184,6 +1196,8 @@ export default function Home() {
       milestone?: string;
       repeatable?: boolean;
       earned?: boolean;
+      tier?: TrophyTier;
+      milestones?: TrophyMilestone[];
     } | null>(null);
 
   const [passportView, setPassportView] =
@@ -4572,10 +4586,6 @@ export default function Home() {
       : Math.min(trophyStanding.correct, 10)
     : 0;
 
-  const currentChallengeProgress = trophyStanding
-    ? Math.min(trophyStanding.correct, 10)
-    : 0;
-
   async function readPassportResponse(response: Response) {
     const text = await response.text();
 
@@ -4789,6 +4799,51 @@ export default function Home() {
   const myRecordAchievements = signedInPlayer
     ? recordBookAchievements[signedInPlayer.id]
     : undefined;
+
+  const buildTieredPickTrophy = (
+    icon: string,
+    title: string,
+    note: string,
+    count: number,
+    earnedDates: Record<string, string> = {},
+  ) => {
+    const tier: TrophyTier | undefined =
+      count >= 25 ? "gold" : count >= 10 ? "silver" : count >= 5 ? "bronze" : undefined;
+    const nextTarget = count < 5 ? 5 : count < 10 ? 10 : 25;
+    const tierLabel = tier ? `${tier[0].toUpperCase()}${tier.slice(1)}` : null;
+
+    return {
+      icon,
+      title,
+      note,
+      earned: count >= 5,
+      tier,
+      progress: count >= 25 ? `${count} correct · Gold` : `${count}/${nextTarget} correct`,
+      milestone:
+        count >= 25
+          ? "Gold tier complete — every new correct pick keeps building your record"
+          : `${nextTarget} correct picks unlocks ${nextTarget === 5 ? "Bronze" : nextTarget === 10 ? "Silver" : "Gold"}`,
+      milestones: [
+        { target: 5, label: "Bronze", achievedAt: earnedDates["5"] ?? null },
+        { target: 10, label: "Silver", achievedAt: earnedDates["10"] ?? null },
+        { target: 25, label: "Gold", achievedAt: earnedDates["25"] ?? null },
+      ],
+      ...(tierLabel ? { tierLabel } : {}),
+    };
+  };
+
+  const sportPickTrophy = (
+    sport: string,
+    icon: string,
+    title: string,
+    note: string,
+  ) => buildTieredPickTrophy(
+    icon,
+    title,
+    note,
+    myRecordAchievements?.sportCorrect?.[sport] ?? 0,
+    myRecordAchievements?.sportMilestones?.[sport] ?? {},
+  );
 
   const savedMemoryCount = passportEntries.reduce(
     (total, entry) => total + entry.memories.filter((memory) => memory.note.trim().length > 0).length,
@@ -6978,19 +7033,13 @@ export default function Home() {
                           trophies: [
                           { icon: "🏆", title: "Weekly Champ", note: "Finish a weekly FamBam Challenge in first place", repeatable: true, earned: (myRecordAchievements?.weeklyWins ?? 0) > 0, progress: `${myRecordAchievements?.weeklyWins ?? 0} weekly win${(myRecordAchievements?.weeklyWins ?? 0)===1?'':'s'}`, milestone: "5 wins unlocks Challenge Champion" },
                           { icon: "🎯", title: "Pick Master", note: "Complete every pick on a full challenge card", repeatable: true, earned: (myRecordAchievements?.fullCards ?? 0) > 0, progress: `${myRecordAchievements?.fullCards ?? 0} full card${(myRecordAchievements?.fullCards ?? 0)===1?'':'s'}`, milestone: "Complete 5 full cards for the next tier" },
-                          {
-                            icon: "🔥",
-                            title: "Hot Streak",
-                            note: "Build a streak of correct picks",
-                            earned: currentChallengeProgress >= 5,
-                            progress: `${currentChallengeProgress}/${currentChallengeProgress < 5 ? 5 : 10}`,
-                            milestone:
-                              currentChallengeProgress < 5
-                                ? "Reach 5 correct picks"
-                                : currentChallengeProgress < 10
-                                  ? "Reach 10 correct picks"
-                                  : "25 correct picks is the next streak tier",
-                          },
+                          buildTieredPickTrophy(
+                            "🔥",
+                            "Hot Streak",
+                            "Keep building your total of correct FamBam picks",
+                            myRecordAchievements?.correctPickCount ?? 0,
+                            myRecordAchievements?.correctPickMilestones ?? {},
+                          ),
                           { icon: "💯", title: "Perfect 10", note: "Go 10-for-10 without a miss in one challenge", earned: (myRecordAchievements?.perfectTens ?? 0) > 0, progress: (myRecordAchievements?.perfectTens ?? 0)>0?`${myRecordAchievements?.perfectTens} perfect card${myRecordAchievements?.perfectTens===1?'':'s'}`:`${perfectTenProgress}/10`, milestone: "Repeat it and the trophy count increases" },
                           { icon: "🏆🏆", title: "Back-to-Back", note: "Win two weekly FamBam Challenges in a row", earned: myRecordAchievements?.backToBack === true, progress: myRecordAchievements?.backToBack?"Earned ✓":"Win 2 in a row", milestone: "Two consecutive Challenge wins" },
                           { icon: "🧹", title: "Family Sweep", note: "Have the whole family make the same winning pick", progress: "Complete a family sweep", milestone: "Everyone agrees and everyone is correct" },
@@ -7072,11 +7121,11 @@ export default function Home() {
                           label: null,
                           trophies: [
                             { icon: "🪄", title: "Cup Magic", note: "Correctly pick a cup or tournament match", progress: "0/1 tracked", milestone: "Win a graded cup or tournament pick" },
-                            { icon: "⚽", title: "Goal Getter", note: "Correctly predict five soccer winners", progress: "0/5 tracked", milestone: "Five graded soccer picks" },
-                            { icon: "🏈", title: "Gridiron Guru", note: "Correctly predict five college football winners", progress: "0/5 tracked", milestone: "Five graded college football picks" },
-                            { icon: "🏒", title: "Ice Expert", note: "Correctly predict five hockey winners", progress: "0/5 tracked", milestone: "Five graded hockey picks" },
-                            { icon: "⚾", title: "Diamond Expert", note: "Correctly predict five baseball winners", progress: "0/5 tracked", milestone: "Five graded baseball picks" },
-                            { icon: "🏐", title: "Volley Vision", note: "Correctly predict five volleyball winners", progress: "0/5 tracked", milestone: "Five graded volleyball picks" },
+                            sportPickTrophy("Soccer", "⚽", "Goal Getter", "Correctly predict soccer winners"),
+                            sportPickTrophy("College Football", "🏈", "Gridiron Guru", "Correctly predict college football winners"),
+                            sportPickTrophy("Hockey", "🏒", "Ice Expert", "Correctly predict hockey winners in either weekly challenge"),
+                            sportPickTrophy("Baseball", "⚾", "Diamond Expert", "Correctly predict baseball winners"),
+                            sportPickTrophy("Volleyball", "🏐", "Volley Vision", "Correctly predict volleyball winners"),
                           ],
                         },
                         {
@@ -7118,11 +7167,11 @@ export default function Home() {
                                 ) : (
                                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,3,2,.68)_0%,rgba(7,4,3,.52)_52%,rgba(8,5,3,.88)_100%)]" />
                                 )}
-                                <div className={`absolute right-1.5 top-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] font-black ${"earned" in trophy && trophy.earned ? "bg-[#f3c64f] text-[#33200f]" : "bg-black/55 text-white"}`}>{"earned" in trophy && trophy.earned ? "✓" : "🔒"}</div>
+                                <div className={`absolute right-1.5 top-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] font-black ${"tier" in trophy && trophy.tier === "gold" ? "bg-[#f3c64f] text-[#33200f]" : "tier" in trophy && trophy.tier === "silver" ? "bg-slate-200 text-slate-700" : "tier" in trophy && trophy.tier === "bronze" ? "bg-[#bd7b45] text-white" : "earned" in trophy && trophy.earned ? "bg-[#f3c64f] text-[#33200f]" : "bg-black/55 text-white"}`}>{"tier" in trophy && trophy.tier ? trophy.tier === "gold" ? "🥇" : trophy.tier === "silver" ? "🥈" : "🥉" : "earned" in trophy && trophy.earned ? "✓" : "🔒"}</div>
                                 {"repeatable" in trophy && trophy.repeatable && (
                                   <div className="absolute left-1.5 top-1.5 z-20 rounded-full border border-[#a47a42] bg-[#21150d]/90 px-1.5 py-0.5 text-[8px] font-black uppercase text-[#f3c64f]">Repeat</div>
                                 )}
-                                <div className={`absolute inset-x-0 top-[24%] z-10 flex justify-center text-3xl transition sm:text-4xl ${"earned" in trophy && trophy.earned ? "drop-shadow-[0_8px_12px_rgba(0,0,0,.75)]" : "grayscale opacity-30 group-hover:opacity-45"}`}>
+                                <div className={`absolute inset-x-0 top-[24%] z-10 flex justify-center text-3xl transition sm:text-4xl ${"earned" in trophy && trophy.earned ? "drop-shadow-[0_8px_12px_rgba(0,0,0,.75)]" : "grayscale opacity-30 group-hover:opacity-45"} ${"tier" in trophy && trophy.tier === "gold" ? "drop-shadow-[0_0_14px_rgba(243,198,79,.75)]" : "tier" in trophy && trophy.tier === "silver" ? "drop-shadow-[0_0_12px_rgba(226,232,240,.55)]" : ""}`}>
                                   {trophy.icon}
                                 </div>
                                 <div className="absolute inset-x-1 bottom-9 z-10 line-clamp-2 text-[9px] font-black uppercase leading-tight tracking-wide text-[#fff2dc] sm:bottom-10 sm:text-[10px]">
@@ -7398,6 +7447,36 @@ export default function Home() {
                   )}
                   {selectedTrophy.milestone && (
                     <div className="relative mt-3 text-xs font-bold leading-5 text-[#cbb79b]">Next milestone: {selectedTrophy.milestone}</div>
+                  )}
+                  {selectedTrophy.milestones && selectedTrophy.milestones.length > 0 && (
+                    <div className="relative mt-4 space-y-2 border-t border-[#6f5031] pt-4">
+                      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f3c64f]">
+                        Milestone History
+                      </div>
+                      {selectedTrophy.milestones.map((milestone) => (
+                        <div
+                          key={milestone.target}
+                          className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${milestone.achievedAt ? "border-[#9b6a3b] bg-[#302016]" : "border-[#4f3825] bg-black/20 opacity-60"}`}
+                        >
+                          <div className="text-xl">
+                            {milestone.label === "Gold" ? "🥇" : milestone.label === "Silver" ? "🥈" : "🥉"}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-black text-[#f4e6d2]">
+                              {milestone.label} · {milestone.target} correct
+                            </div>
+                            <div className="mt-0.5 text-[10px] font-bold text-[#cbb79b]">
+                              {milestone.achievedAt
+                                ? `Earned ${new Date(milestone.achievedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                                : "Not earned yet"}
+                            </div>
+                          </div>
+                          <div className="text-sm font-black text-[#f3c64f]">
+                            {milestone.achievedAt ? "✓" : "🔒"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                   {selectedTrophy.repeatable && (
                     <div className="relative mt-3 inline-flex rounded-full border border-[#8f6336] bg-[#321e12] px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#f6d36f]">Repeatable achievement</div>

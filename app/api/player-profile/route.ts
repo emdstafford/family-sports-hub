@@ -150,11 +150,57 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
     return { leaderboard: [], achievements: {} };
   }
 
+  type SupplementalPick = {
+    playerId: string;
+    gameId: string;
+    pickChoice: "home" | "away";
+  };
+
+  const supplementalHockeyPicks: SupplementalPick[] = [];
+  try {
+    const { data: eventFiles } = await supabase.storage
+      .from("fambam-event-picks")
+      .list("2026-27", { limit: 1000 });
+    const mamaHockeyFiles = (eventFiles ?? []).filter((file) =>
+      /^mamas-hockey-.*\.json$/i.test(file.name),
+    );
+
+    const eventDocuments = await Promise.all(
+      mamaHockeyFiles.map(async (file) => {
+        const { data } = await supabase.storage
+          .from("fambam-event-picks")
+          .download(`2026-27/${file.name}`);
+        if (!data) return [];
+        try {
+          const parsed = JSON.parse(await data.text());
+          return Array.isArray(parsed.picks) ? parsed.picks : [];
+        } catch {
+          return [];
+        }
+      }),
+    );
+
+    for (const pick of eventDocuments.flat()) {
+      if (
+        typeof pick?.playerId === "string" &&
+        typeof pick?.gameId === "string" &&
+        (pick?.pickChoice === "home" || pick?.pickChoice === "away")
+      ) {
+        supplementalHockeyPicks.push(pick as SupplementalPick);
+      }
+    }
+  } catch (error) {
+    console.error("Hockey achievement history failed:", error);
+  }
+
   const eligibleChallengeIds = new Set((challenges ?? []).map((challenge) => challenge.id));
   const eligibleChallengeGames = (challengeGames ?? []).filter((row) => eligibleChallengeIds.has(row.challenge_id));
-  const gameIds = [...new Set(eligibleChallengeGames.map((row) => row.game_id))];
+  const gameIds = [...new Set([
+    ...eligibleChallengeGames.map((row) => row.game_id),
+    ...supplementalHockeyPicks.map((pick) => pick.gameId),
+  ])];
   const { data: games, error: gamesError } = gameIds.length
-    ? await supabase.from("games").select("id, status, home_score, away_score").in("id", gameIds)
+    ? await supabase.from("games").select("id, sport, starts_at, status, home_score, away_score").in("id", gameIds)
     : { data: [], error: null };
   if (gamesError) {
     console.error("Record Book games failed:", gamesError.message);
@@ -202,6 +248,21 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
 
   const includedPickKeys = new Set(eligibleChallengeGames.map((row) => `${row.challenge_id}:${row.game_id}`));
   const weeklyScores = new Map<string, Map<string, { completed: number; correct: number }>>();
+  const correctGamesByPlayer = new Map<string, Map<string, { sport: string; achievedAt: string }>>();
+
+  const rememberCorrectGame = (
+    playerId: string,
+    game: { id: string; sport?: string | null; starts_at?: string | null },
+  ) => {
+    const correctGames = correctGamesByPlayer.get(playerId) ?? new Map();
+    if (!correctGames.has(game.id)) {
+      correctGames.set(game.id, {
+        sport: String(game.sport ?? "Other"),
+        achievedAt: game.starts_at ?? new Date().toISOString(),
+      });
+    }
+    correctGamesByPlayer.set(playerId, correctGames);
+  };
 
   for (const pick of picks ?? []) {
     if (!includedPickKeys.has(`${pick.challenge_id}:${pick.game_id}`)) continue;
@@ -226,9 +287,23 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
       total.correct += 1;
       total.points += 1;
       playerWeek.correct += 1;
+      rememberCorrectGame(pick.player_id, game);
     }
     challengeScores.set(pick.player_id, playerWeek);
     weeklyScores.set(pick.challenge_id, challengeScores);
+  }
+
+  for (const pick of supplementalHockeyPicks) {
+    const game = gameById.get(pick.gameId);
+    if (!game || !isFinalGame(game)) continue;
+    const winningChoice = Number(game.home_score) > Number(game.away_score)
+      ? "home"
+      : Number(game.away_score) > Number(game.home_score)
+        ? "away"
+        : "draw";
+    if (pick.pickChoice === winningChoice) {
+      rememberCorrectGame(pick.playerId, game);
+    }
   }
 
   const achievements: Record<string, {
@@ -239,6 +314,10 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
     bestWeekAccuracy: number;
     maxWinStreak: number;
     backToBack: boolean;
+    correctPickCount: number;
+    correctPickMilestones: Record<string, string>;
+    sportCorrect: Record<string, number>;
+    sportMilestones: Record<string, Record<string, string>>;
   }> = {};
   const winStreaks = new Map<string, number>();
   for (const player of players ?? []) {
@@ -250,6 +329,10 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
       bestWeekAccuracy: 0,
       maxWinStreak: 0,
       backToBack: false,
+      correctPickCount: 0,
+      correctPickMilestones: {},
+      sportCorrect: {},
+      sportMilestones: {},
     };
     winStreaks.set(player.id, 0);
   }
@@ -281,6 +364,38 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
       stats.maxWinStreak = Math.max(stats.maxWinStreak, streak);
       if (won) stats.weeklyWins += 1;
       if (streak >= 2) stats.backToBack = true;
+    }
+  }
+
+
+  const achievementTargets = [5, 10, 25];
+  for (const player of players ?? []) {
+    const stats = achievements[player.id];
+    const correctGames = [...(correctGamesByPlayer.get(player.id)?.values() ?? [])]
+      .sort((a, b) => a.achievedAt.localeCompare(b.achievedAt));
+    stats.correctPickCount = correctGames.length;
+
+    for (const target of achievementTargets) {
+      const achievement = correctGames[target - 1];
+      if (achievement) stats.correctPickMilestones[String(target)] = achievement.achievedAt;
+    }
+
+    const gamesBySport = new Map<string, typeof correctGames>();
+    for (const game of correctGames) {
+      const sportGames = gamesBySport.get(game.sport) ?? [];
+      sportGames.push(game);
+      gamesBySport.set(game.sport, sportGames);
+    }
+
+    for (const [sport, sportGames] of gamesBySport) {
+      stats.sportCorrect[sport] = sportGames.length;
+      stats.sportMilestones[sport] = {};
+      for (const target of achievementTargets) {
+        const achievement = sportGames[target - 1];
+        if (achievement) {
+          stats.sportMilestones[sport][String(target)] = achievement.achievedAt;
+        }
+      }
     }
   }
 

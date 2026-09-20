@@ -968,11 +968,14 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const gameDate = new Date(
+      const easternGameDate = easternDateParts(
         typedGame.starts_at,
-      )
-        .toISOString()
-        .slice(0, 10);
+      );
+      const gameDate = [
+        easternGameDate.year,
+        easternGameDate.month,
+        easternGameDate.day,
+      ].join("-");
       const providerResponse = await fetch(
         `https://api-web.nhle.com/v1/schedule/${gameDate}`,
         { cache: "no-store" },

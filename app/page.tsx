@@ -6978,7 +6978,19 @@ export default function Home() {
                           trophies: [
                           { icon: "🏆", title: "Weekly Champ", note: "Finish a weekly FamBam Challenge in first place", repeatable: true, earned: (myRecordAchievements?.weeklyWins ?? 0) > 0, progress: `${myRecordAchievements?.weeklyWins ?? 0} weekly win${(myRecordAchievements?.weeklyWins ?? 0)===1?'':'s'}`, milestone: "5 wins unlocks Challenge Champion" },
                           { icon: "🎯", title: "Pick Master", note: "Complete every pick on a full challenge card", repeatable: true, earned: (myRecordAchievements?.fullCards ?? 0) > 0, progress: `${myRecordAchievements?.fullCards ?? 0} full card${(myRecordAchievements?.fullCards ?? 0)===1?'':'s'}`, milestone: "Complete 5 full cards for the next tier" },
-                          { icon: "🔥", title: "Hot Streak", note: "Build a streak of correct picks", progress: `${currentChallengeProgress}/5`, milestone: "5 → 10 → 25 correct-pick streak milestones" },
+                          {
+                            icon: "🔥",
+                            title: "Hot Streak",
+                            note: "Build a streak of correct picks",
+                            earned: currentChallengeProgress >= 5,
+                            progress: `${currentChallengeProgress}/${currentChallengeProgress < 5 ? 5 : 10}`,
+                            milestone:
+                              currentChallengeProgress < 5
+                                ? "Reach 5 correct picks"
+                                : currentChallengeProgress < 10
+                                  ? "Reach 10 correct picks"
+                                  : "25 correct picks is the next streak tier",
+                          },
                           { icon: "💯", title: "Perfect 10", note: "Go 10-for-10 without a miss in one challenge", earned: (myRecordAchievements?.perfectTens ?? 0) > 0, progress: (myRecordAchievements?.perfectTens ?? 0)>0?`${myRecordAchievements?.perfectTens} perfect card${myRecordAchievements?.perfectTens===1?'':'s'}`:`${perfectTenProgress}/10`, milestone: "Repeat it and the trophy count increases" },
                           { icon: "🏆🏆", title: "Back-to-Back", note: "Win two weekly FamBam Challenges in a row", earned: myRecordAchievements?.backToBack === true, progress: myRecordAchievements?.backToBack?"Earned ✓":"Win 2 in a row", milestone: "Two consecutive Challenge wins" },
                           { icon: "🧹", title: "Family Sweep", note: "Have the whole family make the same winning pick", progress: "Complete a family sweep", milestone: "Everyone agrees and everyone is correct" },

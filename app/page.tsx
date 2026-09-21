@@ -12,6 +12,12 @@ type Player = {
   avatar_url?: string | null;
 };
 
+function isMamaPlayer(player: Player | null) {
+  if (!player) return false;
+  const name = player.display_name.trim().toLowerCase();
+  return name === "mama" || name === "emily" || name === "emily stafford";
+}
+
 type Challenge = {
   id: string;
   name: string;
@@ -1965,8 +1971,7 @@ export default function Home() {
       (eventId) => void loadEventPicks(eventId),
     );
 
-    const signedInPlayerIsMama =
-      signedInPlayer.display_name.trim().toLowerCase() === "mama";
+    const signedInPlayerIsMama = isMamaPlayer(signedInPlayer);
 
     if (signedInPlayerIsMama && challenge?.id) {
       void loadEventPicks(`mamas-hockey-${challenge.id}`);
@@ -3832,8 +3837,7 @@ export default function Home() {
       (team): team is ProfileTeam => Boolean(team),
     );
 
-  const isMama =
-    signedInPlayer?.display_name.trim().toLowerCase() === "mama";
+  const isMama = isMamaPlayer(signedInPlayer);
 
   const mamasHockeyEventId =
     isMama && challenge?.id

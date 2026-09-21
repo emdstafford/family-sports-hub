@@ -1,5 +1,7 @@
 name: Sunday AP Rankings Refresh
 
+# The workflow file can also be pushed to trigger an immediate weekly-card repair.
+
 on:
   schedule:
     # 00:00 UTC Monday is 8:00 PM Eastern during daylight-saving time.

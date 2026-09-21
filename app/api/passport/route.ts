@@ -18,6 +18,16 @@ async function verify(playerId: string, token: string) {
 }
 
 const validStates = new Set("AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(" "));
+const validContinents = new Set([
+  "North America",
+  "South America",
+  "Europe",
+  "Africa",
+  "Asia",
+  "Oceania",
+  "Antarctica",
+]);
+const passportMetaBucket = "fambam-passport-meta";
 const photoBucket = "fambam-photos";
 const maxPhotoSize = 4 * 1024 * 1024;
 const photoTypes = new Map([
@@ -25,6 +35,51 @@ const photoTypes = new Map([
   ["image/png", "png"],
   ["image/webp", "webp"],
 ]);
+
+async function ensurePassportMetaBucket(db: ReturnType<typeof admin>) {
+  const { data } = await db.storage.getBucket(passportMetaBucket);
+  if (data) return;
+  const { error } = await db.storage.createBucket(passportMetaBucket, { public: false });
+  if (error && !error.message.toLowerCase().includes("already exists")) throw error;
+}
+
+async function readLocationMeta(
+  db: ReturnType<typeof admin>,
+  eventIds: string[],
+) {
+  await ensurePassportMetaBucket(db);
+  const entries = await Promise.all(eventIds.map(async (eventId) => {
+    const { data } = await db.storage.from(passportMetaBucket).download(`${eventId}.json`);
+    if (!data) return [eventId, null] as const;
+    try {
+      return [eventId, JSON.parse(await data.text())] as const;
+    } catch {
+      return [eventId, null] as const;
+    }
+  }));
+  return Object.fromEntries(entries);
+}
+
+async function writeLocationMeta(
+  db: ReturnType<typeof admin>,
+  eventId: string,
+  country: string,
+  continent: string,
+) {
+  await ensurePassportMetaBucket(db);
+  const { error } = await db.storage.from(passportMetaBucket).upload(
+    `${eventId}.json`,
+    JSON.stringify({ eventId, country, continent, updatedAt: new Date().toISOString() }),
+    { contentType: "application/json", upsert: true },
+  );
+  if (error) throw error;
+}
+
+function locationFromDraft(d: any) {
+  const country = String(d.country ?? "United States").trim() || "United States";
+  const continent = String(d.continent ?? (country === "United States" ? "North America" : "")).trim();
+  return { country, continent };
+}
 
 async function uploadPassportPhoto(request: Request) {
   const token = request.headers.get("x-fambam-session") ?? "";
@@ -135,7 +190,9 @@ export async function GET(request: Request) {
     const { data: states, error: statesError } = await db.from("visited_states").select("state_code").eq("player_id", playerId);
     if (statesError) throw statesError;
 
-    return NextResponse.json({ events, attendees, memories, photos, visitedStates: (states ?? []).map((r: any) => r.state_code) });
+    const locationMeta = await readLocationMeta(db, eventIds);
+
+    return NextResponse.json({ events, attendees, memories, photos, locationMeta, visitedStates: (states ?? []).map((r: any) => r.state_code) });
   } catch (e) {
     console.error("Passport GET failed", e);
     return NextResponse.json({ error: e instanceof Error ? e.message : "Could not load Passport." }, { status: 500 });
@@ -207,8 +264,10 @@ export async function POST(request: Request) {
       const attendees = Array.from(new Set((body.attendeeIds ?? []).map(String)));
       if (!attendees.includes(playerId)) attendees.push(playerId);
       const isTour = d.visitType === "tour" || d.sport === "Tour";
-      if (!d.date || !d.venue || !validStates.has(String(d.state)) || (!isTour && (!d.away || !d.home))) {
-        return NextResponse.json({ error: isTour ? "Date, stadium and state are required." : "Date, teams, venue and state are required." }, { status: 400 });
+      const { country, continent } = locationFromDraft(d);
+      const isUnitedStates = country.toLowerCase() === "united states";
+      if (!d.date || !d.venue || !country || !validContinents.has(continent) || (isUnitedStates && !validStates.has(String(d.state))) || (!isTour && (!d.away || !d.home))) {
+        return NextResponse.json({ error: isTour ? "Date, stadium, country and continent are required." : "Date, teams, venue, country and continent are required." }, { status: 400 });
       }
       const { data: event, error } = await db.from("passport_events").insert({
         game_id: d.gameId || null,
@@ -219,12 +278,13 @@ export async function POST(request: Request) {
         home_team: isTour ? "" : d.home,
         venue_name: d.venue,
         city: d.city || null,
-        state_code: d.state,
+        state_code: isUnitedStates ? d.state : null,
         away_score: d.awayScore === "" || d.awayScore == null ? null : Number(d.awayScore),
         home_score: d.homeScore === "" || d.homeScore == null ? null : Number(d.homeScore),
         result: d.result || null,
       }).select("id").single();
       if (error) throw error;
+      await writeLocationMeta(db, event.id, country, continent);
       const { error: ae } = await db.from("passport_event_attendees").insert(attendees.map((id) => ({ event_id: event.id, player_id: id })));
       if (ae) throw ae;
       if (String(body.myNote ?? "").trim()) {
@@ -257,8 +317,10 @@ export async function POST(request: Request) {
       }
 
       const isTour = d.visitType === "tour" || d.sport === "Tour";
-      if (!d.date || !d.venue || !validStates.has(String(d.state)) || (!isTour && (!d.away || !d.home))) {
-        return NextResponse.json({ error: isTour ? "Date, stadium and state are required." : "Date, teams, venue and state are required." }, { status: 400 });
+      const { country, continent } = locationFromDraft(d);
+      const isUnitedStates = country.toLowerCase() === "united states";
+      if (!d.date || !d.venue || !country || !validContinents.has(continent) || (isUnitedStates && !validStates.has(String(d.state))) || (!isTour && (!d.away || !d.home))) {
+        return NextResponse.json({ error: isTour ? "Date, stadium, country and continent are required." : "Date, teams, venue, country and continent are required." }, { status: 400 });
       }
 
       const { error: updateError } = await db.from("passport_events").update({
@@ -269,12 +331,13 @@ export async function POST(request: Request) {
         home_team: isTour ? "" : d.home,
         venue_name: d.venue,
         city: d.city || null,
-        state_code: d.state,
+        state_code: isUnitedStates ? d.state : null,
         away_score: isTour || d.awayScore === "" || d.awayScore == null ? null : Number(d.awayScore),
         home_score: isTour || d.homeScore === "" || d.homeScore == null ? null : Number(d.homeScore),
         result: isTour ? null : d.result || null,
       }).eq("id", eventId);
       if (updateError) throw updateError;
+      await writeLocationMeta(db, eventId, country, continent);
 
       const { error: deleteAttendeesError } = await db
         .from("passport_event_attendees")

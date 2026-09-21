@@ -318,6 +318,9 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
     correctPickMilestones: Record<string, string>;
     sportCorrect: Record<string, number>;
     sportMilestones: Record<string, Record<string, string>>;
+    weeklyWinMilestones: Record<string, string>;
+    fullCardMilestones: Record<string, string>;
+    perfectTenMilestones: Record<string, string>;
   }> = {};
   const winStreaks = new Map<string, number>();
   for (const player of players ?? []) {
@@ -333,11 +336,25 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
       correctPickMilestones: {},
       sportCorrect: {},
       sportMilestones: {},
+      weeklyWinMilestones: {},
+      fullCardMilestones: {},
+      perfectTenMilestones: {},
     };
     winStreaks.set(player.id, 0);
   }
 
   const orderedChallenges = [...(challenges ?? [])].sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)));
+  const rememberChallengeMilestone = (
+    milestones: Record<string, string>,
+    count: number,
+    targets: number[],
+    achievedAt: string | null,
+  ) => {
+    if (achievedAt && targets.includes(count) && !milestones[String(count)]) {
+      milestones[String(count)] = achievedAt;
+    }
+  };
+
   for (const challenge of orderedChallenges) {
     const cardSize = finalGameCounts.get(challenge.id) ?? 0;
     if (cardSize === 0) continue;
@@ -355,14 +372,38 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
           (score.correct / score.completed) * 100,
         );
       }
-      if (score.completed === cardSize) stats.fullCards += 1;
-      if (cardSize >= 10 && score.completed >= 10 && score.correct >= 10) stats.perfectTens += 1;
+      if (score.completed === cardSize) {
+        stats.fullCards += 1;
+        rememberChallengeMilestone(
+          stats.fullCardMilestones,
+          stats.fullCards,
+          [1, 5, 10],
+          challenge.starts_at,
+        );
+      }
+      if (cardSize >= 10 && score.completed >= 10 && score.correct >= 10) {
+        stats.perfectTens += 1;
+        rememberChallengeMilestone(
+          stats.perfectTenMilestones,
+          stats.perfectTens,
+          [1, 3, 5],
+          challenge.starts_at,
+        );
+      }
 
       const won = winningScore > 0 && score.correct === winningScore;
       const streak = won ? (winStreaks.get(player.id) ?? 0) + 1 : 0;
       winStreaks.set(player.id, streak);
       stats.maxWinStreak = Math.max(stats.maxWinStreak, streak);
-      if (won) stats.weeklyWins += 1;
+      if (won) {
+        stats.weeklyWins += 1;
+        rememberChallengeMilestone(
+          stats.weeklyWinMilestones,
+          stats.weeklyWins,
+          [1, 3, 5],
+          challenge.starts_at,
+        );
+      }
       if (streak >= 2) stats.backToBack = true;
     }
   }

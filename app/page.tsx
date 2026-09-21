@@ -165,6 +165,9 @@ type RecordBookAchievement = {
   correctPickMilestones: Record<string, string>;
   sportCorrect: Record<string, number>;
   sportMilestones: Record<string, Record<string, string>>;
+  weeklyWinMilestones: Record<string, string>;
+  fullCardMilestones: Record<string, string>;
+  perfectTenMilestones: Record<string, string>;
 };
 
 type TrophyTier = "bronze" | "silver" | "gold";
@@ -173,6 +176,8 @@ type TrophyMilestone = {
   target: number;
   label: string;
   achievedAt: string | null;
+  description?: string;
+  earned?: boolean;
 };
 
 type CollegeFootballRanking = {
@@ -890,6 +895,8 @@ type PassportEntry = {
   venue: string;
   city: string;
   state: string;
+  country: string;
+  continent: string;
   awayScore: string;
   homeScore: string;
   result: "W" | "L" | "T" | "";
@@ -910,11 +917,77 @@ const STATE_NAMES: Record<string,string> = {
   AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"
 };
 
+const CONTINENTS = [
+  "North America",
+  "South America",
+  "Europe",
+  "Africa",
+  "Asia",
+  "Oceania",
+  "Antarctica",
+] as const;
+
+const COUNTRY_CONTINENTS: Record<string, string> = {
+  "United States": "North America",
+  Canada: "North America",
+  Mexico: "North America",
+  Bahamas: "North America",
+  Jamaica: "North America",
+  "Costa Rica": "North America",
+  Brazil: "South America",
+  Argentina: "South America",
+  Peru: "South America",
+  Chile: "South America",
+  Colombia: "South America",
+  "United Kingdom": "Europe",
+  Ireland: "Europe",
+  France: "Europe",
+  Germany: "Europe",
+  Italy: "Europe",
+  Spain: "Europe",
+  Portugal: "Europe",
+  Netherlands: "Europe",
+  Belgium: "Europe",
+  Switzerland: "Europe",
+  Austria: "Europe",
+  Greece: "Europe",
+  Iceland: "Europe",
+  Norway: "Europe",
+  Sweden: "Europe",
+  Denmark: "Europe",
+  Malawi: "Africa",
+  "South Africa": "Africa",
+  Kenya: "Africa",
+  Tanzania: "Africa",
+  Zambia: "Africa",
+  Zimbabwe: "Africa",
+  Morocco: "Africa",
+  Egypt: "Africa",
+  Japan: "Asia",
+  China: "Asia",
+  India: "Asia",
+  Thailand: "Asia",
+  Singapore: "Asia",
+  Philippines: "Asia",
+  "South Korea": "Asia",
+  Israel: "Asia",
+  Australia: "Oceania",
+  "New Zealand": "Oceania",
+  Fiji: "Oceania",
+  Antarctica: "Antarctica",
+};
+
 function passportEntryTitle(entry: PassportEntry) {
   if (entry.entryType === "family") return entry.away;
   return entry.visitType === "tour" || entry.sport === "Tour"
     ? `${entry.venue} Stadium Tour`
     : `${entry.away} at ${entry.home}`;
+}
+
+function passportLocationLabel(entry: PassportEntry) {
+  const local = [entry.city, entry.state].filter(Boolean).join(", ");
+  if (entry.country === "United States") return local || entry.country;
+  return [local, entry.country].filter(Boolean).join(" · ");
 }
 
 function familyEventIcon(category?: string) {
@@ -1201,7 +1274,7 @@ export default function Home() {
     } | null>(null);
 
   const [passportView, setPassportView] =
-    useState<"year" | "venue" | "states">("year");
+    useState<"year" | "venue" | "states" | "world">("year");
 
   const [passportEntries, setPassportEntries] = useState<PassportEntry[]>([]);
   const [visitedStates, setVisitedStates] = useState<string[]>([]);
@@ -1236,7 +1309,7 @@ export default function Home() {
     note: "",
     attendeeIds: [] as string[],
   });
-  const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
+  const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
     useState<"Home" | "Challenge" | "Events" | "Games" | "Locker Room" | "Trophy Room">("Home");
@@ -4580,12 +4653,6 @@ export default function Home() {
     ? weeklyLeaderboard.find((row) => row.player_id === signedInPlayer.id) ?? null
     : null;
 
-  const perfectTenProgress = trophyStanding
-    ? trophyStanding.completed_picks > trophyStanding.correct
-      ? 0
-      : Math.min(trophyStanding.correct, 10)
-    : 0;
-
   async function readPassportResponse(response: Response) {
     const text = await response.text();
 
@@ -4627,6 +4694,7 @@ export default function Home() {
       const attendees = body.attendees ?? [];
       const memories = body.memories ?? [];
       const photos = body.photos ?? {};
+      const locationMeta = body.locationMeta ?? {};
       const mapped: PassportEntry[] = (body.events ?? []).map((event: any) => {
         const isTour = event.sport === "Tour" || event.away_team === "__STADIUM_TOUR__";
         const familyParts = String(event.away_team ?? "").split("|");
@@ -4644,6 +4712,8 @@ export default function Home() {
         venue: event.venue_name,
         city: event.city || "",
         state: event.state_code || "",
+        country: locationMeta[event.id]?.country || "United States",
+        continent: locationMeta[event.id]?.continent || "North America",
         awayScore: event.away_score == null ? "" : String(event.away_score),
         homeScore: event.home_score == null ? "" : String(event.home_score),
         result: event.result || "",
@@ -4701,7 +4771,7 @@ export default function Home() {
     setPassportGameSearch("");
     setPassportAddMode("search");
     setPassportEditingId(null);
-    setPassportDraft({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
+    setPassportDraft({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
     setPassportAddOpen(true);
   }
 
@@ -4806,29 +4876,41 @@ export default function Home() {
     note: string,
     count: number,
     earnedDates: Record<string, string> = {},
+    targets: [number, number, number] = [5, 10, 25],
+    unit = "correct picks",
   ) => {
     const tier: TrophyTier | undefined =
-      count >= 25 ? "gold" : count >= 10 ? "silver" : count >= 5 ? "bronze" : undefined;
-    const nextTarget = count < 5 ? 5 : count < 10 ? 10 : 25;
-    const tierLabel = tier ? `${tier[0].toUpperCase()}${tier.slice(1)}` : null;
+      count >= targets[2]
+        ? "gold"
+        : count >= targets[1]
+          ? "silver"
+          : count >= targets[0]
+            ? "bronze"
+            : undefined;
+    const nextTarget =
+      count < targets[0] ? targets[0] : count < targets[1] ? targets[1] : targets[2];
+    const nextTier =
+      nextTarget === targets[0] ? "Bronze" : nextTarget === targets[1] ? "Silver" : "Gold";
 
     return {
       icon,
       title,
       note,
-      earned: count >= 5,
+      earned: count >= targets[0],
       tier,
-      progress: count >= 25 ? `${count} correct · Gold` : `${count}/${nextTarget} correct`,
+      progress:
+        count >= targets[2]
+          ? `${count} ${unit} · Gold`
+          : `${count}/${nextTarget} ${unit}`,
       milestone:
-        count >= 25
-          ? "Gold tier complete — every new correct pick keeps building your record"
-          : `${nextTarget} correct picks unlocks ${nextTarget === 5 ? "Bronze" : nextTarget === 10 ? "Silver" : "Gold"}`,
+        count >= targets[2]
+          ? `Gold tier complete — every new ${unit.replace(/s$/, "")} keeps building your record`
+          : `${nextTarget} ${unit} unlocks ${nextTier}`,
       milestones: [
-        { target: 5, label: "Bronze", achievedAt: earnedDates["5"] ?? null },
-        { target: 10, label: "Silver", achievedAt: earnedDates["10"] ?? null },
-        { target: 25, label: "Gold", achievedAt: earnedDates["25"] ?? null },
+        { target: targets[0], label: "Bronze", description: `${targets[0]} ${unit}`, earned: count >= targets[0], achievedAt: earnedDates[String(targets[0])] ?? null },
+        { target: targets[1], label: "Silver", description: `${targets[1]} ${unit}`, earned: count >= targets[1], achievedAt: earnedDates[String(targets[1])] ?? null },
+        { target: targets[2], label: "Gold", description: `${targets[2]} ${unit}`, earned: count >= targets[2], achievedAt: earnedDates[String(targets[2])] ?? null },
       ],
-      ...(tierLabel ? { tierLabel } : {}),
     };
   };
 
@@ -4850,10 +4932,58 @@ export default function Home() {
     0,
   );
 
+  const uniquePassportMilestoneDates = (
+    keyForEntry: (entry: PassportEntry) => string,
+    targets: number[],
+  ) => {
+    const dates: Record<string, string> = {};
+    const seen = new Set<string>();
+    [...passportVisitEntries]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .forEach((entry) => {
+        const key = keyForEntry(entry).trim().toLowerCase();
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        if (targets.includes(seen.size)) dates[String(seen.size)] = entry.date;
+      });
+    return dates;
+  };
+
+  const memoryMilestoneDates = (targets: number[]) => {
+    const dates: Record<string, string> = {};
+    let count = 0;
+    [...passportEntries]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .forEach((entry) => {
+        entry.memories
+          .filter((memory) => memory.note.trim().length > 0)
+          .forEach(() => {
+            count += 1;
+            if (targets.includes(count)) dates[String(count)] = entry.date;
+          });
+      });
+    return dates;
+  };
+
+  const visitedStateCount = new Set([
+    ...visitedStates,
+    ...passportVisitEntries.map((entry) => entry.state).filter(Boolean),
+  ]).size;
+  const visitedVenueCount = new Set(
+    passportVisitEntries.map((entry) => entry.venue.trim().toLowerCase()).filter(Boolean),
+  ).size;
+  const visitedCountries = new Set(
+    passportVisitEntries.map((entry) => entry.country.trim()).filter(Boolean),
+  );
+  const visitedContinents = new Set(
+    passportVisitEntries.map((entry) => entry.continent.trim()).filter(Boolean),
+  );
+
   async function savePassportEntry() {
     const isTour = passportDraft.visitType === "tour";
-    if (!passportDraft.date || !passportDraft.venue || !passportDraft.state || (!isTour && (!passportDraft.home || !passportDraft.away))) {
-      setPassportError(isTour ? "Date, stadium and state are required." : "Date, teams, stadium and state are required.");
+    const needsState = passportDraft.country.trim().toLowerCase() === "united states";
+    if (!passportDraft.date || !passportDraft.venue || !passportDraft.country || !passportDraft.continent || (needsState && !passportDraft.state) || (!isTour && (!passportDraft.home || !passportDraft.away))) {
+      setPassportError(isTour ? "Date, stadium, country and continent are required." : "Date, teams, stadium, country and continent are required.");
       return;
     }
     setPassportSaving(true);
@@ -7031,8 +7161,24 @@ export default function Home() {
                         {
                           label: "Challenge Trophies",
                           trophies: [
-                          { icon: "🏆", title: "Weekly Champ", note: "Finish a weekly FamBam Challenge in first place", repeatable: true, earned: (myRecordAchievements?.weeklyWins ?? 0) > 0, progress: `${myRecordAchievements?.weeklyWins ?? 0} weekly win${(myRecordAchievements?.weeklyWins ?? 0)===1?'':'s'}`, milestone: "5 wins unlocks Challenge Champion" },
-                          { icon: "🎯", title: "Pick Master", note: "Complete every pick on a full challenge card", repeatable: true, earned: (myRecordAchievements?.fullCards ?? 0) > 0, progress: `${myRecordAchievements?.fullCards ?? 0} full card${(myRecordAchievements?.fullCards ?? 0)===1?'':'s'}`, milestone: "Complete 5 full cards for the next tier" },
+                          buildTieredPickTrophy(
+                            "🏆",
+                            "Weekly Champ",
+                            "Finish a weekly FamBam Challenge in first place",
+                            myRecordAchievements?.weeklyWins ?? 0,
+                            myRecordAchievements?.weeklyWinMilestones ?? {},
+                            [1, 3, 5],
+                            "weekly wins",
+                          ),
+                          buildTieredPickTrophy(
+                            "🎯",
+                            "Pick Master",
+                            "Complete every pick on a full challenge card",
+                            myRecordAchievements?.fullCards ?? 0,
+                            myRecordAchievements?.fullCardMilestones ?? {},
+                            [1, 5, 10],
+                            "full cards",
+                          ),
                           buildTieredPickTrophy(
                             "🔥",
                             "Hot Streak",
@@ -7040,7 +7186,15 @@ export default function Home() {
                             myRecordAchievements?.correctPickCount ?? 0,
                             myRecordAchievements?.correctPickMilestones ?? {},
                           ),
-                          { icon: "💯", title: "Perfect 10", note: "Go 10-for-10 without a miss in one challenge", earned: (myRecordAchievements?.perfectTens ?? 0) > 0, progress: (myRecordAchievements?.perfectTens ?? 0)>0?`${myRecordAchievements?.perfectTens} perfect card${myRecordAchievements?.perfectTens===1?'':'s'}`:`${perfectTenProgress}/10`, milestone: "Repeat it and the trophy count increases" },
+                          buildTieredPickTrophy(
+                            "💯",
+                            "Perfect 10",
+                            "Go 10-for-10 without a miss in one challenge",
+                            myRecordAchievements?.perfectTens ?? 0,
+                            myRecordAchievements?.perfectTenMilestones ?? {},
+                            [1, 3, 5],
+                            "perfect cards",
+                          ),
                           { icon: "🏆🏆", title: "Back-to-Back", note: "Win two weekly FamBam Challenges in a row", earned: myRecordAchievements?.backToBack === true, progress: myRecordAchievements?.backToBack?"Earned ✓":"Win 2 in a row", milestone: "Two consecutive Challenge wins" },
                           { icon: "🧹", title: "Family Sweep", note: "Have the whole family make the same winning pick", progress: "Complete a family sweep", milestone: "Everyone agrees and everyone is correct" },
                           ],
@@ -7109,11 +7263,35 @@ export default function Home() {
                         {
                           label: null,
                           trophies: [
-                            { icon: "🌟", title: "All-Sport Fan", note: "Follow teams in four different sports", earned: followedTrophySportsCount >= 4, progress: `${followedTrophySportsCount}/4 sports`, milestone: "Build a four-sport Locker Room" },
-                            { icon: "💙", title: "Big Blue Nation", note: "Follow Kentucky teams in multiple sports", earned: kentuckyTrophySports.size >= 2, progress: `${kentuckyTrophySports.size}/2 UK sports`, milestone: "Follow Kentucky in two sports" },
+                            buildTieredPickTrophy(
+                              "🌟",
+                              "All-Sport Fan",
+                              "Follow teams across different sports",
+                              followedTrophySportsCount,
+                              {},
+                              [2, 4, 6],
+                              "sports",
+                            ),
+                            buildTieredPickTrophy(
+                              "💙",
+                              "Big Blue Nation",
+                              "Follow Kentucky teams across different sports",
+                              kentuckyTrophySports.size,
+                              {},
+                              [1, 2, 3],
+                              "UK sports",
+                            ),
                             { icon: "🛡️", title: "Club Loyalist", note: "Choose a primary favorite team in your Locker Room", earned: hasPrimaryFavorite, progress: hasPrimaryFavorite ? "Earned ✓" : "Choose a primary team", milestone: "Make one followed team your primary favorite" },
                             { icon: "⚔️", title: "Rivalry Ready", note: "Make a pick in a recognized rivalry game", progress: "Make a rivalry pick", milestone: "Rivalry picks will be tracked from graded Challenges" },
-                            { icon: "🎟️", title: "Team Collector", note: "Follow five teams across your Locker Room", earned: signedInLockerTeams.length >= 5, progress: `${signedInLockerTeams.length}/5 teams`, milestone: "Follow five favorite teams" },
+                            buildTieredPickTrophy(
+                              "🎟️",
+                              "Team Collector",
+                              "Build a collection of favorite teams in your Locker Room",
+                              signedInLockerTeams.length,
+                              {},
+                              [5, 10, 20],
+                              "teams",
+                            ),
                             { icon: "🏅", title: "Multi-Sport MVP", note: "Follow teams in six different sports", earned: followedTrophySportsCount >= 6, progress: `${followedTrophySportsCount}/6 sports`, milestone: "Build a six-sport Locker Room" },
                           ],
                         },
@@ -7131,12 +7309,62 @@ export default function Home() {
                         {
                           label: "Passport & Memory Trophies",
                           trophies: [
-                          { icon: "🌎", title: "Traveler", note: "Visit your first state and keep exploring", earned: new Set([...visitedStates, ...passportVisitEntries.map(e=>e.state).filter(Boolean)]).size > 0, progress: new Set([...visitedStates, ...passportVisitEntries.map(e=>e.state).filter(Boolean)]).size > 0 ? `${new Set([...visitedStates, ...passportVisitEntries.map(e=>e.state).filter(Boolean)]).size} state${new Set([...visitedStates, ...passportVisitEntries.map(e=>e.state).filter(Boolean)]).size===1?"":"s"} · Earned ✓` : "0/1 states", milestone: "1 → 5 → 10 → 25 → 50 states" },
-                          { icon: "🏟️", title: "Stadium Hopper", note: "Attend a game at your first sports venue", earned: new Set(passportVisitEntries.map(e=>e.venue).filter(Boolean)).size > 0, repeatable: true, progress: `${new Set(passportVisitEntries.map(e=>e.venue).filter(Boolean)).size} venue${new Set(passportVisitEntries.map(e=>e.venue).filter(Boolean)).size===1?"":"s"}`, milestone: "1 → 5 → 10 → 25 stadiums" },
+                          buildTieredPickTrophy(
+                            "🌎",
+                            "Traveler",
+                            "Visit new states and keep exploring",
+                            visitedStateCount,
+                            uniquePassportMilestoneDates((entry) => entry.state, [1, 10, 25]),
+                            [1, 10, 25],
+                            "states",
+                          ),
+                          buildTieredPickTrophy(
+                            "🌍",
+                            "World Traveler",
+                            "Visit new countries around the world",
+                            visitedCountries.size,
+                            uniquePassportMilestoneDates((entry) => entry.country, [1, 5, 10]),
+                            [1, 5, 10],
+                            "countries",
+                          ),
+                          buildTieredPickTrophy(
+                            "🧭",
+                            "Continental Explorer",
+                            "Collect sports memories across different continents",
+                            visitedContinents.size,
+                            uniquePassportMilestoneDates((entry) => entry.continent, [1, 3, 6]),
+                            [1, 3, 6],
+                            "continents",
+                          ),
+                          buildTieredPickTrophy(
+                            "🏟️",
+                            "Stadium Hopper",
+                            "Attend games and tours at new sports venues",
+                            visitedVenueCount,
+                            uniquePassportMilestoneDates((entry) => entry.venue, [1, 10, 25]),
+                            [1, 10, 25],
+                            "venues",
+                          ),
                           { icon: "👑", title: "FamBam Legend", note: "Reach major FamBam milestones across Challenges, Passport and Memories", progress: "Multi-category", milestone: "Built from real accomplishments across the app" },
-                          { icon: "❤️", title: "FamBam Forever", note: "Build shared family sports memories together", repeatable: true, earned: savedMemoryCount > 0, progress: `${savedMemoryCount} memor${savedMemoryCount === 1 ? "y" : "ies"}`, milestone: "5 → 10 → 25 shared memories" },
+                          buildTieredPickTrophy(
+                            "❤️",
+                            "FamBam Forever",
+                            "Build shared family sports memories together",
+                            savedMemoryCount,
+                            memoryMilestoneDates([1, 10, 25]),
+                            [1, 10, 25],
+                            "memories",
+                          ),
                           { icon: "🛂", title: "First Stamp", note: "Record your first attended game in the Sports Passport", earned: passportVisitEntries.length > 0, progress: passportVisitEntries.length > 0 ? "Earned ✓" : "Add your first game", milestone: "Your first Sports Passport entry" },
-                          { icon: "📸", title: "Memory Maker", note: "Save five stories from FamBam sports moments", earned: savedMemoryCount >= 5, progress: `${savedMemoryCount}/5 memories`, milestone: "Five saved sports memories" },
+                          buildTieredPickTrophy(
+                            "📸",
+                            "Memory Maker",
+                            "Save stories from FamBam sports moments",
+                            savedMemoryCount,
+                            memoryMilestoneDates([5, 10, 25]),
+                            [5, 10, 25],
+                            "memories",
+                          ),
                           ],
                         },
                       ].map((shelf, shelfIndex) => (
@@ -7168,7 +7396,7 @@ export default function Home() {
                                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,3,2,.68)_0%,rgba(7,4,3,.52)_52%,rgba(8,5,3,.88)_100%)]" />
                                 )}
                                 <div className={`absolute right-1.5 top-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] font-black ${"tier" in trophy && trophy.tier === "gold" ? "bg-[#f3c64f] text-[#33200f]" : "tier" in trophy && trophy.tier === "silver" ? "bg-slate-200 text-slate-700" : "tier" in trophy && trophy.tier === "bronze" ? "bg-[#bd7b45] text-white" : "earned" in trophy && trophy.earned ? "bg-[#f3c64f] text-[#33200f]" : "bg-black/55 text-white"}`}>{"tier" in trophy && trophy.tier ? trophy.tier === "gold" ? "🥇" : trophy.tier === "silver" ? "🥈" : "🥉" : "earned" in trophy && trophy.earned ? "✓" : "🔒"}</div>
-                                {"repeatable" in trophy && trophy.repeatable && (
+                                {"repeatable" in trophy && trophy.repeatable === true && (
                                   <div className="absolute left-1.5 top-1.5 z-20 rounded-full border border-[#a47a42] bg-[#21150d]/90 px-1.5 py-0.5 text-[8px] font-black uppercase text-[#f3c64f]">Repeat</div>
                                 )}
                                 <div className={`absolute inset-x-0 top-[24%] z-10 flex justify-center text-3xl transition sm:text-4xl ${"earned" in trophy && trophy.earned ? "drop-shadow-[0_8px_12px_rgba(0,0,0,.75)]" : "grayscale opacity-30 group-hover:opacity-45"} ${"tier" in trophy && trophy.tier === "gold" ? "drop-shadow-[0_0_14px_rgba(243,198,79,.75)]" : "tier" in trophy && trophy.tier === "silver" ? "drop-shadow-[0_0_12px_rgba(226,232,240,.55)]" : ""}`}>
@@ -7279,12 +7507,12 @@ export default function Home() {
                   </div>
                   <div className="border-b border-slate-200 bg-white px-4 py-3">
                     <div className="flex flex-wrap gap-2">
-                      {([['year','📅 By Year'],['venue','🏟️ Stadiums'],['states','🗺️ States Map']] as const).map(([key,label]) => <button key={key} type="button" onClick={() => setPassportView(key)} className={`rounded-full px-4 py-2 text-[8px] font-black uppercase ${passportView===key?'bg-[#06284a] text-white':'border border-slate-200 bg-slate-50 text-[#06284a]'}`}>{label}</button>)}
+                      {([['year','📅 By Year'],['venue','🏟️ Stadiums'],['states','🗺️ States'],['world','🌍 World']] as const).map(([key,label]) => <button key={key} type="button" onClick={() => setPassportView(key)} className={`rounded-full px-4 py-2 text-[8px] font-black uppercase ${passportView===key?'bg-[#06284a] text-white':'border border-slate-200 bg-slate-50 text-[#06284a]'}`}>{label}</button>)}
                     </div>
                   </div>
                   <div className="p-4 sm:p-6">
-                    <div className="mb-5 grid grid-cols-3 gap-2">
-                      {[[passportVisitEntries.length,'Visits'],[new Set(passportVisitEntries.map(x=>x.venue)).size,'Stadiums'],[new Set([...visitedStates,...passportVisitEntries.map(x=>x.state).filter(Boolean)]).size,'States']].map(([v,l])=><div key={String(l)} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center"><div className="text-2xl font-black">{v}</div><div className="text-[8px] font-black uppercase text-slate-500">{l}</div></div>)}
+                    <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                      {[[passportVisitEntries.length,'Visits'],[new Set(passportVisitEntries.map(x=>x.venue)).size,'Stadiums'],[visitedStateCount,'States'],[visitedCountries.size,'Countries'],[visitedContinents.size,'Continents']].map(([v,l])=><div key={String(l)} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center"><div className="text-2xl font-black">{v}</div><div className="text-[8px] font-black uppercase text-slate-500">{l}</div></div>)}
                     </div>
                     {passportView === 'year' && (
                       <div className="space-y-5">
@@ -7311,7 +7539,7 @@ export default function Home() {
                                     <div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{entry.date} · {entry.sport==='Tour'?'Tour':entry.result||'Attended'}</div>
                                     <div className="mt-2 pr-20 text-base font-black">{passportEntryTitle(entry)}</div>
                                     <div className="mt-1 text-xs font-bold">{entry.awayScore||entry.homeScore?`${entry.awayScore||'–'} – ${entry.homeScore||'–'}`:''}</div>
-                                    <div className="mt-3 text-[10px] font-semibold">🏟️ {entry.venue}{entry.city?` · ${entry.city}, ${entry.state}`:` · ${entry.state}`}</div>
+                                    <div className="mt-3 text-[10px] font-semibold">🏟️ {entry.venue} · {passportLocationLabel(entry)}</div>
                                     {entry.attendeeNames.length>0&&<div className="mt-1 text-[10px]">👨‍👩‍👧‍👦 {entry.attendeeNames.join(" · ")}</div>}
                                     {entry.memories.length>0&&<div className="mt-2 space-y-1 border-t border-[#d7c39b] pt-2">{entry.memories.map(memory=><div key={memory.playerId} className="text-[10px] italic"><span className="font-black not-italic">{memory.playerName}:</span> “{memory.note}”</div>)}</div>}
                                     <div className="mt-3 flex flex-wrap gap-2">
@@ -7327,8 +7555,9 @@ export default function Home() {
                         ))}
                       </div>
                     )}
-                    {passportView === 'venue' && <div><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">Stadium Collection</div><div className="text-xl font-black">All Your Stadiums</div></div><div className="flex flex-wrap gap-2">{(["All","Football","MLB"] as const).map(f=><button key={f} type="button" onClick={()=>setStadiumSportFilter(f)} className={`rounded-full px-3 py-2 text-[8px] font-black uppercase ${stadiumSportFilter===f?'bg-[#77511f] text-white':'border border-[#b99d68] bg-[#f7ebcd] text-[#77511f]'}`}>{f==='Football'?'🏈 Football':f==='MLB'?'⚾ MLB':'All'}</button>)}</div></div>{passportVisitEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center text-sm font-bold">Add a game/match to start your stadium collection.</div>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(passportVisitEntries.filter(e=>stadiumSportFilter==='All'||e.sport===stadiumSportFilter).reduce<Record<string,PassportEntry[]>>((a,e)=>{(a[e.venue]??=[]).push(e);return a;},{})).map(([venue,entries])=><div key={venue} className="rounded-xl border border-slate-200 bg-white p-4"><div className="text-4xl">🏟️</div><div className="mt-2 text-lg font-black">{venue}</div><div className="text-[9px] font-bold text-slate-500">{entries[0].city}{entries[0].city?', ':''}{entries[0].state}</div><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#77511f] px-2 py-1 text-[8px] font-black text-white">{entries.length} VISIT{entries.length===1?'':'S'}</span><span className="rounded-full border border-[#b99d68] px-2 py-1 text-[8px] font-black">{[...new Set(entries.map(e=>e.sport))].join(' · ')}</span></div><div className="mt-3 space-y-1 border-t border-[#d7c39b] pt-2">{entries.sort((a,b)=>b.date.localeCompare(a.date)).map(e=><div key={e.id} className="text-[9px] font-semibold">{e.date} · {e.away} at {e.home}</div>)}</div></div>)}</div>}</div>}
+                    {passportView === 'venue' && <div><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">Stadium Collection</div><div className="text-xl font-black">All Your Stadiums</div></div><div className="flex flex-wrap gap-2">{(["All","Football","MLB"] as const).map(f=><button key={f} type="button" onClick={()=>setStadiumSportFilter(f)} className={`rounded-full px-3 py-2 text-[8px] font-black uppercase ${stadiumSportFilter===f?'bg-[#77511f] text-white':'border border-[#b99d68] bg-[#f7ebcd] text-[#77511f]'}`}>{f==='Football'?'🏈 Football':f==='MLB'?'⚾ MLB':'All'}</button>)}</div></div>{passportVisitEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center text-sm font-bold">Add a game/match to start your stadium collection.</div>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(passportVisitEntries.filter(e=>stadiumSportFilter==='All'||e.sport===stadiumSportFilter).reduce<Record<string,PassportEntry[]>>((a,e)=>{(a[e.venue]??=[]).push(e);return a;},{})).map(([venue,entries])=><div key={venue} className="rounded-xl border border-slate-200 bg-white p-4"><div className="text-4xl">🏟️</div><div className="mt-2 text-lg font-black">{venue}</div><div className="text-[9px] font-bold text-slate-500">{passportLocationLabel(entries[0])}</div><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#77511f] px-2 py-1 text-[8px] font-black text-white">{entries.length} VISIT{entries.length===1?'':'S'}</span><span className="rounded-full border border-[#b99d68] px-2 py-1 text-[8px] font-black">{[...new Set(entries.map(e=>e.sport))].join(' · ')}</span></div><div className="mt-3 space-y-1 border-t border-[#d7c39b] pt-2">{entries.sort((a,b)=>b.date.localeCompare(a.date)).map(e=><div key={e.id} className="text-[9px] font-semibold">{e.date} · {e.away} at {e.home}</div>)}</div></div>)}</div>}</div>}
                     {passportView === 'states' && <div><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">States I've Been To</div><div className="text-xl font-black">Tap any state you've visited</div></div><div className="text-[9px] font-bold text-slate-500">★ = sports visit</div></div><div className="grid grid-cols-5 gap-1.5 sm:grid-cols-8 md:grid-cols-10">{US_STATES.map(code=>{const sports=passportVisitEntries.some(e=>e.state===code);const visited=visitedStates.includes(code);return <button key={code} title={STATE_NAMES[code]} onClick={()=>toggleVisitedState(code)} className={`relative aspect-[1.15] rounded-lg border text-[9px] font-black transition ${sports?'border-[#9c6c16] bg-[#e4c36b] text-[#33220d]':visited?'border-[#557492] bg-[#b9cbd9] text-[#102b49]':'border-[#cbb98f] bg-[#f7edda] text-[#9b8a68]'}`}>{code}{sports&&<span className="absolute right-0.5 top-0 text-[7px]">★</span>}</button>})}</div><div className="mt-4 rounded-lg border border-[#ccb582] bg-[#f8eccd] p-3 text-[9px] font-semibold">Regular travel counts too. Sports entries automatically mark their state, while you can tap any other state you've visited in general.</div></div>}
+                    {passportView === 'world' && <div><div className="mb-4"><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">World Collection</div><div className="text-xl font-black">Countries & Continents</div><div className="mt-1 text-[10px] font-semibold text-slate-500">International games, tours and sports memories all count.</div></div>{visitedCountries.size===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center text-sm font-bold">Add a Passport visit to begin your world collection.</div>:<div className="grid gap-3 sm:grid-cols-2">{CONTINENTS.map(continent=>{const countries=[...new Set(passportVisitEntries.filter(entry=>entry.continent===continent).map(entry=>entry.country))].sort();if(countries.length===0)return null;return <div key={continent} className="rounded-xl border border-slate-200 bg-white p-4"><div className="flex items-center justify-between gap-3"><div className="text-base font-black">🌍 {continent}</div><div className="rounded-full bg-[#06284a] px-2.5 py-1 text-[8px] font-black text-white">{countries.length} COUNTR{countries.length===1?'Y':'IES'}</div></div><div className="mt-3 flex flex-wrap gap-2">{countries.map(country=><span key={country} className="rounded-full border border-[#c7aa70] bg-[#fff7e6] px-3 py-1.5 text-[9px] font-black text-[#77511f]">{country}</span>)}</div></div>})}</div>}</div>}
                   </div>
                 </div>
                 {passportAddOpen && <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/70 p-3"><div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-[1.5rem] bg-[#f6e8c8] p-4 text-[#3d2b17] shadow-2xl sm:p-5"><div className="flex items-center justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">New Passport Stamp</div><div className="text-xl font-black">Add Game/Match</div></div><button type="button" onClick={()=>setPassportAddOpen(false)} className="min-h-11 min-w-11 rounded-full bg-[#e4d3ad] px-3 font-black">✕</button></div>
@@ -7336,7 +7565,7 @@ export default function Home() {
                   <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPassportDraft({...passportDraft,visitType:'game',sport:passportDraft.sport==='Tour'?'Football':passportDraft.sport})} className={`min-h-11 rounded-xl text-xs font-black ${passportDraft.visitType!=='tour'?'bg-[#77511f] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🏟️ Game / Match</button><button type="button" onClick={()=>{setPassportDraft({...passportDraft,visitType:'tour',sport:'Tour',away:'',home:'',awayScore:'',homeScore:'',result:''});setPassportAddMode('manual');setPassportGameSearch('')}} className={`min-h-11 rounded-xl text-xs font-black ${passportDraft.visitType==='tour'?'bg-[#77511f] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🎟️ Stadium Tour</button></div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">{passportDraft.visitType!=='tour'&&<label className="text-[9px] font-black">SPORT<select value={passportDraft.sport} onChange={e=>{setPassportDraft({...passportDraft,sport:e.target.value as 'Football'|'MLB',gameId:undefined});setPassportGameSearch('')}} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option>Football</option><option>MLB</option></select></label>}<label className="text-[9px] font-black">DATE<input type="date" value={passportDraft.date} onChange={e=>setPassportDraft({...passportDraft,date:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></div>
                   {passportDraft.visitType!=='tour'&&passportAddMode==='search'&&<div className="mt-3"><label className="text-[9px] font-black">SEARCH TEAM / GAME<input value={passportGameSearch} onChange={e=>setPassportGameSearch(e.target.value)} placeholder={passportDraft.sport==='MLB'?'Braves, Dodgers...':'Kentucky, Georgia...'} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label>{passportGameSearch.trim()&&<div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-[#c7aa70] bg-white p-2">{passportSearchResults.length?passportSearchResults.map(g=><button key={g.id} type="button" onClick={()=>choosePassportGame(g)} className="block min-h-11 w-full rounded-lg px-3 py-2 text-left hover:bg-[#f7edda]"><div className="text-xs font-black">{g.away} at {g.home}</div><div className="text-[9px] text-slate-500">{formatGameDate(g.startsAt)} · {g.competition}{g.homeScore!=null||g.awayScore!=null?` · ${g.awayScore??'–'}-${g.homeScore??'–'}`:''}</div></button>):<div className="p-3 text-xs font-bold text-slate-500">No matching FamBam game loaded. Use Enter Manually for older games.</div>}</div>}</div>}
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">{(passportDraft.visitType==='tour'?[['venue','Stadium / venue'],['city','City']]:[['away','Away team'],['home','Home team'],['venue','Stadium / venue'],['city','City']]).map(([k,l])=><label key={k} className="text-[9px] font-black uppercase">{l}<input value={(passportDraft as any)[k]} onChange={e=>setPassportDraft({...passportDraft,[k]:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base normal-case sm:text-sm"/></label>)}<label className="text-[9px] font-black">STATE<select value={passportDraft.state} onChange={e=>setPassportDraft({...passportDraft,state:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="">Choose state</option>{US_STATES.map(c=><option key={c} value={c}>{STATE_NAMES[c]}</option>)}</select></label>{passportDraft.visitType!=='tour'&&<><label className="text-[9px] font-black">RESULT<select value={passportDraft.result} onChange={e=>setPassportDraft({...passportDraft,result:e.target.value as any})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="" disabled>Choose result</option><option value="W">Win</option><option value="L">Loss</option><option value="T">Tie</option></select></label><label className="text-[9px] font-black">AWAY SCORE<input inputMode="numeric" value={passportDraft.awayScore} onChange={e=>setPassportDraft({...passportDraft,awayScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label><label className="text-[9px] font-black">HOME SCORE<input inputMode="numeric" value={passportDraft.homeScore} onChange={e=>setPassportDraft({...passportDraft,homeScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></>}</div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">{(passportDraft.visitType==='tour'?[['venue','Stadium / venue'],['city','City']]:[['away','Away team'],['home','Home team'],['venue','Stadium / venue'],['city','City']]).map(([k,l])=><label key={k} className="text-[9px] font-black uppercase">{l}<input value={(passportDraft as any)[k]} onChange={e=>setPassportDraft({...passportDraft,[k]:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base normal-case sm:text-sm"/></label>)}<label className="text-[9px] font-black">COUNTRY<input list="passport-countries" value={passportDraft.country} onChange={e=>{const country=e.target.value;setPassportDraft({...passportDraft,country,continent:COUNTRY_CONTINENTS[country]??passportDraft.continent,state:country==='United States'?passportDraft.state:''})}} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/><datalist id="passport-countries">{Object.keys(COUNTRY_CONTINENTS).map(country=><option key={country} value={country}/>)}</datalist></label><label className="text-[9px] font-black">CONTINENT<select value={passportDraft.continent} onChange={e=>setPassportDraft({...passportDraft,continent:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="">Choose continent</option>{CONTINENTS.map(continent=><option key={continent} value={continent}>{continent}</option>)}</select></label>{passportDraft.country==='United States'&&<label className="text-[9px] font-black">STATE<select value={passportDraft.state} onChange={e=>setPassportDraft({...passportDraft,state:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="">Choose state</option>{US_STATES.map(c=><option key={c} value={c}>{STATE_NAMES[c]}</option>)}</select></label>}{passportDraft.visitType!=='tour'&&<><label className="text-[9px] font-black">RESULT<select value={passportDraft.result} onChange={e=>setPassportDraft({...passportDraft,result:e.target.value as any})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="" disabled>Choose result</option><option value="W">Win</option><option value="L">Loss</option><option value="T">Tie</option></select></label><label className="text-[9px] font-black">AWAY SCORE<input inputMode="numeric" value={passportDraft.awayScore} onChange={e=>setPassportDraft({...passportDraft,awayScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label><label className="text-[9px] font-black">HOME SCORE<input inputMode="numeric" value={passportDraft.homeScore} onChange={e=>setPassportDraft({...passportDraft,homeScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></>}</div>
                   <div className="mt-4"><div className="text-[9px] font-black uppercase">Who Went?</div><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">{players.map(p=><label key={p.id} className={`flex min-h-11 items-center gap-2 rounded-xl border p-2 text-xs font-black ${passportAttendeeIds.includes(p.id)?'border-[#77511f] bg-[#f0d99f]':'border-[#c7aa70] bg-[#fff7e6]'}`}><input type="checkbox" checked={passportAttendeeIds.includes(p.id)} onChange={()=>setPassportAttendeeIds(ids=>ids.includes(p.id)?ids.filter(id=>id!==p.id):[...ids,p.id])} disabled={p.id===signedInPlayer?.id}/>{p.display_name}</label>)}</div></div>
                   <label className="mt-4 block text-[9px] font-black">MY MEMORY / NOTE<textarea value={passportMyNote} onChange={e=>setPassportMyNote(e.target.value)} placeholder="What do you remember about this one?" className="mt-1 min-h-24 w-full rounded-lg border border-[#c7aa70] bg-white p-3 text-base sm:text-sm"/></label>{passportError&&<div className="mt-3 rounded-lg bg-red-50 p-3 text-xs font-bold text-red-700">{passportError}</div>}<button type="button" disabled={passportSaving} onClick={savePassportEntry} className="mt-5 min-h-12 w-full rounded-xl bg-[#102b49] py-3 text-sm font-black text-white disabled:opacity-50">{passportSaving?'Saving…':'Save Shared Stamp 🛂'}</button></div></div>}
                 {passportMemoryEvent&&<div className="fixed inset-0 z-[145] flex items-center justify-center bg-slate-950/70 p-3"><div className="w-full max-w-md rounded-[1.5rem] bg-[#f6e8c8] p-5 text-[#3d2b17] shadow-2xl"><div className="flex items-start justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{passportEntryTitle(passportMemoryEvent)}</div><div className="text-xl font-black">{passportMemoryEvent.memories.some(m=>m.playerId===signedInPlayer?.id)?'Edit My Memory':'Add My Memory'}</div></div><button type="button" onClick={()=>setPassportMemoryEvent(null)} className="min-h-11 min-w-11 rounded-full bg-[#e4d3ad] font-black">✕</button></div><textarea value={passportMemoryNote} onChange={e=>setPassportMemoryNote(e.target.value)} placeholder="Your own memory from this visit..." className="mt-4 min-h-32 w-full rounded-xl border border-[#c7aa70] bg-white p-3 text-base"/><button type="button" disabled={passportSaving} onClick={savePassportMemory} className="mt-4 min-h-12 w-full rounded-xl bg-[#102b49] text-sm font-black text-white disabled:opacity-50">{passportSaving?'Saving…':'Save My Memory'}</button></div></div>}
@@ -7456,23 +7685,25 @@ export default function Home() {
                       {selectedTrophy.milestones.map((milestone) => (
                         <div
                           key={milestone.target}
-                          className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${milestone.achievedAt ? "border-[#9b6a3b] bg-[#302016]" : "border-[#4f3825] bg-black/20 opacity-60"}`}
+                          className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${milestone.earned ? "border-[#9b6a3b] bg-[#302016]" : "border-[#4f3825] bg-black/20 opacity-60"}`}
                         >
                           <div className="text-xl">
                             {milestone.label === "Gold" ? "🥇" : milestone.label === "Silver" ? "🥈" : "🥉"}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="text-xs font-black text-[#f4e6d2]">
-                              {milestone.label} · {milestone.target} correct
+                              {milestone.label} · {milestone.description ?? milestone.target}
                             </div>
                             <div className="mt-0.5 text-[10px] font-bold text-[#cbb79b]">
                               {milestone.achievedAt
                                 ? `Earned ${new Date(milestone.achievedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
-                                : "Not earned yet"}
+                                : milestone.earned
+                                  ? "Earned"
+                                  : "Not earned yet"}
                             </div>
                           </div>
                           <div className="text-sm font-black text-[#f3c64f]">
-                            {milestone.achievedAt ? "✓" : "🔒"}
+                            {milestone.earned ? "✓" : "🔒"}
                           </div>
                         </div>
                       ))}

@@ -180,15 +180,6 @@ type TrophyMilestone = {
   earned?: boolean;
 };
 
-function TierTrophyIcon({ tier, className = "h-5 w-5" }: { tier: TrophyTier; className?: string }) {
-  const color = tier === "gold" ? "text-[#f3c64f]" : tier === "silver" ? "text-[#d7dde5]" : "text-[#bd7b45]";
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={`${className} ${color} drop-shadow-[0_1px_1px_rgba(0,0,0,.65)]`} fill="currentColor">
-      <path d="M7 2h10v2h3a1 1 0 0 1 1 1v2c0 3.1-2.1 5.7-5 6.4A5 5 0 0 1 13 16.9V19h3v3H8v-3h3v-2.1a5 5 0 0 1-3-3.5C5.1 12.7 3 10.1 3 7V5a1 1 0 0 1 1-1h3V2Zm0 4H5v1c0 1.8 1 3.3 2.5 4.1A8.6 8.6 0 0 1 7 8V6Zm10 0v2c0 1.1-.2 2.1-.5 3.1A4.6 4.6 0 0 0 19 7V6h-2Z" />
-    </svg>
-  );
-}
-
 type CollegeFootballRanking = {
   team_name: string;
   rank: number;
@@ -1280,6 +1271,8 @@ export default function Home() {
       repeatable?: boolean;
       earned?: boolean;
       tier?: TrophyTier;
+      progressTier?: TrophyTier;
+      progressPercent?: number;
       milestones?: TrophyMilestone[];
     } | null>(null);
 
@@ -4903,6 +4896,7 @@ export default function Home() {
       count < targets[0] ? targets[0] : count < targets[1] ? targets[1] : targets[2];
     const nextTier =
       nextTarget === targets[0] ? "Bronze" : nextTarget === targets[1] ? "Silver" : "Gold";
+    const progressTier: TrophyTier = nextTier.toLowerCase() as TrophyTier;
 
     return {
       icon,
@@ -4910,10 +4904,12 @@ export default function Home() {
       note,
       earned: count >= targets[0],
       tier,
+      progressTier,
+      progressPercent: Math.min(100, Math.round((count / nextTarget) * 100)),
       progress:
         count >= targets[2]
           ? `${count} ${unit} · Gold`
-          : `${count}/${nextTarget} ${unit}`,
+          : `${count}/${nextTarget} to ${nextTier}`,
       milestone:
         count >= targets[2]
           ? `Gold tier complete — every new ${unit.replace(/s$/, "")} keeps building your record`
@@ -7209,7 +7205,7 @@ export default function Home() {
                             [1, 3, 5],
                             "perfect cards",
                           ),
-                          { icon: "🏆🏆", title: "Back-to-Back", note: "Win two weekly FamBam Challenges in a row", earned: myRecordAchievements?.backToBack === true, progress: myRecordAchievements?.backToBack?"Earned ✓":"Win 2 in a row", milestone: "Two consecutive Challenge wins" },
+                          { icon: "🏆🏆", title: "Back-to-Back", note: "Win two weekly FamBam Challenges in a row", earned: myRecordAchievements?.backToBack === true, progress: myRecordAchievements?.backToBack?"Earned":"Win 2 in a row", milestone: "Two consecutive Challenge wins" },
                           { icon: "🧹", title: "Family Sweep", note: "Have the whole family make the same winning pick", progress: "Complete a family sweep", milestone: "Everyone agrees and everyone is correct" },
                           ],
                         },
@@ -7221,7 +7217,7 @@ export default function Home() {
                               title: "Event Explorer",
                               note: "Make your first optional special-event pick",
                               earned: Object.values(eventProgress).some((progress) => progress.trophies.firstEventPick),
-                              progress: Object.values(eventProgress).some((progress) => progress.trophies.firstEventPick) ? "Earned ✓" : "Make your first event pick",
+                              progress: Object.values(eventProgress).some((progress) => progress.trophies.firstEventPick) ? "Earned" : "Make your first event pick",
                               milestone: "Special events are optional and never affect weekly records",
                             },
                             {
@@ -7237,7 +7233,7 @@ export default function Home() {
                               title: "Perfect Round",
                               note: "Get every pick right in an event round with at least three games",
                               earned: Object.values(eventProgress).some((progress) => progress.trophies.perfectRound),
-                              progress: Object.values(eventProgress).some((progress) => progress.trophies.perfectRound) ? "Earned ✓" : "Complete a perfect event round",
+                              progress: Object.values(eventProgress).some((progress) => progress.trophies.perfectRound) ? "Earned" : "Complete a perfect event round",
                               milestone: "At least three correct with no misses",
                             },
                             {
@@ -7266,12 +7262,12 @@ export default function Home() {
                         {
                           label: "Fan Trophies",
                           trophies: [
-                          { icon: "⚽", title: "Soccer Supporter", note: "Follow your first soccer club", earned: hasTrophyTeam("soccer"), progress: hasTrophyTeam("soccer") ? "Earned ✓" : "Choose a soccer team", milestone: "Your first followed soccer club" },
-                          { icon: "🏈", title: "CFB Fan", note: "Follow your first college football team", earned: hasTrophyTeam("college-football"), progress: hasTrophyTeam("college-football") ? "Earned ✓" : "Choose a CFB team", milestone: "Your first followed college football team" },
-                          { icon: "🏒", title: "Hockey Fan", note: "Follow your first hockey team", earned: hasTrophyTeam("hockey"), progress: hasTrophyTeam("hockey") ? "Earned ✓" : "Choose a hockey team", milestone: "Your first followed hockey team" },
-                          { icon: "⚾", title: "Baseball Fan", note: "Follow your first baseball team", earned: hasTrophyTeam("baseball"), progress: hasTrophyTeam("baseball") ? "Earned ✓" : "Choose a baseball team", milestone: "Your first followed baseball team" },
-                          { icon: "🏀", title: "Basketball Fan", note: "Follow your first college basketball team", earned: hasTrophyTeam("college-basketball"), progress: hasTrophyTeam("college-basketball") ? "Earned ✓" : "Choose a basketball team", milestone: "Your first followed college basketball team" },
-                          { icon: "🏐", title: "Volleyball Fan", note: "Follow your first volleyball team", earned: hasTrophyTeam("volleyball"), progress: hasTrophyTeam("volleyball") ? "Earned ✓" : "Choose a volleyball team", milestone: "Your first followed volleyball team" },
+                          { icon: "⚽", title: "Soccer Supporter", note: "Follow your first soccer club", earned: hasTrophyTeam("soccer"), progress: hasTrophyTeam("soccer") ? "Earned" : "Choose a soccer team", milestone: "Your first followed soccer club" },
+                          { icon: "🏈", title: "CFB Fan", note: "Follow your first college football team", earned: hasTrophyTeam("college-football"), progress: hasTrophyTeam("college-football") ? "Earned" : "Choose a CFB team", milestone: "Your first followed college football team" },
+                          { icon: "🏒", title: "Hockey Fan", note: "Follow your first hockey team", earned: hasTrophyTeam("hockey"), progress: hasTrophyTeam("hockey") ? "Earned" : "Choose a hockey team", milestone: "Your first followed hockey team" },
+                          { icon: "⚾", title: "Baseball Fan", note: "Follow your first baseball team", earned: hasTrophyTeam("baseball"), progress: hasTrophyTeam("baseball") ? "Earned" : "Choose a baseball team", milestone: "Your first followed baseball team" },
+                          { icon: "🏀", title: "Basketball Fan", note: "Follow your first college basketball team", earned: hasTrophyTeam("college-basketball"), progress: hasTrophyTeam("college-basketball") ? "Earned" : "Choose a basketball team", milestone: "Your first followed college basketball team" },
+                          { icon: "🏐", title: "Volleyball Fan", note: "Follow your first volleyball team", earned: hasTrophyTeam("volleyball"), progress: hasTrophyTeam("volleyball") ? "Earned" : "Choose a volleyball team", milestone: "Your first followed volleyball team" },
                           ],
                         },
                         {
@@ -7295,7 +7291,7 @@ export default function Home() {
                               [1, 2, 3],
                               "UK sports",
                             ),
-                            { icon: "🛡️", title: "Club Loyalist", note: "Choose a primary favorite team in your Locker Room", earned: hasPrimaryFavorite, progress: hasPrimaryFavorite ? "Earned ✓" : "Choose a primary team", milestone: "Make one followed team your primary favorite" },
+                            { icon: "🛡️", title: "Club Loyalist", note: "Choose a primary favorite team in your Locker Room", earned: hasPrimaryFavorite, progress: hasPrimaryFavorite ? "Earned" : "Choose a primary team", milestone: "Make one followed team your primary favorite" },
                             { icon: "⚔️", title: "Rivalry Ready", note: "Make a pick in a recognized rivalry game", progress: "Make a rivalry pick", milestone: "Rivalry picks will be tracked from graded Challenges" },
                             buildTieredPickTrophy(
                               "🎟️",
@@ -7369,7 +7365,7 @@ export default function Home() {
                             [1, 10, 25],
                             "memories",
                           ),
-                          { icon: "🛂", title: "First Stamp", note: "Record your first attended game in the Sports Passport", earned: passportVisitEntries.length > 0, progress: passportVisitEntries.length > 0 ? "Earned ✓" : "Add your first game", milestone: "Your first Sports Passport entry" },
+                          { icon: "🛂", title: "First Stamp", note: "Record your first attended game in the Sports Passport", earned: passportVisitEntries.length > 0, progress: passportVisitEntries.length > 0 ? "Earned" : "Add your first game", milestone: "Your first Sports Passport entry" },
                           buildTieredPickTrophy(
                             "📸",
                             "Memory Maker",
@@ -7409,7 +7405,7 @@ export default function Home() {
                                 ) : (
                                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,3,2,.68)_0%,rgba(7,4,3,.52)_52%,rgba(8,5,3,.88)_100%)]" />
                                 )}
-                                {("tier" in trophy && trophy.tier || !("earned" in trophy && trophy.earned)) && <div className={`absolute right-1.5 top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full ${"tier" in trophy && trophy.tier ? "border border-white/20 bg-black/70" : "bg-black/55 text-white"}`} aria-label={"tier" in trophy && trophy.tier ? `${trophy.tier} tier` : "Locked"}>{"tier" in trophy && trophy.tier ? <TierTrophyIcon tier={trophy.tier} className="h-4 w-4" /> : "🔒"}</div>}
+                                {!("earned" in trophy && trophy.earned) && <div className="absolute right-1.5 top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white" aria-label="Locked">🔒</div>}
                                 {"repeatable" in trophy && trophy.repeatable === true && (
                                   <div className="absolute left-1.5 top-1.5 z-20 rounded-full border border-[#a47a42] bg-[#21150d]/90 px-1.5 py-0.5 text-[8px] font-black uppercase text-[#f3c64f]">Repeat</div>
                                 )}
@@ -7419,8 +7415,9 @@ export default function Home() {
                                 <div className="absolute inset-x-1 bottom-9 z-10 line-clamp-2 text-[9px] font-black uppercase leading-tight tracking-wide text-[#fff2dc] sm:bottom-10 sm:text-[10px]">
                                   {trophy.title}
                                 </div>
-                                <div className="absolute inset-x-1.5 bottom-1.5 z-10 truncate rounded-full border border-[#8a6035]/70 bg-black/65 px-1 py-1.5 text-[8px] font-black text-[#f2cf70] sm:inset-x-2 sm:text-[9px]">
-                                  {trophy.progress}
+                                <div className={`absolute inset-x-1.5 bottom-1.5 z-10 overflow-hidden rounded-full border bg-black/65 px-1 py-1.5 text-[8px] font-black sm:inset-x-2 sm:text-[9px] ${"progressTier" in trophy && trophy.progressTier === "gold" ? "border-[#f3c64f] text-[#ffe38a]" : "progressTier" in trophy && trophy.progressTier === "silver" ? "border-[#cbd3dd] text-[#eef2f7]" : "progressTier" in trophy && trophy.progressTier === "bronze" ? "border-[#bd7b45] text-[#efb27e]" : "border-[#8a6035]/70 text-[#f2cf70]"}`}>
+                                  {"progressPercent" in trophy && typeof trophy.progressPercent === "number" && <div aria-hidden="true" className={`absolute inset-y-0 left-0 ${trophy.progressTier === "gold" ? "bg-[#c99c22]/55" : trophy.progressTier === "silver" ? "bg-[#9aa6b5]/50" : "bg-[#9c5426]/55"}`} style={{width:`${trophy.progressPercent}%`}} />}
+                                  <span className="relative block truncate">{trophy.progress}</span>
                                 </div>
                               </button>
                             ))}
@@ -7686,7 +7683,10 @@ export default function Home() {
                   </div>
                   <div className="relative mt-5 text-sm font-semibold leading-6 text-[#ead8bf]">{selectedTrophy.note}.</div>
                   {selectedTrophy.progress && (
-                    <div className="relative mt-4 rounded-xl border border-[#6f5031] bg-black/30 px-4 py-3 text-sm font-black text-[#f3c64f]">Progress: {selectedTrophy.progress}</div>
+                    <div className={`relative mt-4 overflow-hidden rounded-xl border bg-black/30 px-4 py-3 text-sm font-black ${selectedTrophy.progressTier === "gold" ? "border-[#f3c64f] text-[#ffe38a]" : selectedTrophy.progressTier === "silver" ? "border-[#cbd3dd] text-[#eef2f7]" : selectedTrophy.progressTier === "bronze" ? "border-[#bd7b45] text-[#efb27e]" : "border-[#6f5031] text-[#f3c64f]"}`}>
+                      {typeof selectedTrophy.progressPercent === "number" && <div aria-hidden="true" className={`absolute inset-y-0 left-0 ${selectedTrophy.progressTier === "gold" ? "bg-[#c99c22]/45" : selectedTrophy.progressTier === "silver" ? "bg-[#9aa6b5]/40" : "bg-[#9c5426]/45"}`} style={{width:`${selectedTrophy.progressPercent}%`}} />}
+                      <span className="relative">Progress: {selectedTrophy.progress}</span>
+                    </div>
                   )}
                   {selectedTrophy.milestone && (
                     <div className="relative mt-3 text-xs font-bold leading-5 text-[#cbb79b]">Next milestone: {selectedTrophy.milestone}</div>
@@ -7701,7 +7701,6 @@ export default function Home() {
                           key={milestone.target}
                           className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${milestone.earned ? "border-[#9b6a3b] bg-[#302016]" : "border-[#4f3825] bg-black/20 opacity-60"}`}
                         >
-                          <TierTrophyIcon tier={milestone.label === "Gold" ? "gold" : milestone.label === "Silver" ? "silver" : "bronze"} className="h-7 w-7 shrink-0" />
                           <div className="min-w-0 flex-1">
                             <div className={`text-xs font-black ${milestone.label === "Gold" ? "text-[#f3c64f]" : milestone.label === "Silver" ? "text-[#d7dde5]" : "text-[#d9955b]"}`}>
                               {milestone.label} · {milestone.description ?? milestone.target}

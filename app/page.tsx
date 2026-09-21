@@ -7511,8 +7511,8 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="p-4 sm:p-6">
-                    <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
-                      {[[passportVisitEntries.length,'Visits'],[new Set(passportVisitEntries.map(x=>x.venue)).size,'Stadiums'],[visitedStateCount,'States'],[visitedCountries.size,'Countries'],[visitedContinents.size,'Continents']].map(([v,l])=><div key={String(l)} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center"><div className="text-2xl font-black">{v}</div><div className="text-[8px] font-black uppercase text-slate-500">{l}</div></div>)}
+                    <div className="mb-4 grid grid-cols-5 gap-1 sm:gap-2">
+                      {[[passportVisitEntries.length,'Visits'],[new Set(passportVisitEntries.map(x=>x.venue)).size,'Stadiums'],[visitedStateCount,'States'],[visitedCountries.size,'Countries'],[visitedContinents.size,'Continents']].map(([v,l])=><div key={String(l)} className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-1 py-2 text-center sm:rounded-xl sm:p-3"><div className="text-lg font-black leading-none sm:text-2xl">{v}</div><div className="mt-1 text-[7px] font-black uppercase leading-tight tracking-tight text-slate-500 sm:text-[8px]">{l}</div></div>)}
                     </div>
                     {passportView === 'year' && (
                       <div className="space-y-5">

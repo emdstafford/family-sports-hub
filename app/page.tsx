@@ -8389,7 +8389,7 @@ export default function Home() {
                         <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">
                           🏒 Personal Challenge
                         </div>
-                        <div className="mt-1 text-xl font-black">Mama’s Weekly Hockey Challenge</div>
+                        <div className="mt-1 text-xl font-black">Emily’s Weekly Hockey Challenge</div>
                         <div className="mt-1 text-[10px] font-semibold text-blue-100">
                           5 hockey games · your teams get first priority
                         </div>

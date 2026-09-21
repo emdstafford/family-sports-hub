@@ -30,7 +30,9 @@ async function verifyMamaHockeyPlayer(
     .eq("id", playerId)
     .maybeSingle();
 
-  return !error && data?.display_name?.trim().toLowerCase() === "mama";
+  if (error || !data?.display_name) return false;
+  const name = data.display_name.trim().toLowerCase();
+  return name === "mama" || name === "emily" || name === "emily stafford";
 }
 
 type EventPick = {
@@ -116,7 +118,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
     }
     if (!(await verifyMamaHockeyPlayer(supabase, playerId, eventId))) {
-      return NextResponse.json({ error: "This personal challenge belongs to Mama." }, { status: 403 });
+      return NextResponse.json({ error: "This personal challenge belongs to Emily." }, { status: 403 });
     }
 
     const picks = await readPicks(supabase, eventId);
@@ -193,7 +195,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
     }
     if (!(await verifyMamaHockeyPlayer(supabase, playerId, eventId))) {
-      return NextResponse.json({ error: "This personal challenge belongs to Mama." }, { status: 403 });
+      return NextResponse.json({ error: "This personal challenge belongs to Emily." }, { status: 403 });
     }
 
     const { data: game, error: gameError } = await supabase

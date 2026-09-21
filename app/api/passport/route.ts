@@ -187,12 +187,53 @@ export async function GET(request: Request) {
       }));
     }
 
-    const { data: states, error: statesError } = await db.from("visited_states").select("state_code").eq("player_id", playerId);
-    if (statesError) throw statesError;
+    const [
+      { data: states, error: statesError },
+      { data: familyPlayers, error: familyPlayersError },
+      { data: allVisitedStates, error: allVisitedStatesError },
+      { data: allEventAttendees, error: allEventAttendeesError },
+      { data: allPassportEvents, error: allPassportEventsError },
+    ] = await Promise.all([
+      db.from("visited_states").select("state_code").eq("player_id", playerId),
+      db.from("players").select("id, display_name, initials, sort_order").order("sort_order"),
+      db.from("visited_states").select("player_id, state_code"),
+      db.from("passport_event_attendees").select("event_id, player_id"),
+      db.from("passport_events").select("id, state_code, away_team"),
+    ]);
+    if (statesError || familyPlayersError || allVisitedStatesError || allEventAttendeesError || allPassportEventsError) {
+      throw statesError ?? familyPlayersError ?? allVisitedStatesError ?? allEventAttendeesError ?? allPassportEventsError;
+    }
+
+    const statesByPlayer = new Map<string, Set<string>>();
+    for (const row of allVisitedStates ?? []) {
+      const statesForPlayer = statesByPlayer.get(row.player_id) ?? new Set<string>();
+      if (row.state_code) statesForPlayer.add(row.state_code);
+      statesByPlayer.set(row.player_id, statesForPlayer);
+    }
+
+    const sportsStateByEvent = new Map(
+      (allPassportEvents ?? [])
+        .filter((event) => event.state_code && !String(event.away_team ?? "").startsWith("__FAMILY_EVENT__"))
+        .map((event) => [event.id, event.state_code]),
+    );
+    for (const attendee of allEventAttendees ?? []) {
+      const stateCode = sportsStateByEvent.get(attendee.event_id);
+      if (!stateCode) continue;
+      const statesForPlayer = statesByPlayer.get(attendee.player_id) ?? new Set<string>();
+      statesForPlayer.add(stateCode);
+      statesByPlayer.set(attendee.player_id, statesForPlayer);
+    }
+
+    const familyStateCounts = (familyPlayers ?? []).map((player) => ({
+      playerId: player.id,
+      displayName: player.display_name,
+      initials: player.initials ?? "",
+      count: statesByPlayer.get(player.id)?.size ?? 0,
+    }));
 
     const locationMeta = await readLocationMeta(db, eventIds);
 
-    return NextResponse.json({ events, attendees, memories, photos, locationMeta, visitedStates: (states ?? []).map((r: any) => r.state_code) });
+    return NextResponse.json({ events, attendees, memories, photos, locationMeta, visitedStates: (states ?? []).map((r: any) => r.state_code), familyStateCounts });
   } catch (e) {
     console.error("Passport GET failed", e);
     return NextResponse.json({ error: e instanceof Error ? e.message : "Could not load Passport." }, { status: 500 });

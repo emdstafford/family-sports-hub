@@ -2,10 +2,14 @@ name: Sunday AP Rankings Refresh
 
 on:
   schedule:
-    # 23:00 UTC is 7:00 PM Eastern during daylight-saving time,
-    # one hour before the Sunday-night FamBam Challenge rollover.
-    - cron: "0 23 * * 0"
+    # 00:00 UTC Monday is 8:00 PM Eastern during daylight-saving time.
+    - cron: "0 0 * * 1"
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/sunday-rankings.yml"
 
 jobs:
   rankings:
@@ -13,12 +17,14 @@ jobs:
 
     steps:
       - name: Import latest AP Top 25 rankings
+        continue-on-error: true
         run: |
           curl --fail --silent --show-error \
             -X POST \
             "https://family-sports-hub.vercel.app/api/college-football/rankings/import?year=2026"
 
       - name: Rebuild current FamBam Challenge with new rankings
+        if: always()
         run: |
           curl --fail --silent --show-error \
             -X POST \

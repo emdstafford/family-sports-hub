@@ -180,6 +180,15 @@ type TrophyMilestone = {
   earned?: boolean;
 };
 
+function TierTrophyIcon({ tier, className = "h-5 w-5" }: { tier: TrophyTier; className?: string }) {
+  const color = tier === "gold" ? "text-[#f3c64f]" : tier === "silver" ? "text-[#d7dde5]" : "text-[#bd7b45]";
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={`${className} ${color} drop-shadow-[0_1px_1px_rgba(0,0,0,.65)]`} fill="currentColor">
+      <path d="M7 2h10v2h3a1 1 0 0 1 1 1v2c0 3.1-2.1 5.7-5 6.4A5 5 0 0 1 13 16.9V19h3v3H8v-3h3v-2.1a5 5 0 0 1-3-3.5C5.1 12.7 3 10.1 3 7V5a1 1 0 0 1 1-1h3V2Zm0 4H5v1c0 1.8 1 3.3 2.5 4.1A8.6 8.6 0 0 1 7 8V6Zm10 0v2c0 1.1-.2 2.1-.5 3.1A4.6 4.6 0 0 0 19 7V6h-2Z" />
+    </svg>
+  );
+}
+
 type CollegeFootballRanking = {
   team_name: string;
   rank: number;
@@ -888,7 +897,7 @@ type PassportEntry = {
   createdByPlayerId?: string;
   gameId?: string;
   sport: "Football" | "MLB" | "Tour";
-  visitType?: "game" | "tour";
+  visitType?: "game" | "tour" | "travel";
   date: string;
   away: string;
   home: string;
@@ -904,7 +913,7 @@ type PassportEntry = {
   attendeeNames: string[];
   memories: PassportMemory[];
   photos: string[];
-  entryType?: "passport" | "family";
+  entryType?: "passport" | "family" | "travel";
   familyCategory?: string;
   familyMilestone?: string;
 };
@@ -979,6 +988,7 @@ const COUNTRY_CONTINENTS: Record<string, string> = {
 
 function passportEntryTitle(entry: PassportEntry) {
   if (entry.entryType === "family") return entry.away;
+  if (entry.entryType === "travel") return entry.country;
   return entry.visitType === "tour" || entry.sport === "Tour"
     ? `${entry.venue} Stadium Tour`
     : `${entry.away} at ${entry.home}`;
@@ -4697,6 +4707,7 @@ export default function Home() {
       const locationMeta = body.locationMeta ?? {};
       const mapped: PassportEntry[] = (body.events ?? []).map((event: any) => {
         const isTour = event.sport === "Tour" || event.away_team === "__STADIUM_TOUR__";
+        const isTravel = event.away_team === "__TRAVEL_COUNTRY__";
         const familyParts = String(event.away_team ?? "").split("|");
         const isFamilyEvent = familyParts[0] === "__FAMILY_EVENT__";
 
@@ -4705,7 +4716,7 @@ export default function Home() {
         createdByPlayerId: event.created_by_player_id || undefined,
         gameId: event.game_id || undefined,
         sport: isTour ? "Tour" : event.sport === "MLB" ? "MLB" : "Football",
-        visitType: isTour ? "tour" : "game",
+        visitType: isTravel ? "travel" : isTour ? "tour" : "game",
         date: event.event_date,
         away: isFamilyEvent ? event.home_team : isTour ? "Stadium Tour" : event.away_team,
         home: isFamilyEvent ? "" : isTour ? event.venue_name : event.home_team,
@@ -4721,7 +4732,7 @@ export default function Home() {
         attendeeNames: attendees.filter((a: any) => a.event_id === event.id).map((a: any) => Array.isArray(a.players) ? a.players[0]?.display_name : a.players?.display_name).filter(Boolean),
         memories: memories.filter((m: any) => m.event_id === event.id).map((m: any) => ({ playerId: m.player_id, playerName: (Array.isArray(m.players) ? m.players[0]?.display_name : m.players?.display_name) || "FamBam", note: m.note || "" })),
         photos: Array.isArray(photos[event.id]) ? photos[event.id] : [],
-        entryType: isFamilyEvent ? "family" : "passport",
+        entryType: isFamilyEvent ? "family" : isTravel ? "travel" : "passport",
         familyCategory: isFamilyEvent ? familyParts[1] || "Other" : undefined,
         familyMilestone: isFamilyEvent ? familyParts[2] || "" : undefined,
       };
@@ -4864,7 +4875,8 @@ export default function Home() {
 
   const hasPrimaryFavorite = signedInLockerTeams.some((team) => team.is_primary);
 
-  const passportVisitEntries = passportEntries.filter((entry) => entry.entryType !== "family");
+  const passportVisitEntries = passportEntries.filter((entry) => entry.entryType === "passport");
+  const passportWorldEntries = passportEntries.filter((entry) => entry.entryType !== "family");
   const recordBookRows = recordBookLeaderboard.length > 0 ? recordBookLeaderboard : leaderboard;
   const myRecordAchievements = signedInPlayer
     ? recordBookAchievements[signedInPlayer.id]
@@ -4935,10 +4947,11 @@ export default function Home() {
   const uniquePassportMilestoneDates = (
     keyForEntry: (entry: PassportEntry) => string,
     targets: number[],
+    entries: PassportEntry[] = passportVisitEntries,
   ) => {
     const dates: Record<string, string> = {};
     const seen = new Set<string>();
-    [...passportVisitEntries]
+    [...entries]
       .sort((a, b) => a.date.localeCompare(b.date))
       .forEach((entry) => {
         const key = keyForEntry(entry).trim().toLowerCase();
@@ -4973,17 +4986,18 @@ export default function Home() {
     passportVisitEntries.map((entry) => entry.venue.trim().toLowerCase()).filter(Boolean),
   ).size;
   const visitedCountries = new Set(
-    passportVisitEntries.map((entry) => entry.country.trim()).filter(Boolean),
+    passportWorldEntries.map((entry) => entry.country.trim()).filter(Boolean),
   );
   const visitedContinents = new Set(
-    passportVisitEntries.map((entry) => entry.continent.trim()).filter(Boolean),
+    passportWorldEntries.map((entry) => entry.continent.trim()).filter(Boolean),
   );
 
   async function savePassportEntry() {
     const isTour = passportDraft.visitType === "tour";
+    const isTravel = passportDraft.visitType === "travel";
     const needsState = passportDraft.country.trim().toLowerCase() === "united states";
-    if (!passportDraft.date || !passportDraft.venue || !passportDraft.country || !passportDraft.continent || (needsState && !passportDraft.state) || (!isTour && (!passportDraft.home || !passportDraft.away))) {
-      setPassportError(isTour ? "Date, stadium, country and continent are required." : "Date, teams, stadium, country and continent are required.");
+    if (!passportDraft.date || !passportDraft.country || !passportDraft.continent || (!isTravel && (!passportDraft.venue || (needsState && !passportDraft.state) || (!isTour && (!passportDraft.home || !passportDraft.away))))) {
+      setPassportError(isTravel ? "Date, country and continent are required." : isTour ? "Date, stadium, country and continent are required." : "Date, teams, stadium, country and continent are required.");
       return;
     }
     setPassportSaving(true);
@@ -7323,7 +7337,7 @@ export default function Home() {
                             "World Traveler",
                             "Visit new countries around the world",
                             visitedCountries.size,
-                            uniquePassportMilestoneDates((entry) => entry.country, [1, 5, 10]),
+                            uniquePassportMilestoneDates((entry) => entry.country, [1, 5, 10], passportWorldEntries),
                             [1, 5, 10],
                             "countries",
                           ),
@@ -7332,7 +7346,7 @@ export default function Home() {
                             "Continental Explorer",
                             "Collect sports memories across different continents",
                             visitedContinents.size,
-                            uniquePassportMilestoneDates((entry) => entry.continent, [1, 3, 6]),
+                            uniquePassportMilestoneDates((entry) => entry.continent, [1, 3, 6], passportWorldEntries),
                             [1, 3, 6],
                             "continents",
                           ),
@@ -7395,7 +7409,7 @@ export default function Home() {
                                 ) : (
                                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,3,2,.68)_0%,rgba(7,4,3,.52)_52%,rgba(8,5,3,.88)_100%)]" />
                                 )}
-                                <div className={`absolute right-1.5 top-1.5 z-20 rounded-full px-1.5 py-0.5 text-[10px] font-black ${"tier" in trophy && trophy.tier === "gold" ? "bg-[#f3c64f] text-[#33200f]" : "tier" in trophy && trophy.tier === "silver" ? "bg-slate-200 text-slate-700" : "tier" in trophy && trophy.tier === "bronze" ? "bg-[#bd7b45] text-white" : "earned" in trophy && trophy.earned ? "bg-[#f3c64f] text-[#33200f]" : "bg-black/55 text-white"}`}>{"tier" in trophy && trophy.tier ? trophy.tier === "gold" ? "🥇" : trophy.tier === "silver" ? "🥈" : "🥉" : "earned" in trophy && trophy.earned ? "✓" : "🔒"}</div>
+                                {("tier" in trophy && trophy.tier || !("earned" in trophy && trophy.earned)) && <div className={`absolute right-1.5 top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full ${"tier" in trophy && trophy.tier ? "border border-white/20 bg-black/70" : "bg-black/55 text-white"}`} aria-label={"tier" in trophy && trophy.tier ? `${trophy.tier} tier` : "Locked"}>{"tier" in trophy && trophy.tier ? <TierTrophyIcon tier={trophy.tier} className="h-4 w-4" /> : "🔒"}</div>}
                                 {"repeatable" in trophy && trophy.repeatable === true && (
                                   <div className="absolute left-1.5 top-1.5 z-20 rounded-full border border-[#a47a42] bg-[#21150d]/90 px-1.5 py-0.5 text-[8px] font-black uppercase text-[#f3c64f]">Repeat</div>
                                 )}
@@ -7557,15 +7571,15 @@ export default function Home() {
                     )}
                     {passportView === 'venue' && <div><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">Stadium Collection</div><div className="text-xl font-black">All Your Stadiums</div></div><div className="flex flex-wrap gap-2">{(["All","Football","MLB"] as const).map(f=><button key={f} type="button" onClick={()=>setStadiumSportFilter(f)} className={`rounded-full px-3 py-2 text-[8px] font-black uppercase ${stadiumSportFilter===f?'bg-[#77511f] text-white':'border border-[#b99d68] bg-[#f7ebcd] text-[#77511f]'}`}>{f==='Football'?'🏈 Football':f==='MLB'?'⚾ MLB':'All'}</button>)}</div></div>{passportVisitEntries.length===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center text-sm font-bold">Add a game/match to start your stadium collection.</div>:<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(passportVisitEntries.filter(e=>stadiumSportFilter==='All'||e.sport===stadiumSportFilter).reduce<Record<string,PassportEntry[]>>((a,e)=>{(a[e.venue]??=[]).push(e);return a;},{})).map(([venue,entries])=><div key={venue} className="rounded-xl border border-slate-200 bg-white p-4"><div className="text-4xl">🏟️</div><div className="mt-2 text-lg font-black">{venue}</div><div className="text-[9px] font-bold text-slate-500">{passportLocationLabel(entries[0])}</div><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#77511f] px-2 py-1 text-[8px] font-black text-white">{entries.length} VISIT{entries.length===1?'':'S'}</span><span className="rounded-full border border-[#b99d68] px-2 py-1 text-[8px] font-black">{[...new Set(entries.map(e=>e.sport))].join(' · ')}</span></div><div className="mt-3 space-y-1 border-t border-[#d7c39b] pt-2">{entries.sort((a,b)=>b.date.localeCompare(a.date)).map(e=><div key={e.id} className="text-[9px] font-semibold">{e.date} · {e.away} at {e.home}</div>)}</div></div>)}</div>}</div>}
                     {passportView === 'states' && <div><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">States I've Been To</div><div className="text-xl font-black">Tap any state you've visited</div></div><div className="text-[9px] font-bold text-slate-500">★ = sports visit</div></div><div className="grid grid-cols-5 gap-1.5 sm:grid-cols-8 md:grid-cols-10">{US_STATES.map(code=>{const sports=passportVisitEntries.some(e=>e.state===code);const visited=visitedStates.includes(code);return <button key={code} title={STATE_NAMES[code]} onClick={()=>toggleVisitedState(code)} className={`relative aspect-[1.15] rounded-lg border text-[9px] font-black transition ${sports?'border-[#9c6c16] bg-[#e4c36b] text-[#33220d]':visited?'border-[#557492] bg-[#b9cbd9] text-[#102b49]':'border-[#cbb98f] bg-[#f7edda] text-[#9b8a68]'}`}>{code}{sports&&<span className="absolute right-0.5 top-0 text-[7px]">★</span>}</button>})}</div><div className="mt-4 rounded-lg border border-[#ccb582] bg-[#f8eccd] p-3 text-[9px] font-semibold">Regular travel counts too. Sports entries automatically mark their state, while you can tap any other state you've visited in general.</div></div>}
-                    {passportView === 'world' && <div><div className="mb-4"><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">World Collection</div><div className="text-xl font-black">Countries & Continents</div><div className="mt-1 text-[10px] font-semibold text-slate-500">International games, tours and sports memories all count.</div></div>{visitedCountries.size===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center text-sm font-bold">Add a Passport visit to begin your world collection.</div>:<div className="grid gap-3 sm:grid-cols-2">{CONTINENTS.map(continent=>{const countries=[...new Set(passportVisitEntries.filter(entry=>entry.continent===continent).map(entry=>entry.country))].sort();if(countries.length===0)return null;return <div key={continent} className="rounded-xl border border-slate-200 bg-white p-4"><div className="flex items-center justify-between gap-3"><div className="text-base font-black">🌍 {continent}</div><div className="rounded-full bg-[#06284a] px-2.5 py-1 text-[8px] font-black text-white">{countries.length} COUNTR{countries.length===1?'Y':'IES'}</div></div><div className="mt-3 flex flex-wrap gap-2">{countries.map(country=><span key={country} className="rounded-full border border-[#c7aa70] bg-[#fff7e6] px-3 py-1.5 text-[9px] font-black text-[#77511f]">{country}</span>)}</div></div>})}</div>}</div>}
+                    {passportView === 'world' && <div><div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-widest text-[#06284a]">World Collection</div><div className="text-xl font-black">Countries & Continents</div><div className="mt-1 text-[10px] font-semibold text-slate-500">Sports trips and regular travel both count.</div></div><button type="button" onClick={()=>{openPassportAdd();window.setTimeout(()=>{setPassportAddMode('manual');setPassportDraft(d=>({...d,visitType:'travel',date:new Date().toISOString().slice(0,10),sport:'Tour',away:'',home:'',venue:'',city:'',state:'',country:'',continent:'',awayScore:'',homeScore:'',result:''}));},0)}} className="min-h-11 rounded-full bg-[#f3c64f] px-4 text-[9px] font-black uppercase text-[#33200f]">+ Country / Continent</button></div>{visitedCountries.size===0?<div className="rounded-xl border-2 border-dashed border-[#b99d68] p-8 text-center text-sm font-bold">Add a country to begin your world collection.</div>:<div className="grid gap-3 sm:grid-cols-2">{CONTINENTS.map(continent=>{const countries=[...new Set(passportWorldEntries.filter(entry=>entry.continent===continent).map(entry=>entry.country))].sort();if(countries.length===0)return null;return <div key={continent} className="rounded-xl border border-slate-200 bg-white p-4"><div className="flex items-center justify-between gap-3"><div className="text-base font-black">🌍 {continent}</div><div className="rounded-full bg-[#06284a] px-2.5 py-1 text-[8px] font-black text-white">{countries.length} COUNTR{countries.length===1?'Y':'IES'}</div></div><div className="mt-3 flex flex-wrap gap-2">{countries.map(country=><span key={country} className="rounded-full border border-[#c7aa70] bg-[#fff7e6] px-3 py-1.5 text-[9px] font-black text-[#77511f]">{country}</span>)}</div></div>})}</div>}</div>}
                   </div>
                 </div>
-                {passportAddOpen && <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/70 p-3"><div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-[1.5rem] bg-[#f6e8c8] p-4 text-[#3d2b17] shadow-2xl sm:p-5"><div className="flex items-center justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">New Passport Stamp</div><div className="text-xl font-black">Add Game/Match</div></div><button type="button" onClick={()=>setPassportAddOpen(false)} className="min-h-11 min-w-11 rounded-full bg-[#e4d3ad] px-3 font-black">✕</button></div>
-                  <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPassportAddMode('search')} className={`min-h-11 rounded-xl text-xs font-black ${passportAddMode==='search'?'bg-[#102b49] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🔎 Find a Game</button><button type="button" onClick={()=>setPassportAddMode('manual')} className={`min-h-11 rounded-xl text-xs font-black ${passportAddMode==='manual'?'bg-[#102b49] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>✏️ Enter Manually</button></div>
-                  <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPassportDraft({...passportDraft,visitType:'game',sport:passportDraft.sport==='Tour'?'Football':passportDraft.sport})} className={`min-h-11 rounded-xl text-xs font-black ${passportDraft.visitType!=='tour'?'bg-[#77511f] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🏟️ Game / Match</button><button type="button" onClick={()=>{setPassportDraft({...passportDraft,visitType:'tour',sport:'Tour',away:'',home:'',awayScore:'',homeScore:'',result:''});setPassportAddMode('manual');setPassportGameSearch('')}} className={`min-h-11 rounded-xl text-xs font-black ${passportDraft.visitType==='tour'?'bg-[#77511f] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🎟️ Stadium Tour</button></div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">{passportDraft.visitType!=='tour'&&<label className="text-[9px] font-black">SPORT<select value={passportDraft.sport} onChange={e=>{setPassportDraft({...passportDraft,sport:e.target.value as 'Football'|'MLB',gameId:undefined});setPassportGameSearch('')}} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option>Football</option><option>MLB</option></select></label>}<label className="text-[9px] font-black">DATE<input type="date" value={passportDraft.date} onChange={e=>setPassportDraft({...passportDraft,date:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></div>
-                  {passportDraft.visitType!=='tour'&&passportAddMode==='search'&&<div className="mt-3"><label className="text-[9px] font-black">SEARCH TEAM / GAME<input value={passportGameSearch} onChange={e=>setPassportGameSearch(e.target.value)} placeholder={passportDraft.sport==='MLB'?'Braves, Dodgers...':'Kentucky, Georgia...'} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label>{passportGameSearch.trim()&&<div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-[#c7aa70] bg-white p-2">{passportSearchResults.length?passportSearchResults.map(g=><button key={g.id} type="button" onClick={()=>choosePassportGame(g)} className="block min-h-11 w-full rounded-lg px-3 py-2 text-left hover:bg-[#f7edda]"><div className="text-xs font-black">{g.away} at {g.home}</div><div className="text-[9px] text-slate-500">{formatGameDate(g.startsAt)} · {g.competition}{g.homeScore!=null||g.awayScore!=null?` · ${g.awayScore??'–'}-${g.homeScore??'–'}`:''}</div></button>):<div className="p-3 text-xs font-bold text-slate-500">No matching FamBam game loaded. Use Enter Manually for older games.</div>}</div>}</div>}
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">{(passportDraft.visitType==='tour'?[['venue','Stadium / venue'],['city','City']]:[['away','Away team'],['home','Home team'],['venue','Stadium / venue'],['city','City']]).map(([k,l])=><label key={k} className="text-[9px] font-black uppercase">{l}<input value={(passportDraft as any)[k]} onChange={e=>setPassportDraft({...passportDraft,[k]:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base normal-case sm:text-sm"/></label>)}<label className="text-[9px] font-black">COUNTRY<input list="passport-countries" value={passportDraft.country} onChange={e=>{const country=e.target.value;setPassportDraft({...passportDraft,country,continent:COUNTRY_CONTINENTS[country]??passportDraft.continent,state:country==='United States'?passportDraft.state:''})}} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/><datalist id="passport-countries">{Object.keys(COUNTRY_CONTINENTS).map(country=><option key={country} value={country}/>)}</datalist></label><label className="text-[9px] font-black">CONTINENT<select value={passportDraft.continent} onChange={e=>setPassportDraft({...passportDraft,continent:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="">Choose continent</option>{CONTINENTS.map(continent=><option key={continent} value={continent}>{continent}</option>)}</select></label>{passportDraft.country==='United States'&&<label className="text-[9px] font-black">STATE<select value={passportDraft.state} onChange={e=>setPassportDraft({...passportDraft,state:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="">Choose state</option>{US_STATES.map(c=><option key={c} value={c}>{STATE_NAMES[c]}</option>)}</select></label>}{passportDraft.visitType!=='tour'&&<><label className="text-[9px] font-black">RESULT<select value={passportDraft.result} onChange={e=>setPassportDraft({...passportDraft,result:e.target.value as any})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="" disabled>Choose result</option><option value="W">Win</option><option value="L">Loss</option><option value="T">Tie</option></select></label><label className="text-[9px] font-black">AWAY SCORE<input inputMode="numeric" value={passportDraft.awayScore} onChange={e=>setPassportDraft({...passportDraft,awayScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label><label className="text-[9px] font-black">HOME SCORE<input inputMode="numeric" value={passportDraft.homeScore} onChange={e=>setPassportDraft({...passportDraft,homeScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></>}</div>
+                {passportAddOpen && <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/70 p-3"><div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-[1.5rem] bg-[#f6e8c8] p-4 text-[#3d2b17] shadow-2xl sm:p-5"><div className="flex items-center justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">New Passport Stamp</div><div className="text-xl font-black">{passportDraft.visitType==='travel'?'Add Country / Continent':'Add Game/Match'}</div></div><button type="button" onClick={()=>setPassportAddOpen(false)} className="min-h-11 min-w-11 rounded-full bg-[#e4d3ad] px-3 font-black">✕</button></div>
+                  {passportDraft.visitType!=='travel'&&<div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPassportAddMode('search')} className={`min-h-11 rounded-xl text-xs font-black ${passportAddMode==='search'?'bg-[#102b49] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🔎 Find a Game</button><button type="button" onClick={()=>setPassportAddMode('manual')} className={`min-h-11 rounded-xl text-xs font-black ${passportAddMode==='manual'?'bg-[#102b49] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>✏️ Enter Manually</button></div>}
+                  <div className="mt-4 grid grid-cols-3 gap-2"><button type="button" onClick={()=>setPassportDraft({...passportDraft,visitType:'game',sport:'Football'})} className={`min-h-11 rounded-xl text-[10px] font-black ${passportDraft.visitType==='game'?'bg-[#77511f] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🏟️ Game</button><button type="button" onClick={()=>{setPassportDraft({...passportDraft,visitType:'tour',sport:'Tour',away:'',home:'',awayScore:'',homeScore:'',result:''});setPassportAddMode('manual');setPassportGameSearch('')}} className={`min-h-11 rounded-xl text-[10px] font-black ${passportDraft.visitType==='tour'?'bg-[#77511f] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🎟️ Tour</button><button type="button" onClick={()=>{setPassportDraft({...passportDraft,visitType:'travel',sport:'Tour',away:'',home:'',venue:'',city:'',state:'',awayScore:'',homeScore:'',result:''});setPassportAddMode('manual');setPassportGameSearch('')}} className={`min-h-11 rounded-xl text-[10px] font-black ${passportDraft.visitType==='travel'?'bg-[#77511f] text-white':'border border-[#c7aa70] bg-[#fff7e6]'}`}>🌍 Country</button></div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">{passportDraft.visitType==='game'&&<label className="text-[9px] font-black">SPORT<select value={passportDraft.sport} onChange={e=>{setPassportDraft({...passportDraft,sport:e.target.value as 'Football'|'MLB',gameId:undefined});setPassportGameSearch('')}} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option>Football</option><option>MLB</option></select></label>}<label className="text-[9px] font-black">DATE VISITED<input type="date" value={passportDraft.date} onChange={e=>setPassportDraft({...passportDraft,date:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></div>
+                  {passportDraft.visitType==='game'&&passportAddMode==='search'&&<div className="mt-3"><label className="text-[9px] font-black">SEARCH TEAM / GAME<input value={passportGameSearch} onChange={e=>setPassportGameSearch(e.target.value)} placeholder={passportDraft.sport==='MLB'?'Braves, Dodgers...':'Kentucky, Georgia...'} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label>{passportGameSearch.trim()&&<div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-[#c7aa70] bg-white p-2">{passportSearchResults.length?passportSearchResults.map(g=><button key={g.id} type="button" onClick={()=>choosePassportGame(g)} className="block min-h-11 w-full rounded-lg px-3 py-2 text-left hover:bg-[#f7edda]"><div className="text-xs font-black">{g.away} at {g.home}</div><div className="text-[9px] text-slate-500">{formatGameDate(g.startsAt)} · {g.competition}{g.homeScore!=null||g.awayScore!=null?` · ${g.awayScore??'–'}-${g.homeScore??'–'}`:''}</div></button>):<div className="p-3 text-xs font-bold text-slate-500">No matching FamBam game loaded. Use Enter Manually for older games.</div>}</div>}</div>}
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">{(passportDraft.visitType==='travel'?[]:passportDraft.visitType==='tour'?[['venue','Stadium / venue'],['city','City']]:[['away','Away team'],['home','Home team'],['venue','Stadium / venue'],['city','City']]).map(([k,l])=><label key={k} className="text-[9px] font-black uppercase">{l}<input value={(passportDraft as any)[k]} onChange={e=>setPassportDraft({...passportDraft,[k]:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base normal-case sm:text-sm"/></label>)}<label className="text-[9px] font-black">COUNTRY<input list="passport-countries" value={passportDraft.country} onChange={e=>{const country=e.target.value;setPassportDraft({...passportDraft,country,continent:COUNTRY_CONTINENTS[country]??passportDraft.continent,state:country==='United States'?passportDraft.state:''})}} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/><datalist id="passport-countries">{Object.keys(COUNTRY_CONTINENTS).map(country=><option key={country} value={country}/>)}</datalist></label><label className="text-[9px] font-black">CONTINENT<select value={passportDraft.continent} onChange={e=>setPassportDraft({...passportDraft,continent:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="">Choose continent</option>{CONTINENTS.map(continent=><option key={continent} value={continent}>{continent}</option>)}</select></label>{passportDraft.visitType!=='travel'&&passportDraft.country==='United States'&&<label className="text-[9px] font-black">STATE<select value={passportDraft.state} onChange={e=>setPassportDraft({...passportDraft,state:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="">Choose state</option>{US_STATES.map(c=><option key={c} value={c}>{STATE_NAMES[c]}</option>)}</select></label>}{passportDraft.visitType==='game'&&<><label className="text-[9px] font-black">RESULT<select value={passportDraft.result} onChange={e=>setPassportDraft({...passportDraft,result:e.target.value as any})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"><option value="" disabled>Choose result</option><option value="W">Win</option><option value="L">Loss</option><option value="T">Tie</option></select></label><label className="text-[9px] font-black">AWAY SCORE<input inputMode="numeric" value={passportDraft.awayScore} onChange={e=>setPassportDraft({...passportDraft,awayScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label><label className="text-[9px] font-black">HOME SCORE<input inputMode="numeric" value={passportDraft.homeScore} onChange={e=>setPassportDraft({...passportDraft,homeScore:e.target.value})} className="mt-1 min-h-11 w-full rounded-lg border border-[#c7aa70] bg-white p-2.5 text-base sm:text-sm"/></label></>}</div>
                   <div className="mt-4"><div className="text-[9px] font-black uppercase">Who Went?</div><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">{players.map(p=><label key={p.id} className={`flex min-h-11 items-center gap-2 rounded-xl border p-2 text-xs font-black ${passportAttendeeIds.includes(p.id)?'border-[#77511f] bg-[#f0d99f]':'border-[#c7aa70] bg-[#fff7e6]'}`}><input type="checkbox" checked={passportAttendeeIds.includes(p.id)} onChange={()=>setPassportAttendeeIds(ids=>ids.includes(p.id)?ids.filter(id=>id!==p.id):[...ids,p.id])} disabled={p.id===signedInPlayer?.id}/>{p.display_name}</label>)}</div></div>
                   <label className="mt-4 block text-[9px] font-black">MY MEMORY / NOTE<textarea value={passportMyNote} onChange={e=>setPassportMyNote(e.target.value)} placeholder="What do you remember about this one?" className="mt-1 min-h-24 w-full rounded-lg border border-[#c7aa70] bg-white p-3 text-base sm:text-sm"/></label>{passportError&&<div className="mt-3 rounded-lg bg-red-50 p-3 text-xs font-bold text-red-700">{passportError}</div>}<button type="button" disabled={passportSaving} onClick={savePassportEntry} className="mt-5 min-h-12 w-full rounded-xl bg-[#102b49] py-3 text-sm font-black text-white disabled:opacity-50">{passportSaving?'Saving…':'Save Shared Stamp 🛂'}</button></div></div>}
                 {passportMemoryEvent&&<div className="fixed inset-0 z-[145] flex items-center justify-center bg-slate-950/70 p-3"><div className="w-full max-w-md rounded-[1.5rem] bg-[#f6e8c8] p-5 text-[#3d2b17] shadow-2xl"><div className="flex items-start justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-widest text-[#06284a]">{passportEntryTitle(passportMemoryEvent)}</div><div className="text-xl font-black">{passportMemoryEvent.memories.some(m=>m.playerId===signedInPlayer?.id)?'Edit My Memory':'Add My Memory'}</div></div><button type="button" onClick={()=>setPassportMemoryEvent(null)} className="min-h-11 min-w-11 rounded-full bg-[#e4d3ad] font-black">✕</button></div><textarea value={passportMemoryNote} onChange={e=>setPassportMemoryNote(e.target.value)} placeholder="Your own memory from this visit..." className="mt-4 min-h-32 w-full rounded-xl border border-[#c7aa70] bg-white p-3 text-base"/><button type="button" disabled={passportSaving} onClick={savePassportMemory} className="mt-4 min-h-12 w-full rounded-xl bg-[#102b49] text-sm font-black text-white disabled:opacity-50">{passportSaving?'Saving…':'Save My Memory'}</button></div></div>}
@@ -7687,11 +7701,9 @@ export default function Home() {
                           key={milestone.target}
                           className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${milestone.earned ? "border-[#9b6a3b] bg-[#302016]" : "border-[#4f3825] bg-black/20 opacity-60"}`}
                         >
-                          <div className="text-xl">
-                            {milestone.label === "Gold" ? "🥇" : milestone.label === "Silver" ? "🥈" : "🥉"}
-                          </div>
+                          <TierTrophyIcon tier={milestone.label === "Gold" ? "gold" : milestone.label === "Silver" ? "silver" : "bronze"} className="h-7 w-7 shrink-0" />
                           <div className="min-w-0 flex-1">
-                            <div className="text-xs font-black text-[#f4e6d2]">
+                            <div className={`text-xs font-black ${milestone.label === "Gold" ? "text-[#f3c64f]" : milestone.label === "Silver" ? "text-[#d7dde5]" : "text-[#d9955b]"}`}>
                               {milestone.label} · {milestone.description ?? milestone.target}
                             </div>
                             <div className="mt-0.5 text-[10px] font-bold text-[#cbb79b]">
@@ -7702,9 +7714,7 @@ export default function Home() {
                                   : "Not earned yet"}
                             </div>
                           </div>
-                          <div className="text-sm font-black text-[#f3c64f]">
-                            {milestone.earned ? "✓" : "🔒"}
-                          </div>
+                          {!milestone.earned && <div className="text-sm font-black text-[#f3c64f]">🔒</div>}
                         </div>
                       ))}
                     </div>

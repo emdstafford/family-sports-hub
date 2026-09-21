@@ -264,24 +264,25 @@ export async function POST(request: Request) {
       const attendees = Array.from(new Set((body.attendeeIds ?? []).map(String)));
       if (!attendees.includes(playerId)) attendees.push(playerId);
       const isTour = d.visitType === "tour" || d.sport === "Tour";
+      const isTravel = d.visitType === "travel";
       const { country, continent } = locationFromDraft(d);
       const isUnitedStates = country.toLowerCase() === "united states";
-      if (!d.date || !d.venue || !country || !validContinents.has(continent) || (isUnitedStates && !validStates.has(String(d.state))) || (!isTour && (!d.away || !d.home))) {
-        return NextResponse.json({ error: isTour ? "Date, stadium, country and continent are required." : "Date, teams, venue, country and continent are required." }, { status: 400 });
+      if (!d.date || !country || !validContinents.has(continent) || (!isTravel && (!d.venue || (isUnitedStates && !validStates.has(String(d.state))) || (!isTour && (!d.away || !d.home))))) {
+        return NextResponse.json({ error: isTravel ? "Date, country and continent are required." : isTour ? "Date, stadium, country and continent are required." : "Date, teams, venue, country and continent are required." }, { status: 400 });
       }
       const { data: event, error } = await db.from("passport_events").insert({
         game_id: d.gameId || null,
         created_by_player_id: playerId,
-        sport: isTour ? "Football" : d.sport === "MLB" ? "MLB" : "Football",
+        sport: isTravel || isTour ? "Football" : d.sport === "MLB" ? "MLB" : "Football",
         event_date: d.date,
-        away_team: isTour ? "__STADIUM_TOUR__" : d.away,
-        home_team: isTour ? "" : d.home,
-        venue_name: d.venue,
-        city: d.city || null,
-        state_code: isUnitedStates ? d.state : null,
-        away_score: d.awayScore === "" || d.awayScore == null ? null : Number(d.awayScore),
-        home_score: d.homeScore === "" || d.homeScore == null ? null : Number(d.homeScore),
-        result: d.result || null,
+        away_team: isTravel ? "__TRAVEL_COUNTRY__" : isTour ? "__STADIUM_TOUR__" : d.away,
+        home_team: isTravel ? country : isTour ? "" : d.home,
+        venue_name: isTravel ? "Country Visit" : d.venue,
+        city: isTravel ? null : d.city || null,
+        state_code: !isTravel && isUnitedStates ? d.state : null,
+        away_score: isTravel || d.awayScore === "" || d.awayScore == null ? null : Number(d.awayScore),
+        home_score: isTravel || d.homeScore === "" || d.homeScore == null ? null : Number(d.homeScore),
+        result: isTravel ? null : d.result || null,
       }).select("id").single();
       if (error) throw error;
       await writeLocationMeta(db, event.id, country, continent);
@@ -316,25 +317,26 @@ export async function POST(request: Request) {
         attendees.push(existing.created_by_player_id);
       }
 
-      const isTour = d.visitType === "tour" || d.sport === "Tour";
+      const isTravel = d.visitType === "travel";
+      const isTour = !isTravel && (d.visitType === "tour" || d.sport === "Tour");
       const { country, continent } = locationFromDraft(d);
       const isUnitedStates = country.toLowerCase() === "united states";
-      if (!d.date || !d.venue || !country || !validContinents.has(continent) || (isUnitedStates && !validStates.has(String(d.state))) || (!isTour && (!d.away || !d.home))) {
-        return NextResponse.json({ error: isTour ? "Date, stadium, country and continent are required." : "Date, teams, venue, country and continent are required." }, { status: 400 });
+      if (!d.date || !country || !validContinents.has(continent) || (!isTravel && (!d.venue || (isUnitedStates && !validStates.has(String(d.state))) || (!isTour && (!d.away || !d.home))))) {
+        return NextResponse.json({ error: isTravel ? "Date, country and continent are required." : isTour ? "Date, stadium, country and continent are required." : "Date, teams, venue, country and continent are required." }, { status: 400 });
       }
 
       const { error: updateError } = await db.from("passport_events").update({
-        game_id: isTour ? null : d.gameId || null,
-        sport: isTour ? "Football" : d.sport === "MLB" ? "MLB" : "Football",
+        game_id: isTravel || isTour ? null : d.gameId || null,
+        sport: isTravel || isTour ? "Football" : d.sport === "MLB" ? "MLB" : "Football",
         event_date: d.date,
-        away_team: isTour ? "__STADIUM_TOUR__" : d.away,
-        home_team: isTour ? "" : d.home,
-        venue_name: d.venue,
-        city: d.city || null,
-        state_code: isUnitedStates ? d.state : null,
-        away_score: isTour || d.awayScore === "" || d.awayScore == null ? null : Number(d.awayScore),
-        home_score: isTour || d.homeScore === "" || d.homeScore == null ? null : Number(d.homeScore),
-        result: isTour ? null : d.result || null,
+        away_team: isTravel ? "__TRAVEL_COUNTRY__" : isTour ? "__STADIUM_TOUR__" : d.away,
+        home_team: isTravel ? country : isTour ? "" : d.home,
+        venue_name: isTravel ? "Country Visit" : d.venue,
+        city: isTravel ? null : d.city || null,
+        state_code: !isTravel && isUnitedStates ? d.state : null,
+        away_score: isTravel || isTour || d.awayScore === "" || d.awayScore == null ? null : Number(d.awayScore),
+        home_score: isTravel || isTour || d.homeScore === "" || d.homeScore == null ? null : Number(d.homeScore),
+        result: isTravel || isTour ? null : d.result || null,
       }).eq("id", eventId);
       if (updateError) throw updateError;
       await writeLocationMeta(db, eventId, country, continent);

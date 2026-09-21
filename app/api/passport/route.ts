@@ -216,12 +216,16 @@ export async function GET(request: Request) {
         .filter((event) => event.state_code && !String(event.away_team ?? "").startsWith("__FAMILY_EVENT__"))
         .map((event) => [event.id, event.state_code]),
     );
+    const sportsStatesByPlayer = new Map<string, Set<string>>();
     for (const attendee of allEventAttendees ?? []) {
       const stateCode = sportsStateByEvent.get(attendee.event_id);
       if (!stateCode) continue;
       const statesForPlayer = statesByPlayer.get(attendee.player_id) ?? new Set<string>();
       statesForPlayer.add(stateCode);
       statesByPlayer.set(attendee.player_id, statesForPlayer);
+      const sportsStatesForPlayer = sportsStatesByPlayer.get(attendee.player_id) ?? new Set<string>();
+      sportsStatesForPlayer.add(stateCode);
+      sportsStatesByPlayer.set(attendee.player_id, sportsStatesForPlayer);
     }
 
     const familyStateCounts = (familyPlayers ?? []).map((player) => ({
@@ -229,6 +233,8 @@ export async function GET(request: Request) {
       displayName: player.display_name,
       initials: player.initials ?? "",
       count: statesByPlayer.get(player.id)?.size ?? 0,
+      states: [...(statesByPlayer.get(player.id) ?? [])].sort(),
+      sportsStates: [...(sportsStatesByPlayer.get(player.id) ?? [])].sort(),
     }));
 
     const locationMeta = await readLocationMeta(db, eventIds);

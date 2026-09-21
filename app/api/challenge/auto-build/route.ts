@@ -529,7 +529,10 @@ export async function POST(request: Request) {
           normalize(away),
         ) ?? null;
 
-      let score = 0;
+      // Every eligible soccer or college-football game can fill the weekly
+      // card. Favorite, ranked and rivalry games still rise to the top, but
+      // ordinary matchups keep the family Challenge at ten picks.
+      let score = sport === "College Football" ? 20 : 10;
       let mandatory = false;
       let reason = "";
 
@@ -652,21 +655,19 @@ export async function POST(request: Request) {
         }
       }
 
-      if (score > 0) {
-        candidates.push({
-          game,
-          home,
-          away,
-          sport,
-          homeRank,
-          awayRank,
-          score,
-          mandatory,
-          reason:
-            reason ||
-            "Featured matchup",
-        });
-      }
+      candidates.push({
+        game,
+        home,
+        away,
+        sport,
+        homeRank,
+        awayRank,
+        score,
+        mandatory,
+        reason:
+          reason ||
+          "Weekly featured matchup",
+      });
     }
 
     candidates.sort((a, b) => {

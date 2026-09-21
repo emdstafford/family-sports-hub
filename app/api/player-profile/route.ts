@@ -199,13 +199,20 @@ async function getRecordBookLeaderboard(supabase: ReturnType<typeof getAdminClie
     ...eligibleChallengeGames.map((row) => row.game_id),
     ...supplementalHockeyPicks.map((pick) => pick.gameId),
   ])];
-  const { data: games, error: gamesError } = gameIds.length
-    ? await supabase.from("games").select("id, sport, starts_at, status, home_score, away_score").in("id", gameIds)
+  const { data: rawGames, error: gamesError } = gameIds.length
+    ? await supabase.from("games").select("id, starts_at, status, home_score, away_score, sport:sports!games_sport_id_fkey(name)").in("id", gameIds)
     : { data: [], error: null };
   if (gamesError) {
     console.error("Record Book games failed:", gamesError.message);
     return { leaderboard: [], achievements: {} };
   }
+
+  const games = ((rawGames ?? []) as any[]).map((game) => ({
+    ...game,
+    sport: Array.isArray(game.sport)
+      ? game.sport[0]?.name ?? "Other"
+      : game.sport?.name ?? "Other",
+  }));
 
   const isFinalGame = (game: { status: string | null; home_score: number | null; away_score: number | null }) => {
     const status = String(game.status ?? "").toLowerCase();

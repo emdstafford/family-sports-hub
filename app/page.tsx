@@ -2166,7 +2166,7 @@ export default function Home() {
     }
 
     const refreshPicks = () => {
-      ["fa-cup", "carabao-cup", "champions-league", "europa-league", "conference-league", "efl-trophy", "stanley-cup", "mlb-playoffs-world-series"].forEach(
+      ["fa-cup", "carabao-cup", "champions-league", "womens-champions-league", "subway-players-cup", "europa-league", "conference-league", "efl-trophy", "stanley-cup", "mlb-playoffs-world-series"].forEach(
         (eventId) => void loadEventPicks(eventId),
       );
 
@@ -8401,7 +8401,7 @@ export default function Home() {
                     </button>
                   ))}
                 </div>
-                {eventSportFilter === "Soccer" && <div className="mt-2 text-[11px] font-semibold text-slate-500">UEFA has separate Champions, Europa and Conference League events.</div>}
+                {eventSportFilter === "Soccer" && <div className="mt-2 text-[11px] font-semibold text-slate-500">Men’s and women’s competitions stay separate. Women’s Champions League and Subway Players Cup have their own picks and history.</div>}
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -8527,12 +8527,7 @@ export default function Home() {
                     .map((event) => {
                     const eventGames = realGames
                       .filter((game) => {
-                        const competition = game.competition.toLowerCase();
-                        const matchesEvent =
-                          event.id === "stanley-cup"
-                            ? competition.includes("nhl") &&
-                              (game.sourceNotes ?? "").toLowerCase().includes("stanley cup")
-                            : event.matches.some((name) => competition.includes(name));
+                        const matchesEvent = matchesEventGame(event.id, game);
                         const upcoming = !game.startsAt ||
                           new Date(game.startsAt).getTime() > (currentTime ?? Date.now());
                         return matchesEvent && upcoming;

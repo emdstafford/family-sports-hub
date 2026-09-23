@@ -6874,10 +6874,6 @@ export default function Home() {
                               {team.name}
                               </span>
                             </div>
-                            <div className="relative mt-1 h-5 shrink-0 text-center text-xs font-semibold text-[#d7c2a7]">
-                              {team.sport}
-                            </div>
-
                             {(() => {
                               const venue = lockerVenue(team);
                               const colors = lockerTeamColors(team);

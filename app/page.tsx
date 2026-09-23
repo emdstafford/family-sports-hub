@@ -2049,13 +2049,19 @@ export default function Home() {
     };
 
     refreshPicks();
-    if (activeSection !== "Home") return;
-
-    const interval = window.setInterval(refreshPicks, 15 * 60_000);
-    window.addEventListener("focus", refreshPicks);
+    if (activeSection === "Trophy Room") return;
+    const refreshVisiblePicks = () => {
+      if (activeSection === "Events" && challenge?.id) {
+        void loadEventPicks(`mamas-hockey-${challenge.id}`);
+      } else {
+        refreshPicks();
+      }
+    };
+    const interval = window.setInterval(refreshVisiblePicks, activeSection === "Events" ? 5 * 60_000 : 15 * 60_000);
+    window.addEventListener("focus", refreshVisiblePicks);
     return () => {
       window.clearInterval(interval);
-      window.removeEventListener("focus", refreshPicks);
+      window.removeEventListener("focus", refreshVisiblePicks);
     };
   }, [activeSection, signedInPlayer?.id, challenge?.id]);
 
@@ -3993,6 +3999,8 @@ export default function Home() {
         new Date(a.startsAt ?? 0).getTime() -
         new Date(b.startsAt ?? 0).getTime(),
     );
+  const visibleHockeyGames = mamasHockeyGames.filter((game) =>
+    !gameIsLocked(game, currentTime) || Boolean(mamasHockeyEventId && eventPicks[mamasHockeyEventId]?.[game.id]));
 
   const eventSportGroup = (sport: string) =>
     sport === "International Soccer" ? "Soccer" :
@@ -8320,12 +8328,13 @@ export default function Home() {
                       className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-slate-500 disabled:opacity-50">Hide</button>
                   </div>
                   <div className="mt-3">
-                    {mamasHockeyGames.length > 0 ? (
+                    {visibleHockeyGames.length > 0 ? (
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {mamasHockeyGames.map((game) => {
+                        {visibleHockeyGames.map((game) => {
                           const selected = eventPicks[mamasHockeyEventId]?.[game.id];
                           const saving = eventPickSavingKey === `${mamasHockeyEventId}:${game.id}`;
                           const locked = gameIsLocked(game, currentTime);
+                          const outcome = eventPickOutcomes[mamasHockeyEventId]?.find((item) => item.gameId === game.id);
 
                           return (
                             <div key={game.id} className="rounded-xl border border-slate-200 bg-white p-3">
@@ -8341,7 +8350,13 @@ export default function Home() {
                                   {formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}
                                 </div>
                               </button>
-                              <div className="mt-2 grid grid-cols-2 gap-1.5">
+                              {locked ? (
+                                <div className={`mt-2 rounded-lg px-3 py-2.5 text-xs font-black ${outcome?.result === "correct" ? "bg-emerald-100 text-emerald-800" : outcome?.result === "incorrect" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600"}`}>
+                                  {outcome ? `${outcome.awayScore}–${outcome.homeScore} · ` : ""}
+                                  {outcome?.result === "correct" ? "✓ Correct pick" : outcome?.result === "incorrect" ? "✕ Missed pick" : outcome?.result === "draw" ? "Draw · not graded" : "Game started · checking the result"}
+                                  {selected && <span className="block mt-1 text-[11px] font-semibold">You picked {selected === "away" ? game.away : game.home}</span>}
+                                </div>
+                              ) : <div className="mt-2 grid grid-cols-2 gap-1.5">
                                 {([[
                                   "away",
                                   game.away,
@@ -8366,14 +8381,14 @@ export default function Home() {
                                     {selected === choice ? "✓ " : ""}{team}
                                   </button>
                                 ))}
-                              </div>
+                              </div>}
                             </div>
                           );
                         })}
                       </div>
                     ) : (
                       <div className="rounded-xl border border-dashed border-slate-300 bg-[#f7f4ec] px-4 py-4 text-center text-xs font-semibold text-slate-500">
-                        No hockey games fall in this challenge week yet. Your five picks will appear here automatically when the schedule is available.
+                        {mamasHockeyGames.length > 0 ? "No remaining hockey picks this week. Your completed picks are in the event guide." : "No hockey games fall in this challenge week yet. Your five picks will appear here automatically when the schedule is available."}
                       </div>
                     )}
 

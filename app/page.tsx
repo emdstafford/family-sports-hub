@@ -385,7 +385,7 @@ function LockerTeamStanding({ team }: { team: LockerTeam }) {
     return () => { mounted = false; };
   }, [competition]);
 
-  if (!competition || !data) return <div className="h-5" />;
+  if (!competition || !data) return <div className="h-6" />;
   const name = team.name.toLowerCase();
   const row = data.groups.flatMap((group) => group.rows).find((item) => {
     const label = item.team.toLowerCase();
@@ -401,9 +401,9 @@ function LockerTeamStanding({ team }: { team: LockerTeam }) {
     if (name.includes("cubs")) return label.includes("cubs");
     return false;
   });
-  if (!row) return <div className="min-h-5 text-center text-[9px] font-semibold leading-tight text-[#cdb89e]">{data.kind === "rankings" ? "Not in current Top 25" : ""}</div>;
+  if (!row) return <div className="min-h-6 text-center text-[10px] font-semibold leading-tight text-[#cdb89e]">{data.kind === "rankings" ? "Not in current Top 25" : ""}</div>;
   const score = data.kind === "rankings" ? row.record : data.kind === "soccer" ? `${row.wins}W · ${row.draws}D · ${row.losses}L · ${row.points} pts` : data.kind === "nhl" ? `${row.wins}W · ${row.losses}L · ${row.overtimeLosses}OT` : `${row.wins}W · ${row.losses}L`;
-  return <div className="min-h-5 text-center text-[10px] font-bold leading-tight text-[#f3c64f]">#{row.position} {data.kind === "rankings" ? "nationally" : data.kind === "nhl" || data.kind === "mlb" ? "division" : "table"}<span className="block text-[#f8efe0]">{score}</span></div>;
+  return <div className="min-h-6 text-center text-[11px] font-bold leading-tight text-[#f3c64f]">#{row.position} {data.kind === "rankings" ? "nationally" : data.kind === "nhl" || data.kind === "mlb" ? "division" : "table"}<span className="block text-[#f8efe0]">{score}</span></div>;
 }
 
 const lockerVenuePhotos: Record<string, string> = {
@@ -6914,7 +6914,7 @@ export default function Home() {
                               })()}
                             </div>
 
-                            <div className="relative mx-2 mt-1 min-h-5 shrink-0">
+                            <div className="relative mx-2 mt-2 min-h-6 shrink-0">
                               <LockerTeamStanding team={team} />
                             </div>
                             {(() => {
@@ -6928,7 +6928,7 @@ export default function Home() {
                                     ? "linear-gradient(180deg,#14243b 0%,#34455a 44%,#396d42 45%,#267141 100%)"
                                     : "linear-gradient(180deg,#14263c 0%,#34485a 44%,#29824c 45%,#195a37 100%)";
                               return (
-                                <div className="relative mx-3 mt-0 shrink-0">
+                                <div className="relative mx-3 mt-2 shrink-0">
                                   <div className="mb-1 text-center leading-[1.05]">
                                     <div className="text-xs font-black text-[#f3c64f]">{venue.name}</div>
                                     <div className="text-[9px] font-bold uppercase tracking-wider text-[#cdb89e]">Home Venue</div>

@@ -8172,22 +8172,15 @@ export default function Home() {
       )}
 
       {activeSection === "Events" && signedInPlayer && (
-        <section className="min-h-[calc(100vh-64px)] bg-[#eef1f4] pb-28">
+        <section className="bg-[#eef1f4] pb-[calc(env(safe-area-inset-bottom,0px)+5rem)]">
           <div className="mx-auto max-w-3xl">
-            <div className="bg-[#06284a] px-4 pb-5 pt-5 text-white">
-              <button
-                type="button"
-                onClick={() => setActiveSection("Challenge")}
-                className="mb-3 text-xs font-black uppercase tracking-wide text-[#f3c64f]"
-              >
-                ← Back to Weekly Challenge
-              </button>
+            <div className="bg-[#06284a] px-4 pb-4 pt-4 text-white">
               <div className="text-xs font-black uppercase tracking-[0.22em] text-[#f3c64f]">
                 FamBam Special Events
               </div>
               <h2 className="mt-1 text-3xl font-black">🏆 Events Hub</h2>
               <p className="mt-2 max-w-xl text-sm font-semibold leading-relaxed text-blue-100">
-                Extra challenges run alongside the regular 10-game week. Each event keeps its own picks, standings, champion and trophies.
+                Pick the events you love. They’re separate from the weekly family challenge.
               </p>
             </div>
 
@@ -8733,19 +8726,6 @@ export default function Home() {
                 {showAllUpcomingEvents && <button type="button" onClick={() => setShowAllUpcomingEvents(false)} className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-[#10254a]">Show fewer ↑</button>}
               </div>
 
-              <div className="rounded-2xl bg-[#10254a] p-4 text-white">
-                <div className="text-xs font-black uppercase tracking-wide text-[#f3c64f]">
-                  Learn While We Play
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-semibold text-blue-100">
-                  <div>✓ Standings and points</div>
-                  <div>✓ Aggregate scores</div>
-                  <div>✓ Extra time and penalties</div>
-                  <div>✓ Who advances</div>
-                  <div>✓ Who to root for</div>
-                  <div>✓ Why each result matters</div>
-                </div>
-              </div>
             </div>
           </div>
         </section>

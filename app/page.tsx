@@ -9078,7 +9078,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {challengeGames.map(
                       (game) => {
                         const locked =

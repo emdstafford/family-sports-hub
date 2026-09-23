@@ -1325,6 +1325,14 @@ export default function Home() {
   const [activeSection, setActiveSection] =
     useState<"Home" | "Challenge" | "Events" | "Games" | "Locker Room" | "Trophy Room">("Home");
 
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "auto",
+    });
+  }, [activeSection]);
+
   const [selectedEventGuide, setSelectedEventGuide] =
     useState<null | {
       icon: string;

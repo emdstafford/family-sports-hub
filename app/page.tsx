@@ -44,6 +44,7 @@ const RADAR_SPORTS: Sport[] = [
 ];
 
 const EVENT_GAME_MATCHES: Record<string, string[]> = {
+  "mlb-playoffs-world-series": ["mlb postseason"],
   "efl-trophy": ["efl trophy", "english football league trophy", "football league trophy", "vertu trophy", "papa john", "bristol street motors trophy"],
   "carabao-cup": ["carabao cup", "efl cup", "league cup"],
   "champions-league": ["champions league"],
@@ -1377,6 +1378,8 @@ export default function Home() {
     useState<Record<string, Record<string, PickChoice>>>({});
   const [eventPicksLoaded, setEventPicksLoaded] =
     useState<Record<string, string>>({});
+  const [eventPicksLoadFailed, setEventPicksLoadFailed] =
+    useState<Record<string, string>>({});
   const [eventPickOutcomes, setEventPickOutcomes] =
     useState<Record<string, Array<{
       gameId: string;
@@ -1800,6 +1803,11 @@ export default function Home() {
         [eventId]: data.outcomes ?? [],
       }));
       setEventPicksLoaded((current) => ({ ...current, [eventId]: signedInPlayer.id }));
+      setEventPicksLoadFailed((current) => {
+        const next = { ...current };
+        delete next[eventId];
+        return next;
+      });
       setEventProgress((current) => ({
         ...current,
         [eventId]: {
@@ -1813,6 +1821,7 @@ export default function Home() {
       }));
     } catch (error) {
       console.error("Event picks load failed:", error);
+      setEventPicksLoadFailed((current) => ({ ...current, [eventId]: signedInPlayer.id }));
     }
   }
 
@@ -1935,7 +1944,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (activeSection !== "Events") return;
+    if (activeSection !== "Events" && activeSection !== "Home") return;
 
     let cancelled = false;
 
@@ -2006,8 +2015,13 @@ export default function Home() {
 
     void refreshEventGames();
 
+    const interval = window.setInterval(refreshEventGames, 15 * 60_000);
+    window.addEventListener("focus", refreshEventGames);
+
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshEventGames);
     };
   }, [activeSection]);
 
@@ -2019,15 +2033,25 @@ export default function Home() {
       return;
     }
 
-    ["fa-cup", "carabao-cup", "champions-league", "efl-trophy", "stanley-cup"].forEach(
-      (eventId) => void loadEventPicks(eventId),
-    );
+    const refreshPicks = () => {
+      ["fa-cup", "carabao-cup", "champions-league", "efl-trophy", "stanley-cup", "mlb-playoffs-world-series"].forEach(
+        (eventId) => void loadEventPicks(eventId),
+      );
 
-    const signedInPlayerIsMama = isMamaPlayer(signedInPlayer);
+      if (isMamaPlayer(signedInPlayer) && challenge?.id) {
+        void loadEventPicks(`mamas-hockey-${challenge.id}`);
+      }
+    };
 
-    if (signedInPlayerIsMama && challenge?.id) {
-      void loadEventPicks(`mamas-hockey-${challenge.id}`);
-    }
+    refreshPicks();
+    if (activeSection !== "Home") return;
+
+    const interval = window.setInterval(refreshPicks, 15 * 60_000);
+    window.addEventListener("focus", refreshPicks);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshPicks);
+    };
   }, [activeSection, signedInPlayer?.id, challenge?.id]);
 
   async function openGameRoom(game: BrowserGame) {
@@ -3985,6 +4009,14 @@ export default function Home() {
     }] : []),
   ].filter((group) => group.missing > 0);
   const eventPicksRemaining = eventReminderGroups.reduce((total, group) => total + group.missing, 0);
+  const visiblePickEventIds = [
+    ...Object.keys(EVENT_GAME_MATCHES).filter((eventId) => !hiddenEventIds.includes(eventId)),
+    ...(mamasHockeyEventId && !hiddenEventIds.includes(mamasHockeyEventId) ? [mamasHockeyEventId] : []),
+  ];
+  const eventPicksChecking = profileLoading || visiblePickEventIds.some((eventId) =>
+    eventPicksLoaded[eventId] !== signedInPlayer?.id && eventPicksLoadFailed[eventId] !== signedInPlayer?.id);
+  const eventPicksCheckFailed = visiblePickEventIds.some((eventId) =>
+    eventPicksLoadFailed[eventId] === signedInPlayer?.id);
 
   const gradedEventPicks = Object.entries(eventPickOutcomes)
     .filter(([eventId]) => eventPicksLoaded[eventId] === signedInPlayer?.id && !hiddenEventIds.includes(eventId))
@@ -4003,6 +4035,7 @@ export default function Home() {
   ]);
 
   const watchGames = thisWeekGames.filter((game) => {
+    if (game.competition === "MLB Postseason") return true;
     if (personalTeamSports.has(game.sport)) {
       return favoriteProfileTeams.some(
         (team) =>
@@ -5358,8 +5391,10 @@ export default function Home() {
                     </div>
                     <div className="mt-0.5 text-sm font-black text-[#10254a]">
                       {currentPlayerReady
-                        ? "Your picks are in!"
-                        : "This week’s picks are open!"}
+                        ? `${challengeGamesWithSavedPick}/${challengeGames.length} — You’re all set!`
+                        : challengeGames.length > 0
+                          ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved`
+                          : "This week’s picks are coming soon."}
                     </div>
                     <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
                       Every game locks at kickoff.
@@ -5402,16 +5437,20 @@ export default function Home() {
                   )}
                 </button>
               </div>
-              {eventPicksRemaining > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setActiveSection("Events")}
-                  className="flex w-full items-center justify-between gap-2 border-t border-[#e6dfd0] px-3 py-2.5 text-left text-[11px] font-black text-[#10254a]"
-                >
-                  <span>🏟️ {eventPicksRemaining} event {eventPicksRemaining === 1 ? "pick" : "picks"} waiting</span>
-                  <span className="shrink-0 text-[#164d9b]">Make picks →</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setActiveSection("Events")}
+                className="flex w-full items-center justify-between gap-2 border-t border-[#e6dfd0] px-3 py-2.5 text-left text-[11px] font-black text-[#10254a]"
+              >
+                <span>🏟️ Event picks: {eventPicksChecking
+                  ? "checking…"
+                  : eventPicksCheckFailed
+                    ? "couldn’t check all events"
+                    : eventPicksRemaining > 0
+                      ? `${eventPicksRemaining} to make`
+                      : "0 to make · all caught up!"}</span>
+                <span className="shrink-0 text-[#164d9b]">Events →</span>
+              </button>
             </section>
           </>
         )}
@@ -8294,7 +8333,7 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-4 p-3">
-                  {[{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}]
+                  {[{"id":"mlb-playoffs-world-series","icon":"⚾","name":"MLB Playoffs & World Series","sport":"Baseball","season":"September–October","format":"Wild Card → Division → League Championship → World Series","description":"One event for the whole postseason, with new game picks as matchups are set.","dates":["Wild Card: September 29–October 1","Division Series: begins October 3","League Championship Series: begins October 11","World Series: begins October 23"],"learning":"Pick individual game winners as each round arrives. Your picks lock at first pitch; teams advance by winning their series.","matches":["mlb postseason"]},{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}]
                     .filter((event) => !hiddenEventIds.includes(event.id))
                     .map((event) => {
                     const eventGames = realGames
@@ -8335,8 +8374,8 @@ export default function Home() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[8px] font-black text-emerald-700">
-                              ACTIVE
+                            <span className={`rounded-full px-2 py-1 text-[8px] font-black ${eventGames.length > 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+                              {eventGames.length > 0 ? "PICKS OPEN" : "AWAITING GAMES"}
                             </span>
                             <span className="text-xs font-black text-[#b28a2e]">ⓘ</span>
                           </div>
@@ -8358,6 +8397,11 @@ export default function Home() {
                               const saving = eventPickSavingKey === `${event.id}:${game.id}`;
                               return (
                                 <div key={game.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                                  {event.id === "mlb-playoffs-world-series" && (
+                                    <div className="mb-1 text-[8px] font-black uppercase tracking-wide text-[#765800]">
+                                      {game.sourceNotes?.split(" · ")[1] ?? "MLB Postseason"}
+                                    </div>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => void openGameRoom(game)}
@@ -8397,7 +8441,9 @@ export default function Home() {
                           </div>
                         ) : (
                           <div className="mt-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-[9px] font-semibold text-slate-500">
-                            The next fixtures are refreshing now. Once published, they will appear here automatically for picks.
+                            {event.id === "mlb-playoffs-world-series"
+                              ? "The postseason starts September 29. Picks appear as MLB confirms matchups and first-pitch times."
+                              : "The next fixtures are refreshing now. Once published, they will appear here automatically for picks."}
                           </div>
                         )}
 
@@ -8429,7 +8475,6 @@ export default function Home() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    {"icon": "⚾", "name": "MLB Playoffs & World Series", "sport": "Baseball", "season": "September–November", "format": "Playoff Series", "description": "Follow the road from the Wild Card round to the World Series.", "dates": ["Wild Card round", "Division and Championship Series", "World Series · matchups announced as teams advance"], "learning": "Learn playoff seeding, series wins and how clubs advance. Picks will open when matchups are connected."},
                     {"icon": "🏈", "name": "NFL Playoffs & Super Bowl", "sport": "Football", "season": "January–February", "format": "Single-Elimination Playoffs", "description": "Pick your way through the NFL postseason.", "dates": ["Wild Card and Divisional rounds", "Conference championships", "Super Bowl"], "learning": "Learn playoff seeds, home-field advantage and how the conference champions reach the Super Bowl. Picks are coming later."},
                     {"icon": "🏀", "name": "SEC Basketball Tournaments", "sport": "Basketball", "season": "March", "format": "Conference Tournaments", "description": "Follow the men’s and women’s SEC tournaments, including Kentucky.", "dates": ["Women’s tournament: usually early March", "Men’s tournament: usually mid-March", "Brackets confirmed near the end of the regular season"], "learning": "Learn conference seeding, byes and automatic NCAA tournament bids. Men’s and women’s picks will be separate when activated."},
                     {"icon": "⚾", "name": "College World Series", "sport": "Baseball", "season": "May–June", "format": "NCAA Tournament", "description": "Follow college baseball from regionals to Omaha.", "dates": ["Regionals: usually late May–early June", "Super regionals: June", "College World Series: June"], "learning": "Learn double elimination, super-regional series and the championship series. Picks will open when the bracket is available."},

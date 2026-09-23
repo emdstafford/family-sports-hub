@@ -56,12 +56,24 @@ const EVENT_GAME_MATCHES: Record<string, string[]> = {
 };
 
 function matchesEventGame(eventId: string, game: BrowserGame) {
-  if (eventId === "stanley-cup") {
-    return game.competition.toLowerCase().includes("nhl") &&
-      (game.sourceNotes ?? "").toLowerCase().includes("stanley cup");
-  }
-  return (EVENT_GAME_MATCHES[eventId] ?? []).some((name) =>
-    game.competition.toLowerCase().includes(name));
+  const competition = game.competition.toLowerCase();
+  const notes = (game.sourceNotes ?? "").toLowerCase();
+  if (eventId === "stanley-cup") return competition.includes("nhl") && notes.includes("stanley cup");
+  if (eventId === "nfl-playoffs-super-bowl") return competition.includes("nfl") && /(playoff|wild card|divisional|conference championship|super bowl)/.test(competition + " " + notes);
+  if (eventId === "sec-basketball-tournaments") return competition.includes("sec") && competition.includes("basketball");
+  if (eventId === "college-world-series") return /(college world series|ncaa baseball)/.test(competition);
+  if (eventId === "pro-volleyball-playoffs") return competition.includes("volleyball") && /(playoff|championship)/.test(competition + " " + notes);
+  if (eventId === "acha-college-hockey-postseason") return /(acha|acchl)/.test(competition) && /(postseason|tournament|playoff|championship)/.test(competition + " " + notes);
+  if (eventId === "sphl-presidents-cup") return competition.includes("sphl") && /(playoff|president)/.test(competition + " " + notes);
+  if (eventId === "bowl-pickem") return game.sport === "College Football" && /(bowl)/.test(competition + " " + notes);
+  if (eventId === "college-football-playoff") return game.sport === "College Football" && /(college football playoff|cfp|national championship)/.test(competition + " " + notes);
+  if (eventId === "mens-march-madness") return game.sport === "College Basketball" && /(ncaa|march madness)/.test(competition) && !/(women|womens|women’s)/.test(competition);
+  if (eventId === "womens-march-madness") return game.sport === "College Basketball" && /(ncaa|march madness)/.test(competition) && /(women|womens|women’s)/.test(competition);
+  if (eventId === "sec-volleyball-tournament") return game.sport === "Volleyball" && competition.includes("sec") && /(tournament|championship)/.test(competition + " " + notes);
+  if (eventId === "ncaa-volleyball-tournament") return game.sport === "Volleyball" && /(ncaa|national championship)/.test(competition);
+  if (eventId === "world-cups-euros") return game.sport === "Soccer" && /(world cup|euro)/.test(competition);
+  if (eventId === "olympics") return /(olympic)/.test(competition + " " + notes);
+  return (EVENT_GAME_MATCHES[eventId] ?? []).some((name) => competition.includes(name));
 }
 
 type ProfileSport = {

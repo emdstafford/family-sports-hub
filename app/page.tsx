@@ -8898,80 +8898,48 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* WHO'S READY */}
-              <div className="border-b border-[#e5dcc5] bg-white px-4 py-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm">👥</span>
-                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#06284a]">
-                      Who&apos;s Ready?
+              {/* COMPACT WEEKLY SCOREBOARD + READINESS */}
+              {weeklyLeaderboard.length > 0 && (
+                <div className="border-b border-[#e5dcc5] bg-white px-3 py-2.5">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b28a2e]">
+                      This Week 🏆
+                    </div>
+                    <div className="text-[9px] font-bold text-slate-400">
+                      Score · picks ready
                     </div>
                   </div>
-
-                  <div className="text-[9px] font-bold text-slate-400">
-                    {challengeGames.length} picks this week
+                  <div className="space-y-1">
+                    {[...weeklyLeaderboard]
+                      .sort((a, b) => b.points - a.points || b.correct - a.correct || b.accuracy - a.accuracy)
+                      .map((row, index) => {
+                        const isYou = row.player_id === signedInPlayer.id;
+                        const pickCount = challengePickStatus[row.player_id] ?? 0;
+                        const ready = challengeGames.length > 0 && pickCount >= challengeGames.length;
+                        return (
+                          <div key={row.player_id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${isYou ? "bg-[#edf5ff] ring-1 ring-[#bdd7f4]" : "bg-[#f8f6ef]"}`}>
+                            <div className="w-5 text-center text-xs font-black text-[#b28a2e]">
+                              {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-[11px] font-black text-[#06284a]">{row.display_name}</div>
+                              <div className="text-[8px] font-semibold text-slate-500">
+                                {row.correct} correct · {row.completed_picks}/{row.total_picks} scored
+                              </div>
+                            </div>
+                            <div className={`shrink-0 rounded-full px-2 py-1 text-[8px] font-black ${ready ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"}`}>
+                              {ready ? "READY" : `${Math.max(0, challengeGames.length - pickCount)} LEFT`}
+                            </div>
+                            <div className="w-7 shrink-0 text-right">
+                              <div className="text-sm font-black leading-none text-[#06284a]">{row.points}</div>
+                              <div className="text-[7px] font-black uppercase text-slate-400">pts</div>
+                            </div>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
-
-                <div className="grid grid-cols-5 gap-2">
-                  {players.map((player) => {
-                    const count =
-                      challengePickStatus[player.id] ?? 0;
-
-                    const ready =
-                      challengeGames.length > 0 &&
-                      count >= challengeGames.length;
-
-                    const isYou =
-                      player.id === signedInPlayer.id;
-
-                    return (
-                      <div
-                        key={player.id}
-                        className="min-w-0 text-center"
-                      >
-                        <div
-                          className={`relative mx-auto flex h-10 w-10 items-center justify-center overflow-visible rounded-full text-[9px] font-black ${
-                            isYou
-                              ? "bg-[#06284a] text-white"
-                              : "bg-[#f7f4ec] text-[#10254a] ring-1 ring-[#e5dcc5]"
-                          }`}
-                        >
-                          {player.avatar_url ? (
-                            <img
-                              src={player.avatar_url}
-                              alt={`${player.display_name} profile`}
-                              className="h-full w-full rounded-full object-cover"
-                            />
-                          ) : (
-                            player.initials ?? "?"
-                          )}
-
-                        </div>
-
-                        <div className="mt-1 truncate text-[8px] font-black text-[#10254a]">
-                          {player.display_name}
-                        </div>
-
-                        <div
-                          className={`mt-0.5 text-[7px] font-black ${
-                            ready
-                              ? "text-green-600"
-                              : "text-slate-400"
-                          }`}
-                        >
-                          {ready
-                            ? "Ready!"
-                            : `${Math.max(
-                                0,
-                                challengeGames.length - count,
-                              )} left`}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
 
               {!picksUnlocked ? (
                 <div className="p-6">
@@ -9012,89 +8980,6 @@ export default function Home() {
                   )}
                 </div>              ) : (
                 <div className="p-5">
-                  {weeklyLeaderboard.length > 0 && (
-                    <div className="mb-4 rounded-2xl border border-[#e5dcc5] bg-white p-3 shadow-sm">
-                      <div className="mb-2 flex items-center justify-between">
-                        <div>
-                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b28a2e]">
-                            Challenge Scoreboard
-                          </div>
-                          <div className="text-sm font-black text-[#06284a]">
-                            This Week 🏆
-                          </div>
-                        </div>
-
-                        <div className="text-[9px] font-black uppercase text-slate-400">
-                          Points
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {[...weeklyLeaderboard]
-                          .sort((a, b) => {
-                            if (b.points !== a.points) {
-                              return b.points - a.points;
-                            }
-
-                            if (b.correct !== a.correct) {
-                              return b.correct - a.correct;
-                            }
-
-                            return b.accuracy - a.accuracy;
-                          })
-                          .map((row, index) => {
-                            const isYou =
-                              row.player_id === signedInPlayer.id;
-
-                            return (
-                              <div
-                                key={row.player_id}
-                                className={`flex items-center gap-2 rounded-xl px-2.5 py-2 ${
-                                  isYou
-                                    ? "bg-[#edf5ff] ring-1 ring-[#bdd7f4]"
-                                    : "bg-[#f8f6ef]"
-                                }`}
-                              >
-                                <div className="w-6 text-center text-sm font-black text-[#b28a2e]">
-                                  {index === 0
-                                    ? "🥇"
-                                    : index === 1
-                                      ? "🥈"
-                                      : index === 2
-                                        ? "🥉"
-                                        : `${index + 1}.`}
-                                </div>
-
-                                <div className="min-w-0 flex-1">
-                                  <div className="truncate text-xs font-black text-[#06284a]">
-                                    {row.display_name}
-                                  </div>
-
-                                  <div className="text-[9px] font-semibold text-slate-500">
-                                    {row.correct} correct
-                                    {" · "}
-                                    {row.completed_picks}/{row.total_picks} scored
-                                    {row.completed_picks > 0
-                                      ? ` · ${Math.round(row.accuracy)}%`
-                                      : ""}
-                                  </div>
-                                </div>
-
-                                <div className="shrink-0 text-right">
-                                  <div className="text-lg font-black leading-none text-[#06284a]">
-                                    {row.points}
-                                  </div>
-                                  <div className="mt-0.5 text-[8px] font-black uppercase text-slate-400">
-                                    pts
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
-
                   <div className="grid grid-cols-2 gap-2">
                     {challengeGames.map(
                       (game) => {

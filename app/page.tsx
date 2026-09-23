@@ -6756,31 +6756,8 @@ export default function Home() {
 
                           <div className="relative flex min-h-[550px] flex-col overflow-hidden px-3 pb-3 pt-2 sm:px-4">
                             <div className="absolute inset-x-3 bottom-3 h-[149px] rounded-lg border border-white/10 bg-[linear-gradient(180deg,rgba(20,13,9,.84),rgba(11,8,6,.95))] shadow-[0_10px_24px_rgba(0,0,0,.55)] backdrop-blur-sm" />
-                            <div className="absolute left-1/2 top-0 h-8 w-px bg-[#a87845]" />
-                            <div className="absolute left-1/2 top-7 h-2 w-7 -translate-x-1/2 rounded-full border border-[#a87845] bg-[#352012]" />
-
-                            <div className="relative mx-auto flex h-14 w-14 shrink-0 items-center justify-center p-2 drop-shadow-[0_8px_12px_rgba(0,0,0,.75)] sm:h-16 sm:w-16">
-                              {logoUrl ? (
-                                <img
-                                  src={logoUrl}
-                                  alt={team.name}
-                                  className="h-full w-full object-contain drop-shadow-xl"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center rounded-md border border-[#c18a45]/30 bg-[#1d120c] text-3xl font-black text-[#f8efe0] sm:text-5xl">
-                                  {(team.short_name ?? team.name).slice(0, 1)}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="relative mt-1 flex h-8 shrink-0 items-center justify-center text-center text-sm font-black leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-base">
-                              <span className="line-clamp-2">
-                              {team.name}
-                              </span>
-                            </div>
-                            <div className="relative mt-1 h-5 shrink-0 text-center text-xs font-semibold text-[#d7c2a7]">
-                              {team.sport}
-                            </div>
+                            <div className="absolute left-1/2 top-0 z-20 h-8 w-px bg-[#a87845]" />
+                            <div className="absolute left-1/2 top-7 z-20 h-2 w-7 -translate-x-1/2 rounded-full border border-[#a87845] bg-[#352012]" />
 
                             <div className="relative mt-2 h-[202px] shrink-0 overflow-visible">
                               {(() => {
@@ -6878,6 +6855,29 @@ export default function Home() {
                               })()}
                             </div>
 
+                            <div className="relative mx-auto flex h-14 w-14 shrink-0 items-center justify-center p-2 drop-shadow-[0_8px_12px_rgba(0,0,0,.75)] sm:h-16 sm:w-16">
+                              {logoUrl ? (
+                                <img
+                                  src={logoUrl}
+                                  alt={team.name}
+                                  className="h-full w-full object-contain drop-shadow-xl"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center rounded-md border border-[#c18a45]/30 bg-[#1d120c] text-3xl font-black text-[#f8efe0] sm:text-5xl">
+                                  {(team.short_name ?? team.name).slice(0, 1)}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="relative mt-1 flex h-8 shrink-0 items-center justify-center text-center text-sm font-black leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-base">
+                              <span className="line-clamp-2">
+                              {team.name}
+                              </span>
+                            </div>
+                            <div className="relative mt-1 h-5 shrink-0 text-center text-xs font-semibold text-[#d7c2a7]">
+                              {team.sport}
+                            </div>
+
                             {(() => {
                               const venue = lockerVenue(team);
                               const colors = lockerTeamColors(team);
@@ -6908,7 +6908,7 @@ export default function Home() {
                                     <div className="absolute inset-x-5 top-7 h-9 rounded-[50%] border border-white/50 opacity-70" />
                                     <div className="absolute left-1/2 top-7 h-9 w-px -translate-x-1/2 bg-white/40" />
                                   </>}
-                                  <div className="absolute inset-x-0 bottom-0 truncate bg-black/80 px-2 py-1 text-center text-[10px] font-black text-white">{venue.name}</div>
+                                  <div className="absolute inset-x-0 bottom-0 truncate bg-black/80 px-2 py-1 text-center text-[10px] font-black text-white">Home venue · {venue.name}</div>
                                 </div>
                               );
                             })()}
@@ -6924,6 +6924,9 @@ export default function Home() {
                                   </div>
                                   <div className="mt-1 text-[10px] font-semibold leading-tight text-[#cdb89e]">
                                     {formatGameDate(nextGame.startsAt)} · {formatGameTime(nextGame.startsAt, nextGame.startTimeTbd)}
+                                  </div>
+                                  <div className="mt-1 text-[10px] font-semibold text-[#f3c64f]">
+                                    {teamIsHome ? "Home game" : "Away game"}
                                   </div>
                                 </>
                               ) : (

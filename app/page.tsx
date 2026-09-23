@@ -1411,6 +1411,7 @@ export default function Home() {
   const [showHiddenEvents, setShowHiddenEvents] = useState(false);
   const [eventSportFilter, setEventSportFilter] = useState("All");
   const [showAllUpcomingEvents, setShowAllUpcomingEvents] = useState(false);
+  const [showEventResults, setShowEventResults] = useState(false);
   const [eventVisibilitySavingId, setEventVisibilitySavingId] = useState<string | null>(null);
   const [eventVisibilityMessage, setEventVisibilityMessage] = useState<string | null>(null);
 
@@ -8171,117 +8172,6 @@ export default function Home() {
                   🏟️ {eventPicksRemaining} {eventPicksRemaining === 1 ? "pick is" : "picks are"} ready across {eventReminderGroups.length} {eventReminderGroups.length === 1 ? "event" : "events"}. Picks lock when each game starts.
                 </div>
               )}
-              {gradedEventPicks.length > 0 && (
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                  <div className="border-b border-slate-200 px-4 py-3 text-sm font-black text-[#10254a]">🏁 How your event picks did</div>
-                  <div className="divide-y divide-slate-100">
-                    {gradedEventPicks.map((entry) => (
-                      <div key={`${entry.eventId}:${entry.gameId}`} className="flex items-center justify-between gap-3 px-4 py-3">
-                        <div className="min-w-0">
-                          <div className="text-[9px] font-bold text-slate-500">{entry.eventId.startsWith("mamas-hockey-") ? "Weekly Hockey Challenge" : EVENT_NAMES[entry.eventId] ?? "Event pick"}</div>
-                          <div className="truncate text-[11px] font-black text-[#10254a]">
-                            {entry.game ? `${entry.game.away} ${entry.awayScore} · ${entry.game.home} ${entry.homeScore}` : `Final: ${entry.awayScore}–${entry.homeScore}`}
-                          </div>
-                          <div className="text-[9px] font-semibold text-slate-500">You picked {entry.game ? (entry.pick === "away" ? entry.game.away : entry.game.home) : entry.pick === "away" ? "the away team" : "the home team"}</div>
-                        </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1.5 text-[10px] font-black ${entry.result === "correct" ? "bg-emerald-100 text-emerald-800" : entry.result === "incorrect" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600"}`}>
-                          {entry.result === "correct" ? "✓ Correct" : entry.result === "incorrect" ? "✕ Missed" : "Draw · not graded"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {mamasHockeyEventId && !hiddenEventIds.includes(mamasHockeyEventId) && matchesEventSport("Hockey") && (
-                <div className="overflow-hidden rounded-2xl border border-[#8eb6d8] bg-white shadow-sm">
-                  <div className="bg-[linear-gradient(135deg,#06284a,#0b4a72)] px-4 py-4 text-white">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">
-                          🏒 Optional Family Event
-                        </div>
-                        <div className="mt-1 text-xl font-black">Weekly Hockey Challenge</div>
-                        <div className="mt-1 text-[10px] font-semibold text-blue-100">
-                          5 shared hockey games · everyone can join
-                        </div>
-                      </div>
-                      <div className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-[9px] font-black">
-                        {eventProgress[mamasHockeyEventId]?.made ?? 0}/5 picks · {eventProgress[mamasHockeyEventId]?.correct ?? 0} correct
-                      </div>
-                    </div>
-                    <button type="button" onClick={() => void setEventHidden(mamasHockeyEventId, true)} className="mt-2 text-[9px] font-black text-blue-100 underline">Hide this challenge</button>
-                    <div className="mt-3 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-[9px] font-semibold leading-relaxed text-blue-50">
-                      Join by making a pick, or hide this event. Everyone sees the same five games; your hockey picks stay separate from the regular 10-game challenge.
-                    </div>
-                  </div>
-
-                  <div className="p-3">
-                    {mamasHockeyGames.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {mamasHockeyGames.map((game) => {
-                          const selected = eventPicks[mamasHockeyEventId]?.[game.id];
-                          const saving = eventPickSavingKey === `${mamasHockeyEventId}:${game.id}`;
-                          const locked = gameIsLocked(game, currentTime);
-
-                          return (
-                            <div key={game.id} className="rounded-xl border border-slate-200 bg-[#f7f4ec] p-3">
-                              <button
-                                type="button"
-                                onClick={() => void openGameRoom(game)}
-                                className="w-full text-left"
-                              >
-                                <div className="text-[10px] font-black text-[#10254a]">
-                                  {game.away} at {game.home}
-                                </div>
-                                <div className="mt-0.5 text-[8px] font-semibold text-slate-500">
-                                  {formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}
-                                </div>
-                              </button>
-                              <div className="mt-2 grid grid-cols-2 gap-1.5">
-                                {([[
-                                  "away",
-                                  game.away,
-                                ], [
-                                  "home",
-                                  game.home,
-                                ]] as const).map(([choice, team]) => (
-                                  <button
-                                    key={choice}
-                                    type="button"
-                                    disabled={saving || locked}
-                                    onClick={() => void saveEventPick(mamasHockeyEventId, game, choice)}
-                                    aria-pressed={selected === choice}
-                                    className={`min-h-11 rounded-lg px-2 py-2 text-[8px] font-black transition active:scale-[0.98] ${
-                                      selected === choice
-                                        ? "bg-[#06284a] text-white ring-2 ring-[#f3c64f]"
-                                        : locked
-                                          ? "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400"
-                                          : "border border-slate-200 bg-white text-[#10254a]"
-                                    }`}
-                                  >
-                                    {selected === choice ? "✓ " : ""}{team}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-slate-300 bg-[#f7f4ec] px-4 py-4 text-center text-[10px] font-semibold text-slate-500">
-                        No hockey games fall in this challenge week yet. Your five picks will appear here automatically when the schedule is available.
-                      </div>
-                    )}
-
-                    {eventPickMessage && eventPickMessageEventId === mamasHockeyEventId && (
-                      <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-center text-[10px] font-black text-[#765800]">
-                        {eventPickMessage}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -8357,6 +8247,96 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-4 p-3">
+              {mamasHockeyEventId && !hiddenEventIds.includes(mamasHockeyEventId) && matchesEventSport("Hockey") && (
+                <div className="rounded-xl bg-[#f7f4ec] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <button type="button" onClick={() => setSelectedEventGuide({
+                      icon: "🏒", name: "Weekly Hockey Challenge", sport: "Hockey",
+                      season: "Every challenge week", format: "Five shared game picks",
+                      description: "An optional hockey challenge anyone in the family can join by making a pick.",
+                      dates: ["New games each challenge week", "Picks lock when each game starts"],
+                      learning: "Everyone sees the same five games. Hockey picks are separate from the regular 10-game family challenge.",
+                    })} className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left active:opacity-70">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="text-xl">🏒</span>
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-black text-[#10254a]">Weekly Hockey Challenge</div>
+                          <div className="text-[8px] font-bold text-slate-500">{eventProgress[mamasHockeyEventId]?.made ?? 0}/5 picks · {eventProgress[mamasHockeyEventId]?.correct ?? 0} correct · Tap for guide</div>
+                        </div>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-1 text-[8px] font-black ${mamasHockeyGames.some((game) => !gameIsLocked(game, currentTime)) ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{mamasHockeyGames.some((game) => !gameIsLocked(game, currentTime)) ? "PICKS OPEN" : "AWAITING GAMES"}</span>
+                    </button>
+                    <button type="button" disabled={eventVisibilitySavingId === mamasHockeyEventId}
+                      onClick={() => void setEventHidden(mamasHockeyEventId, true)}
+                      className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[8px] font-black text-slate-500 disabled:opacity-50">Hide</button>
+                  </div>
+                  <div className="mt-3">
+                    {mamasHockeyGames.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {mamasHockeyGames.map((game) => {
+                          const selected = eventPicks[mamasHockeyEventId]?.[game.id];
+                          const saving = eventPickSavingKey === `${mamasHockeyEventId}:${game.id}`;
+                          const locked = gameIsLocked(game, currentTime);
+
+                          return (
+                            <div key={game.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                              <button
+                                type="button"
+                                onClick={() => void openGameRoom(game)}
+                                className="w-full text-left"
+                              >
+                                <div className="text-[10px] font-black text-[#10254a]">
+                                  {game.away} at {game.home}
+                                </div>
+                                <div className="mt-0.5 text-[8px] font-semibold text-slate-500">
+                                  {formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}
+                                </div>
+                              </button>
+                              <div className="mt-2 grid grid-cols-2 gap-1.5">
+                                {([[
+                                  "away",
+                                  game.away,
+                                ], [
+                                  "home",
+                                  game.home,
+                                ]] as const).map(([choice, team]) => (
+                                  <button
+                                    key={choice}
+                                    type="button"
+                                    disabled={saving || locked}
+                                    onClick={() => void saveEventPick(mamasHockeyEventId, game, choice)}
+                                    aria-pressed={selected === choice}
+                                    className={`min-h-11 rounded-lg px-2 py-2 text-[8px] font-black transition active:scale-[0.98] ${
+                                      selected === choice
+                                        ? "bg-[#06284a] text-white ring-2 ring-[#f3c64f]"
+                                        : locked
+                                          ? "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400"
+                                          : "border border-slate-200 bg-white text-[#10254a]"
+                                    }`}
+                                  >
+                                    {selected === choice ? "✓ " : ""}{team}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-300 bg-[#f7f4ec] px-4 py-4 text-center text-[10px] font-semibold text-slate-500">
+                        No hockey games fall in this challenge week yet. Your five picks will appear here automatically when the schedule is available.
+                      </div>
+                    )}
+
+                    {eventPickMessage && eventPickMessageEventId === mamasHockeyEventId && (
+                      <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-center text-[10px] font-black text-[#765800]">
+                        {eventPickMessage}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
                   {[{"id":"mlb-playoffs-world-series","icon":"⚾","name":"MLB Playoffs & World Series","sport":"Baseball","season":"September–October","format":"Wild Card → Division → League Championship → World Series","description":"One event for the whole postseason, with new game picks as matchups are set.","dates":["Wild Card: September 29–October 1","Division Series: begins October 3","League Championship Series: begins October 11","World Series: begins October 23"],"learning":"Pick individual game winners as each round arrives. Your picks lock at first pitch; teams advance by winning their series.","matches":["mlb postseason"]},{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"europa-league","icon":"🟠","name":"Europa League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"UEFA Europa League. League phase began September 16–17.","dates":["League phase began September 16–17","Next league matchday: October 15","Knockout rounds: February–May"],"learning":"Follow UEFA league-phase standings and knockout games. This is separate from the Champions and Conference Leagues.","matches":["europa league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}]
                     .filter((event) => !hiddenEventIds.includes(event.id) && matchesEventSport(event.sport))
                     .map((event) => {
@@ -8483,6 +8463,34 @@ export default function Home() {
                 </div>
               </div>
 
+              {gradedEventPicks.length > 0 && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <button type="button" onClick={() => setShowEventResults((open) => !open)}
+                    aria-expanded={showEventResults}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+                    <span className="text-xs font-black text-[#10254a]">🏁 Your event results</span>
+                    <span className="text-[10px] font-bold text-slate-600">
+                      {gradedEventPicks.filter((pick) => pick.result === "correct").length} correct · {gradedEventPicks.filter((pick) => pick.result === "incorrect").length} missed {showEventResults ? "▲" : "▼"}
+                    </span>
+                  </button>
+                  {showEventResults && <div className="divide-y divide-slate-100 border-t border-slate-200">
+                    {gradedEventPicks.map((entry) => (
+                      <div key={`${entry.eventId}:${entry.gameId}`} className="flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <div className="text-[9px] font-bold text-slate-500">{entry.eventId.startsWith("mamas-hockey-") ? "Weekly Hockey Challenge" : EVENT_NAMES[entry.eventId] ?? "Event pick"}</div>
+                          <div className="truncate text-[11px] font-black text-[#10254a]">
+                            {entry.game ? `${entry.game.away} ${entry.awayScore} · ${entry.game.home} ${entry.homeScore}` : `Final: ${entry.awayScore}–${entry.homeScore}`}
+                          </div>
+                          <div className="text-[9px] font-semibold text-slate-500">You picked {entry.game ? (entry.pick === "away" ? entry.game.away : entry.game.home) : entry.pick === "away" ? "the away team" : "the home team"}</div>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1.5 text-[10px] font-black ${entry.result === "correct" ? "bg-emerald-100 text-emerald-800" : entry.result === "incorrect" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600"}`}>
+                          {entry.result === "correct" ? "✓ Correct" : entry.result === "incorrect" ? "✕ Missed" : "Draw · not graded"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>}
+                </div>
+              )}
               <div>
                 <div className="mb-2 flex items-end justify-between gap-3">
                   <div>

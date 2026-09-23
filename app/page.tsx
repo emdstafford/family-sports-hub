@@ -6928,7 +6928,7 @@ export default function Home() {
                                     ? "linear-gradient(180deg,#14243b 0%,#34455a 44%,#396d42 45%,#267141 100%)"
                                     : "linear-gradient(180deg,#14263c 0%,#34485a 44%,#29824c 45%,#195a37 100%)";
                               return (
-                                <div className="relative mx-3 mt-2 shrink-0">
+                                <div className="relative mx-3 mt-5 shrink-0">
                                   <div className="mb-1 text-center leading-[1.05]">
                                     <div className="text-xs font-black text-[#f3c64f]">{venue.name}</div>
                                     <div className="text-[9px] font-bold uppercase tracking-wider text-[#cdb89e]">Home Venue</div>
@@ -8403,7 +8403,7 @@ export default function Home() {
                   </div>
                   <div className="mt-3">
                     {visibleHockeyGames.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="grid grid-cols-2 gap-2">
                         {visibleHockeyGames.map((game) => {
                           const selected = eventPicks[mamasHockeyEventId]?.[game.id];
                           const saving = eventPickSavingKey === `${mamasHockeyEventId}:${game.id}`;
@@ -8846,8 +8846,8 @@ export default function Home() {
       {activeSection === "Challenge" &&
         signedInPlayer &&
         challenge && (
-          <section className="mx-auto max-w-5xl px-3 py-4">
-            <div className="mx-auto max-w-lg overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-lg">
+          <section className="mx-auto max-w-5xl px-2 py-4">
+            <div className="mx-auto max-w-2xl overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-lg">
               <div className="bg-[#06284a] p-5 text-white">
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">

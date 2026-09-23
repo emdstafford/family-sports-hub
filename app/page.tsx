@@ -8968,7 +8968,7 @@ export default function Home() {
                     </div>
                   )}
                 </div>              ) : (
-                <div className="p-5">
+                <div className="px-1.5 py-3">
                   <div className="grid grid-cols-2 gap-1.5">
                     {challengeGames.map(
                       (game) => {

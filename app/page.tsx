@@ -48,6 +48,8 @@ const EVENT_GAME_MATCHES: Record<string, string[]> = {
   "efl-trophy": ["efl trophy", "english football league trophy", "football league trophy", "vertu trophy", "papa john", "bristol street motors trophy"],
   "carabao-cup": ["carabao cup", "efl cup", "league cup"],
   "champions-league": ["champions league"],
+  "europa-league": ["europa league"],
+  "conference-league": ["conference league"],
   "fa-cup": ["fa cup"],
 };
 
@@ -1407,6 +1409,8 @@ export default function Home() {
     useState<string | null>(null);
   const [hiddenEventIds, setHiddenEventIds] = useState<string[]>([]);
   const [showHiddenEvents, setShowHiddenEvents] = useState(false);
+  const [eventSportFilter, setEventSportFilter] = useState("All");
+  const [showAllUpcomingEvents, setShowAllUpcomingEvents] = useState(false);
   const [eventVisibilitySavingId, setEventVisibilitySavingId] = useState<string | null>(null);
   const [eventVisibilityMessage, setEventVisibilityMessage] = useState<string | null>(null);
 
@@ -2034,11 +2038,11 @@ export default function Home() {
     }
 
     const refreshPicks = () => {
-      ["fa-cup", "carabao-cup", "champions-league", "efl-trophy", "stanley-cup", "mlb-playoffs-world-series"].forEach(
+      ["fa-cup", "carabao-cup", "champions-league", "europa-league", "conference-league", "efl-trophy", "stanley-cup", "mlb-playoffs-world-series"].forEach(
         (eventId) => void loadEventPicks(eventId),
       );
 
-      if (isMamaPlayer(signedInPlayer) && challenge?.id) {
+      if (challenge?.id) {
         void loadEventPicks(`mamas-hockey-${challenge.id}`);
       }
     };
@@ -3913,10 +3917,8 @@ export default function Home() {
       (team): team is ProfileTeam => Boolean(team),
     );
 
-  const isMama = isMamaPlayer(signedInPlayer);
-
   const mamasHockeyEventId =
-    isMama && challenge?.id
+    challenge?.id
       ? `mamas-hockey-${challenge.id}`
       : null;
 
@@ -3991,6 +3993,14 @@ export default function Home() {
         new Date(b.startsAt ?? 0).getTime(),
     );
 
+  const eventSportGroup = (sport: string) =>
+    sport === "International Soccer" ? "Soccer" :
+    sport === "College Football" ? "Football" :
+    sport === "College Basketball" ? "Basketball" :
+    ["Horse Racing", "Multi-Sport", "Cheerleading"].includes(sport) ? "Other" : sport;
+  const matchesEventSport = (sport: string) =>
+    eventSportFilter === "All" || eventSportGroup(sport) === eventSportFilter;
+
   const eventReminderGroups = [
     ...Object.keys(EVENT_GAME_MATCHES)
       .filter((eventId) => !profileLoading && !hiddenEventIds.includes(eventId) && eventPicksLoaded[eventId] === signedInPlayer?.id)
@@ -4002,7 +4012,7 @@ export default function Home() {
           .slice(0, 4)
           .filter((game) => !eventPicks[eventId]?.[game.id]).length,
       })),
-    ...(mamasHockeyEventId && !profileLoading && !hiddenEventIds.includes(mamasHockeyEventId) && eventPicksLoaded[mamasHockeyEventId] === signedInPlayer?.id ? [{
+    ...(mamasHockeyEventId && !profileLoading && !hiddenEventIds.includes(mamasHockeyEventId) && eventPicksLoaded[mamasHockeyEventId] === signedInPlayer?.id && Object.keys(eventPicks[mamasHockeyEventId] ?? {}).length > 0 ? [{
       eventId: mamasHockeyEventId,
       missing: mamasHockeyGames.filter((game) =>
         !gameIsLocked(game, currentTime) && !eventPicks[mamasHockeyEventId]?.[game.id]).length,
@@ -8168,7 +8178,7 @@ export default function Home() {
                     {gradedEventPicks.map((entry) => (
                       <div key={`${entry.eventId}:${entry.gameId}`} className="flex items-center justify-between gap-3 px-4 py-3">
                         <div className="min-w-0">
-                          <div className="text-[9px] font-bold text-slate-500">{entry.eventId.startsWith("mamas-hockey-") ? "Emily’s Hockey Challenge" : EVENT_NAMES[entry.eventId] ?? "Event pick"}</div>
+                          <div className="text-[9px] font-bold text-slate-500">{entry.eventId.startsWith("mamas-hockey-") ? "Weekly Hockey Challenge" : EVENT_NAMES[entry.eventId] ?? "Event pick"}</div>
                           <div className="truncate text-[11px] font-black text-[#10254a]">
                             {entry.game ? `${entry.game.away} ${entry.awayScore} · ${entry.game.home} ${entry.homeScore}` : `Final: ${entry.awayScore}–${entry.homeScore}`}
                           </div>
@@ -8182,17 +8192,17 @@ export default function Home() {
                   </div>
                 </div>
               )}
-              {isMama && mamasHockeyEventId && !hiddenEventIds.includes(mamasHockeyEventId) && (
+              {mamasHockeyEventId && !hiddenEventIds.includes(mamasHockeyEventId) && matchesEventSport("Hockey") && (
                 <div className="overflow-hidden rounded-2xl border border-[#8eb6d8] bg-white shadow-sm">
                   <div className="bg-[linear-gradient(135deg,#06284a,#0b4a72)] px-4 py-4 text-white">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#f3c64f]">
-                          🏒 Personal Challenge
+                          🏒 Optional Family Event
                         </div>
-                        <div className="mt-1 text-xl font-black">Emily’s Weekly Hockey Challenge</div>
+                        <div className="mt-1 text-xl font-black">Weekly Hockey Challenge</div>
                         <div className="mt-1 text-[10px] font-semibold text-blue-100">
-                          5 hockey games · your teams get first priority
+                          5 shared hockey games · everyone can join
                         </div>
                       </div>
                       <div className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-[9px] font-black">
@@ -8201,7 +8211,7 @@ export default function Home() {
                     </div>
                     <button type="button" onClick={() => void setEventHidden(mamasHockeyEventId, true)} className="mt-2 text-[9px] font-black text-blue-100 underline">Hide this challenge</button>
                     <div className="mt-3 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-[9px] font-semibold leading-relaxed text-blue-50">
-                      Your hockey picks are optional and completely separate from the regular 10-game FamBam Challenge, family standings and Record Book.
+                      Join by making a pick, or hide this event. Everyone sees the same five games; your hockey picks stay separate from the regular 10-game challenge.
                     </div>
                   </div>
 
@@ -8304,7 +8314,7 @@ export default function Home() {
                         {hiddenEventIds.map((eventId) => (
                           <div key={eventId} className="flex items-center justify-between gap-3 rounded-xl bg-[#f7f4ec] px-3 py-2">
                             <div className="text-[10px] font-black text-[#10254a]">
-                              {eventId.startsWith("mamas-hockey-") ? "Emily’s Weekly Hockey Challenge" : EVENT_NAMES[eventId] ?? eventId.replaceAll("-", " ")}
+                              {eventId.startsWith("mamas-hockey-") ? "Weekly Hockey Challenge" : EVENT_NAMES[eventId] ?? eventId.replaceAll("-", " ")}
                             </div>
                             <button
                               type="button"
@@ -8322,6 +8332,20 @@ export default function Home() {
                 )}
               </div>
 
+              <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+                <div className="mb-2 text-[10px] font-black uppercase tracking-wide text-[#10254a]">Browse events by sport</div>
+                <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Event sports">
+                  {["All", "Soccer", "Hockey", "Baseball", "Volleyball", "Football", "Basketball", "Other"].map((sport) => (
+                    <button key={sport} type="button" aria-pressed={eventSportFilter === sport}
+                      onClick={() => { setEventSportFilter(sport); setShowAllUpcomingEvents(false); }}
+                      className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-black ${eventSportFilter === sport ? "bg-[#06284a] text-white" : "bg-[#f7f4ec] text-[#10254a]"}`}>
+                      {sport === "Other" ? "🏇 Olympics & more" : sport}
+                    </button>
+                  ))}
+                </div>
+                {eventSportFilter === "Soccer" && <div className="mt-2 text-[9px] font-semibold text-slate-500">UEFA has separate Champions, Europa and Conference League events.</div>}
+              </div>
+
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-200 px-4 py-3">
                   <div className="text-sm font-black uppercase tracking-wide text-[#10254a]">
@@ -8333,8 +8357,8 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-4 p-3">
-                  {[{"id":"mlb-playoffs-world-series","icon":"⚾","name":"MLB Playoffs & World Series","sport":"Baseball","season":"September–October","format":"Wild Card → Division → League Championship → World Series","description":"One event for the whole postseason, with new game picks as matchups are set.","dates":["Wild Card: September 29–October 1","Division Series: begins October 3","League Championship Series: begins October 11","World Series: begins October 23"],"learning":"Pick individual game winners as each round arrives. Your picks lock at first pitch; teams advance by winning their series.","matches":["mlb postseason"]},{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}]
-                    .filter((event) => !hiddenEventIds.includes(event.id))
+                  {[{"id":"mlb-playoffs-world-series","icon":"⚾","name":"MLB Playoffs & World Series","sport":"Baseball","season":"September–October","format":"Wild Card → Division → League Championship → World Series","description":"One event for the whole postseason, with new game picks as matchups are set.","dates":["Wild Card: September 29–October 1","Division Series: begins October 3","League Championship Series: begins October 11","World Series: begins October 23"],"learning":"Pick individual game winners as each round arrives. Your picks lock at first pitch; teams advance by winning their series.","matches":["mlb postseason"]},{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"europa-league","icon":"🟠","name":"Europa League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"UEFA Europa League. League phase began September 16–17.","dates":["League phase began September 16–17","Next league matchday: October 15","Knockout rounds: February–May"],"learning":"Follow UEFA league-phase standings and knockout games. This is separate from the Champions and Conference Leagues.","matches":["europa league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}]
+                    .filter((event) => !hiddenEventIds.includes(event.id) && matchesEventSport(event.sport))
                     .map((event) => {
                     const eventGames = realGames
                       .filter((game) => {
@@ -8502,9 +8526,9 @@ export default function Home() {
                     },
                     {
                       icon: "🟢", name: "Conference League", sport: "Soccer",
-                      season: "September–May", format: "League + Knockout",
-                      description: "European competition full of underdog stories.",
-                      dates: ["League phase: September–December", "Knockout rounds: February–May", "Final: May"],
+                      season: "October–May", format: "League + Knockout",
+                      description: "UEFA league phase starts October 15; European competition full of underdog stories.",
+                      dates: ["League phase starts October 15", "League phase: October–December", "Knockout rounds: February–May", "Final: May"],
                       learning: "Discover clubs from across Europe and learn how league-phase results lead into knockout rounds.",
                     },
                     {
@@ -8620,8 +8644,8 @@ export default function Home() {
                       learning: "Follow medal tables, heats, qualification rounds and finals across many sports.",
                     },
                   ]
-                    .filter((event) => !["Carabao Cup", "Champions League", "EFL Trophy"].includes(event.name))
-                    .filter((event) => !hiddenEventIds.includes(eventIdFromName(event.name)))
+                    .filter((event) => !["Carabao Cup", "Champions League", "Europa League", "EFL Trophy"].includes(event.name))
+                    .filter((event) => !hiddenEventIds.includes(eventIdFromName(event.name)) && matchesEventSport(event.sport))
                     .sort((a, b) => {
                       const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                       const now = new Date(currentTime ?? Date.now());
@@ -8643,7 +8667,7 @@ export default function Home() {
                       const bOffset = nextMonthOffset(b.season);
                       // Preserve the existing order for ties and undated events.
                       return aOffset === bOffset ? 0 : aOffset - bOffset;
-                    }).map((event) => (
+                    }).slice(0, showAllUpcomingEvents ? undefined : 6).map((event) => (
                     <div
                       key={event.name}
                       className="relative rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm"
@@ -8672,6 +8696,8 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+                {!showAllUpcomingEvents && <button type="button" onClick={() => setShowAllUpcomingEvents(true)} className="mt-3 w-full rounded-xl border border-[#b28a2e] bg-white px-4 py-3 text-xs font-black text-[#10254a]">Show all upcoming {eventSportFilter === "All" ? "events" : eventSportFilter + " events"} ↓</button>}
+                {showAllUpcomingEvents && <button type="button" onClick={() => setShowAllUpcomingEvents(false)} className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-[#10254a]">Show fewer ↑</button>}
               </div>
 
               <div className="rounded-2xl bg-[#10254a] p-4 text-white">

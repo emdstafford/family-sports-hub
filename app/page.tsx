@@ -8417,12 +8417,22 @@ export default function Home() {
                                 onClick={() => void openGameRoom(game)}
                                 className="w-full text-left"
                               >
-                                <div className="text-xs font-black text-[#10254a]">
-                                  {game.away} at {game.home}
+                                <div className="flex gap-2.5">
+                                  <div className="flex w-9 shrink-0 flex-col items-center text-center">
+                                    <div className="text-xl">{game.icon}</div>
+                                    <div className="mt-0.5 text-[6px] font-black uppercase leading-tight text-[#765800]">
+                                      {game.competition}
+                                    </div>
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="mb-1 text-right text-[9px] font-black text-[#10254a]">
+                                      {formatGameTime(game.startsAt, game.startTimeTbd)}
+                                    </div>
+                                    <div className="truncate text-[12px] font-black text-[#10254a]">{game.away}</div>
+                                    <div className="mt-0.5 truncate text-[12px] font-black text-[#10254a]">{game.home}</div>
+                                  </div>
                                 </div>
-                                <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
-                                  {formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}
-                                </div>
+                                <div className="mt-1 text-[9px] font-semibold text-slate-400">{formatGameDate(game.startsAt)}</div>
                               </button>
                               {locked ? (
                                 <div className={`mt-2 rounded-lg px-3 py-2.5 text-xs font-black ${outcome?.result === "correct" ? "bg-emerald-100 text-emerald-800" : outcome?.result === "incorrect" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600"}`}>

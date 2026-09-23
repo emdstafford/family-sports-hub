@@ -9143,7 +9143,7 @@ export default function Home() {
                         return (
                           <div
                             key={game.id}
-                            className="rounded-xl border border-[#e3dccd] bg-white p-2.5 shadow-sm"
+                            className="rounded-xl border border-[#e3dccd] bg-white p-2 shadow-sm"
                           >
                             <div className="flex items-start justify-between">
                               <div>
@@ -9183,10 +9183,10 @@ export default function Home() {
                                 <button
                                   type="button"
                                   onClick={() => openGameRoom(game)}
-                                  className="mt-3 block w-full rounded-xl text-left active:bg-slate-50"
+                                  className="mt-2 block w-full rounded-lg text-left active:bg-slate-50"
                                   aria-label={`Open game details for ${game.away} vs ${game.home}`}
                                 >
-                                  <div className="text-lg font-black text-slate-950">
+                                  <div className="text-sm font-black leading-tight text-slate-950">
                                     {game.sport === "College Football"
                                       ? rankedTeamLabel(
                                           game.away,
@@ -9200,10 +9200,6 @@ export default function Home() {
                                           collegeFootballRankings,
                                         )
                                       : game.home}
-                                  </div>
-
-                                  <div className="mt-1 text-[10px] font-bold text-[#164d75]">
-                                    Tap matchup for game details →
                                   </div>
                                 </button>
 
@@ -9340,10 +9336,10 @@ export default function Home() {
                                 <button
                                   type="button"
                                   onClick={() => openGameRoom(game)}
-                                  className="mt-3 block w-full rounded-xl text-left active:bg-slate-50"
+                                  className="mt-2 block w-full rounded-lg text-left active:bg-slate-50"
                                   aria-label={`Open game details for ${game.away} vs ${game.home}`}
                                 >
-                                  <div className="text-lg font-black text-slate-950">
+                                  <div className="text-sm font-black leading-tight text-slate-950">
                                     {game.sport === "College Football"
                                       ? rankedTeamLabel(
                                           game.away,
@@ -9358,16 +9354,12 @@ export default function Home() {
                                         )
                                       : game.home}
                                   </div>
-
-                                  <div className="mt-1 text-[10px] font-bold text-[#164d75]">
-                                    Tap matchup for game details →
-                                  </div>
                                 </button>
 
 
 
                                 <div
-                                  className={`mt-4 grid gap-2 ${
+                                  className={`mt-2 grid gap-1.5 ${
                                     game.sport === "Soccer"
                                       ? "grid-cols-3"
                                       : "grid-cols-2"
@@ -9377,7 +9369,7 @@ export default function Home() {
                                     onClick={() =>
                                       selectPick(game.id, "away")
                                     }
-                                    className={`rounded-2xl border-2 p-3 text-center transition active:scale-[0.98] ${
+                                    className={`rounded-xl border-2 px-1.5 py-2 text-center transition active:scale-[0.98] ${
                                       choice === "away"
                                         ? "border-[#f3c64f] bg-[#06284a] text-white shadow-sm"
                                         : "border-slate-200 bg-white text-slate-900"
@@ -9390,7 +9382,7 @@ export default function Home() {
                                     }`}>
                                       Away
                                     </div>
-                                    <div className="mt-1 text-sm font-black">
+                                    <div className="mt-0.5 text-[11px] font-black leading-tight">
                                       {game.sport === "College Football"
                                         ? rankedTeamLabel(
                                             game.away,
@@ -9399,7 +9391,7 @@ export default function Home() {
                                         : game.away}
                                     </div>
                                     {choice === "away" && (
-                                      <div className="mt-1 text-[10px] font-black">
+                                      <div className="mt-0.5 text-[8px] font-black">
                                         ✓ YOUR PICK
                                       </div>
                                     )}
@@ -9410,7 +9402,7 @@ export default function Home() {
                                       onClick={() =>
                                         selectPick(game.id, "draw")
                                       }
-                                      className={`rounded-2xl border-2 p-3 text-center transition active:scale-[0.98] ${
+                                      className={`rounded-xl border-2 px-1.5 py-2 text-center transition active:scale-[0.98] ${
                                         choice === "draw"
   ? "border-[#f3c64f] bg-[#06284a] text-white shadow-sm"
                                           : "border-slate-200 bg-white text-slate-900"
@@ -9423,11 +9415,11 @@ export default function Home() {
                                       }`}>
                                         Result
                                       </div>
-                                      <div className="mt-1 text-sm font-black">
+                                      <div className="mt-0.5 text-[11px] font-black leading-tight">
                                         Draw
                                       </div>
                                       {choice === "draw" && (
-                                        <div className="mt-1 text-[10px] font-black">
+                                        <div className="mt-0.5 text-[8px] font-black">
                                           ✓ YOUR PICK
                                         </div>
                                       )}
@@ -9438,7 +9430,7 @@ export default function Home() {
                                     onClick={() =>
                                       selectPick(game.id, "home")
                                     }
-                                    className={`rounded-2xl border-2 p-3 text-center transition active:scale-[0.98] ${
+                                    className={`rounded-xl border-2 px-1.5 py-2 text-center transition active:scale-[0.98] ${
                                       choice === "home"
                                         ? "border-[#f3c64f] bg-[#06284a] text-white shadow-sm"
                                         : "border-slate-200 bg-white text-slate-900"
@@ -9451,7 +9443,7 @@ export default function Home() {
                                     }`}>
                                       Home
                                     </div>
-                                    <div className="mt-1 text-sm font-black">
+                                    <div className="mt-0.5 text-[11px] font-black leading-tight">
                                       {game.sport === "College Football"
                                         ? rankedTeamLabel(
                                             game.home,
@@ -9460,7 +9452,7 @@ export default function Home() {
                                         : game.home}
                                     </div>
                                     {choice === "home" && (
-                                      <div className="mt-1 text-[10px] font-black">
+                                      <div className="mt-0.5 text-[8px] font-black">
                                         ✓ YOUR PICK
                                       </div>
                                     )}

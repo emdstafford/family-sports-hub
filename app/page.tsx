@@ -1366,6 +1366,7 @@ export default function Home() {
 
   const [selectedEventGuide, setSelectedEventGuide] =
     useState<null | {
+      id?: string;
       icon: string;
       name: string;
       sport: string;
@@ -7623,6 +7624,30 @@ export default function Home() {
             </div>
 
             <div className="space-y-3 p-4">
+              {selectedEventGuide.id && (
+                <div className="rounded-2xl border border-[#e8dba8] bg-white p-4 shadow-sm">
+                  <div className="text-xs font-black uppercase tracking-wide text-[#b28a2e]">Your picks in this event</div>
+                  {eventProgress[selectedEventGuide.id]?.completed ? (
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                      {([
+                        ["Correct", eventProgress[selectedEventGuide.id].correct],
+                        ["Missed", eventProgress[selectedEventGuide.id].completed - eventProgress[selectedEventGuide.id].correct],
+                        ["Accuracy", `${eventProgress[selectedEventGuide.id].accuracy}%`],
+                      ] as const).map(([label, value]) => (
+                        <div key={label} className="rounded-xl bg-[#f7f4ec] px-2 py-3">
+                          <div className="text-xl font-black text-[#10254a]">{value}</div>
+                          <div className="mt-1 text-[10px] font-bold text-slate-600">{label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs font-semibold text-slate-600">
+                      {eventProgress[selectedEventGuide.id]?.made ? "Your picks are in. Results will appear after the games finish." : "No graded picks yet. Join by picking a game below."}
+                    </p>
+                  )}
+                  <div className="mt-3 text-xs font-semibold text-slate-600">{eventProgress[selectedEventGuide.id]?.made ?? 0} picks made · Results update as games finish.</div>
+                </div>
+              )}
               <div className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="text-[10px] font-black uppercase tracking-wide text-[#b28a2e]">About This Event</div>
                 <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-600">{selectedEventGuide.description}</p>
@@ -8153,11 +8178,11 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setActiveSection("Challenge")}
-                className="mb-3 text-[10px] font-black uppercase tracking-wide text-[#f3c64f]"
+                className="mb-3 text-xs font-black uppercase tracking-wide text-[#f3c64f]"
               >
                 ← Back to Weekly Challenge
               </button>
-              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#f3c64f]">
+              <div className="text-xs font-black uppercase tracking-[0.22em] text-[#f3c64f]">
                 FamBam Special Events
               </div>
               <h2 className="mt-1 text-3xl font-black">🏆 Events Hub</h2>
@@ -8176,21 +8201,21 @@ export default function Home() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-xs font-black text-[#10254a]">Your Events</div>
-                    <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
+                    <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
                       Hide events you do not want to follow. You can add them back anytime.
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowHiddenEvents((current) => !current)}
-                    className="shrink-0 rounded-full border border-slate-200 bg-[#f7f4ec] px-3 py-2 text-[9px] font-black text-[#10254a]"
+                    className="shrink-0 rounded-full border border-slate-200 bg-[#f7f4ec] px-3 py-2 text-[11px] font-black text-[#10254a]"
                   >
                     Hidden ({hiddenEventIds.length})
                   </button>
                 </div>
 
                 {eventVisibilityMessage && (
-                  <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-[9px] font-bold text-[#765800]">
+                  <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-[11px] font-bold text-[#765800]">
                     {eventVisibilityMessage}
                   </div>
                 )}
@@ -8198,19 +8223,19 @@ export default function Home() {
                 {showHiddenEvents && (
                   <div className="mt-3 border-t border-slate-100 pt-3">
                     {hiddenEventIds.length === 0 ? (
-                      <div className="text-[10px] font-semibold text-slate-500">You have not hidden any events.</div>
+                      <div className="text-xs font-semibold text-slate-500">You have not hidden any events.</div>
                     ) : (
                       <div className="space-y-2">
                         {hiddenEventIds.map((eventId) => (
                           <div key={eventId} className="flex items-center justify-between gap-3 rounded-xl bg-[#f7f4ec] px-3 py-2">
-                            <div className="text-[10px] font-black text-[#10254a]">
+                            <div className="text-xs font-black text-[#10254a]">
                               {eventId.startsWith("mamas-hockey-") ? "Weekly Hockey Challenge" : EVENT_NAMES[eventId] ?? eventId.replaceAll("-", " ")}
                             </div>
                             <button
                               type="button"
                               disabled={eventVisibilitySavingId === eventId}
                               onClick={() => void setEventHidden(eventId, false)}
-                              className="rounded-full bg-[#06284a] px-3 py-1.5 text-[9px] font-black text-white disabled:opacity-50"
+                              className="rounded-full bg-[#06284a] px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-50"
                             >
                               {eventVisibilitySavingId === eventId ? "Adding…" : "Add Back"}
                             </button>
@@ -8223,17 +8248,17 @@ export default function Home() {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-                <div className="mb-2 text-[10px] font-black uppercase tracking-wide text-[#10254a]">Browse events by sport</div>
+                <div className="mb-2 text-xs font-black uppercase tracking-wide text-[#10254a]">Browse events by sport</div>
                 <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Event sports">
                   {["All", "Soccer", "Hockey", "Baseball", "Volleyball", "Football", "Basketball", "Other"].map((sport) => (
                     <button key={sport} type="button" aria-pressed={eventSportFilter === sport}
                       onClick={() => { setEventSportFilter(sport); setShowAllUpcomingEvents(false); }}
-                      className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-black ${eventSportFilter === sport ? "bg-[#06284a] text-white" : "bg-[#f7f4ec] text-[#10254a]"}`}>
+                      className={`shrink-0 rounded-full px-3 py-2 text-xs font-black ${eventSportFilter === sport ? "bg-[#06284a] text-white" : "bg-[#f7f4ec] text-[#10254a]"}`}>
                       {sport === "Other" ? "🏇 Olympics & more" : sport}
                     </button>
                   ))}
                 </div>
-                {eventSportFilter === "Soccer" && <div className="mt-2 text-[9px] font-semibold text-slate-500">UEFA has separate Champions, Europa and Conference League events.</div>}
+                {eventSportFilter === "Soccer" && <div className="mt-2 text-[11px] font-semibold text-slate-500">UEFA has separate Champions, Europa and Conference League events.</div>}
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -8241,7 +8266,7 @@ export default function Home() {
                   <div className="text-sm font-black uppercase tracking-wide text-[#10254a]">
                     Happening Now
                   </div>
-                  <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
+                  <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
                     Ordered by what is happening next · Tap an event name for its guide · Optional with no penalty.
                   </div>
                 </div>
@@ -8251,7 +8276,7 @@ export default function Home() {
                 <div className="rounded-xl bg-[#f7f4ec] p-3">
                   <div className="flex items-center justify-between gap-3">
                     <button type="button" onClick={() => setSelectedEventGuide({
-                      icon: "🏒", name: "Weekly Hockey Challenge", sport: "Hockey",
+                      id: mamasHockeyEventId, icon: "🏒", name: "Weekly Hockey Challenge", sport: "Hockey",
                       season: "Every challenge week", format: "Five shared game picks",
                       description: "An optional hockey challenge anyone in the family can join by making a pick.",
                       dates: ["New games each challenge week", "Picks lock when each game starts"],
@@ -8261,14 +8286,14 @@ export default function Home() {
                         <span className="text-xl">🏒</span>
                         <div className="min-w-0">
                           <div className="truncate text-xs font-black text-[#10254a]">Weekly Hockey Challenge</div>
-                          <div className="text-[8px] font-bold text-slate-500">{eventProgress[mamasHockeyEventId]?.made ?? 0}/5 picks · {eventProgress[mamasHockeyEventId]?.correct ?? 0} correct · Tap for guide</div>
+                          <div className="text-[10px] font-bold text-slate-500">{eventProgress[mamasHockeyEventId]?.made ?? 0}/5 picks · {eventProgress[mamasHockeyEventId]?.correct ?? 0} correct · Tap for guide</div>
                         </div>
                       </div>
-                      <span className={`shrink-0 rounded-full px-2 py-1 text-[8px] font-black ${mamasHockeyGames.some((game) => !gameIsLocked(game, currentTime)) ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{mamasHockeyGames.some((game) => !gameIsLocked(game, currentTime)) ? "PICKS OPEN" : "AWAITING GAMES"}</span>
+                      <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${mamasHockeyGames.some((game) => !gameIsLocked(game, currentTime)) ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{mamasHockeyGames.some((game) => !gameIsLocked(game, currentTime)) ? "PICKS OPEN" : "AWAITING GAMES"}</span>
                     </button>
                     <button type="button" disabled={eventVisibilitySavingId === mamasHockeyEventId}
                       onClick={() => void setEventHidden(mamasHockeyEventId, true)}
-                      className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[8px] font-black text-slate-500 disabled:opacity-50">Hide</button>
+                      className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-slate-500 disabled:opacity-50">Hide</button>
                   </div>
                   <div className="mt-3">
                     {mamasHockeyGames.length > 0 ? (
@@ -8285,10 +8310,10 @@ export default function Home() {
                                 onClick={() => void openGameRoom(game)}
                                 className="w-full text-left"
                               >
-                                <div className="text-[10px] font-black text-[#10254a]">
+                                <div className="text-xs font-black text-[#10254a]">
                                   {game.away} at {game.home}
                                 </div>
-                                <div className="mt-0.5 text-[8px] font-semibold text-slate-500">
+                                <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
                                   {formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}
                                 </div>
                               </button>
@@ -8306,7 +8331,7 @@ export default function Home() {
                                     disabled={saving || locked}
                                     onClick={() => void saveEventPick(mamasHockeyEventId, game, choice)}
                                     aria-pressed={selected === choice}
-                                    className={`min-h-11 rounded-lg px-2 py-2 text-[8px] font-black transition active:scale-[0.98] ${
+                                    className={`min-h-11 rounded-lg px-2 py-2 text-[10px] font-black transition active:scale-[0.98] ${
                                       selected === choice
                                         ? "bg-[#06284a] text-white ring-2 ring-[#f3c64f]"
                                         : locked
@@ -8323,13 +8348,13 @@ export default function Home() {
                         })}
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-dashed border-slate-300 bg-[#f7f4ec] px-4 py-4 text-center text-[10px] font-semibold text-slate-500">
+                      <div className="rounded-xl border border-dashed border-slate-300 bg-[#f7f4ec] px-4 py-4 text-center text-xs font-semibold text-slate-500">
                         No hockey games fall in this challenge week yet. Your five picks will appear here automatically when the schedule is available.
                       </div>
                     )}
 
                     {eventPickMessage && eventPickMessageEventId === mamasHockeyEventId && (
-                      <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-center text-[10px] font-black text-[#765800]">
+                      <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-center text-xs font-black text-[#765800]">
                         {eventPickMessage}
                       </div>
                     )}
@@ -8372,13 +8397,13 @@ export default function Home() {
                             <span className="text-xl">{event.icon}</span>
                             <div className="min-w-0">
                               <div className="truncate text-xs font-black text-[#10254a]">{event.name}</div>
-                              <div className="text-[8px] font-bold text-slate-500">
+                              <div className="text-[10px] font-bold text-slate-500">
                                 {progress ? `${progress.correct} correct · ${progress.made} picks` : `${event.season} · Tap for guide`}
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`rounded-full px-2 py-1 text-[8px] font-black ${eventGames.length > 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+                            <span className={`rounded-full px-2 py-1 text-[10px] font-black ${eventGames.length > 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
                               {eventGames.length > 0 ? "PICKS OPEN" : "AWAITING GAMES"}
                             </span>
                             <span className="text-xs font-black text-[#b28a2e]">ⓘ</span>
@@ -8388,7 +8413,7 @@ export default function Home() {
                             type="button"
                             disabled={eventVisibilitySavingId === event.id}
                             onClick={() => void setEventHidden(event.id, true)}
-                            className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[8px] font-black text-slate-500 disabled:opacity-50"
+                            className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-slate-500 disabled:opacity-50"
                           >
                             {eventVisibilitySavingId === event.id ? "Hiding…" : "Hide"}
                           </button>
@@ -8402,7 +8427,7 @@ export default function Home() {
                               return (
                                 <div key={game.id} className="rounded-xl border border-slate-200 bg-white p-3">
                                   {event.id === "mlb-playoffs-world-series" && (
-                                    <div className="mb-1 text-[8px] font-black uppercase tracking-wide text-[#765800]">
+                                    <div className="mb-1 text-[10px] font-black uppercase tracking-wide text-[#765800]">
                                       {game.sourceNotes?.split(" · ")[1] ?? "MLB Postseason"}
                                     </div>
                                   )}
@@ -8411,10 +8436,10 @@ export default function Home() {
                                     onClick={() => void openGameRoom(game)}
                                     className="w-full text-left"
                                   >
-                                    <div className="text-[10px] font-black text-[#10254a]">
+                                    <div className="text-xs font-black text-[#10254a]">
                                       {game.away} at {game.home}
                                     </div>
-                                    <div className="mt-0.5 text-[8px] font-semibold text-slate-500">
+                                    <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
                                       {formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}
                                     </div>
                                   </button>
@@ -8429,7 +8454,7 @@ export default function Home() {
                                         disabled={saving}
                                         onClick={() => void saveEventPick(event.id, game, choice)}
                                         aria-pressed={selected === choice}
-                                        className={`min-h-11 rounded-lg px-2 py-2 text-[8px] font-black transition active:scale-[0.98] ${
+                                        className={`min-h-11 rounded-lg px-2 py-2 text-[10px] font-black transition active:scale-[0.98] ${
                                           selected === choice
                                             ? "bg-[#06284a] text-white ring-2 ring-[#f3c64f]"
                                             : "border border-slate-200 bg-white text-[#10254a]"
@@ -8444,7 +8469,7 @@ export default function Home() {
                             })}
                           </div>
                         ) : (
-                          <div className="mt-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-[9px] font-semibold text-slate-500">
+                          <div className="mt-2 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-500">
                             {event.id === "mlb-playoffs-world-series"
                               ? "The postseason starts September 29. Picks appear as MLB confirms matchups and first-pitch times."
                               : "The next fixtures are refreshing now. Once published, they will appear here automatically for picks."}
@@ -8453,7 +8478,7 @@ export default function Home() {
 
                         {eventPickMessage &&
                           eventPickMessageEventId === event.id && (
-                            <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-center text-[10px] font-black text-[#765800]">
+                            <div className="mt-2 rounded-lg bg-[#fff8dc] px-3 py-2 text-center text-xs font-black text-[#765800]">
                               {eventPickMessage}
                             </div>
                           )}
@@ -8469,7 +8494,7 @@ export default function Home() {
                     aria-expanded={showEventResults}
                     className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
                     <span className="text-xs font-black text-[#10254a]">🏁 Your event results</span>
-                    <span className="text-[10px] font-bold text-slate-600">
+                    <span className="text-xs font-bold text-slate-600">
                       {gradedEventPicks.filter((pick) => pick.result === "correct").length} correct · {gradedEventPicks.filter((pick) => pick.result === "incorrect").length} missed {showEventResults ? "▲" : "▼"}
                     </span>
                   </button>
@@ -8477,13 +8502,13 @@ export default function Home() {
                     {gradedEventPicks.map((entry) => (
                       <div key={`${entry.eventId}:${entry.gameId}`} className="flex items-center justify-between gap-3 px-4 py-3">
                         <div className="min-w-0">
-                          <div className="text-[9px] font-bold text-slate-500">{entry.eventId.startsWith("mamas-hockey-") ? "Weekly Hockey Challenge" : EVENT_NAMES[entry.eventId] ?? "Event pick"}</div>
-                          <div className="truncate text-[11px] font-black text-[#10254a]">
+                          <div className="text-[11px] font-bold text-slate-500">{entry.eventId.startsWith("mamas-hockey-") ? "Weekly Hockey Challenge" : EVENT_NAMES[entry.eventId] ?? "Event pick"}</div>
+                          <div className="truncate text-xs font-black text-[#10254a]">
                             {entry.game ? `${entry.game.away} ${entry.awayScore} · ${entry.game.home} ${entry.homeScore}` : `Final: ${entry.awayScore}–${entry.homeScore}`}
                           </div>
-                          <div className="text-[9px] font-semibold text-slate-500">You picked {entry.game ? (entry.pick === "away" ? entry.game.away : entry.game.home) : entry.pick === "away" ? "the away team" : "the home team"}</div>
+                          <div className="text-[11px] font-semibold text-slate-500">You picked {entry.game ? (entry.pick === "away" ? entry.game.away : entry.game.home) : entry.pick === "away" ? "the away team" : "the home team"}</div>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1.5 text-[10px] font-black ${entry.result === "correct" ? "bg-emerald-100 text-emerald-800" : entry.result === "incorrect" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600"}`}>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1.5 text-xs font-black ${entry.result === "correct" ? "bg-emerald-100 text-emerald-800" : entry.result === "incorrect" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600"}`}>
                           {entry.result === "correct" ? "✓ Correct" : entry.result === "incorrect" ? "✕ Missed" : "Draw · not graded"}
                         </span>
                       </div>
@@ -8497,11 +8522,11 @@ export default function Home() {
                     <h3 className="text-sm font-black uppercase tracking-wide text-[#10254a]">
                       Coming Up Next
                     </h3>
-                    <div className="mt-0.5 text-[9px] font-semibold text-slate-500">
+                    <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
                       Soonest first, based on the usual event months. Events awaiting dates appear last. Tap for details.
                     </div>
                   </div>
-                  <div className="text-[8px] font-black uppercase text-[#b28a2e]">
+                  <div className="text-[10px] font-black uppercase text-[#b28a2e]">
                     More coming
                   </div>
                 </div>
@@ -8687,17 +8712,17 @@ export default function Home() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="text-2xl">{event.icon}</div>
-                          <div className="text-[9px] font-black text-[#b28a2e]">→</div>
+                          <div className="text-[11px] font-black text-[#b28a2e]">→</div>
                         </div>
                         <div className="mt-2 text-xs font-black text-[#10254a]">{event.name}</div>
-                        <div className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-500">{event.description}</div>
-                        <div className="mt-2 inline-flex rounded-full bg-[#f7f4ec] px-2 py-1 text-[8px] font-black text-[#765800]">{event.season}</div>
+                        <div className="mt-1 text-[11px] font-semibold leading-relaxed text-slate-500">{event.description}</div>
+                        <div className="mt-2 inline-flex rounded-full bg-[#f7f4ec] px-2 py-1 text-[10px] font-black text-[#765800]">{event.season}</div>
                       </button>
                       <button
                         type="button"
                         disabled={eventVisibilitySavingId === eventIdFromName(event.name)}
                         onClick={() => void setEventHidden(eventIdFromName(event.name), true)}
-                        className="absolute right-2 top-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-[8px] font-black text-slate-500 disabled:opacity-50"
+                        className="absolute right-2 top-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-500 disabled:opacity-50"
                       >
                         Hide
                       </button>
@@ -8709,10 +8734,10 @@ export default function Home() {
               </div>
 
               <div className="rounded-2xl bg-[#10254a] p-4 text-white">
-                <div className="text-[10px] font-black uppercase tracking-wide text-[#f3c64f]">
+                <div className="text-xs font-black uppercase tracking-wide text-[#f3c64f]">
                   Learn While We Play
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-semibold text-blue-100">
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-semibold text-blue-100">
                   <div>✓ Standings and points</div>
                   <div>✓ Aggregate scores</div>
                   <div>✓ Extra time and penalties</div>

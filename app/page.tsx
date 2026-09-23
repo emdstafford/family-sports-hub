@@ -328,6 +328,26 @@ function lockerTeamColors(team: LockerTeam) {
   return { primary: "#10254a", secondary: "#f3c64f", accent: "#FFFFFF" };
 }
 
+function lockerVenue(team: LockerTeam) {
+  const name = team.name.toLowerCase();
+  if (name.includes("arsenal")) return { name: "Emirates Stadium", previewX: 239, scene: "field" };
+  if (name.includes("aston villa")) return { name: "Villa Park", previewX: 435, scene: "field" };
+  if (name.includes("liverpool")) return { name: "Anfield", previewX: 629, scene: "field" };
+  if (name.includes("wimbledon")) return { name: "Plough Lane", previewX: 1023, scene: "field" };
+  if (name.includes("kentucky") && team.sport === "College Basketball") return { name: "Rupp Arena", previewX: 825, scene: "court" };
+  if (name.includes("kentucky") && team.sport === "College Football") return { name: "Kroger Field", scene: "field" };
+  if (name.includes("kentucky") && team.sport === "Volleyball") return { name: "Historic Memorial Coliseum", scene: "court" };
+  if (name.includes("vancouver") || name.includes("canucks")) return { name: "Rogers Arena", scene: "rink" };
+  if (name.includes("rock lobster")) return { name: "Akins Ford Arena", scene: "rink" };
+  if (name.includes("georgia") && team.sport === "College Football") return { name: "Sanford Stadium", scene: "field" };
+  if (name.includes("braves")) return { name: "Truist Park", scene: "diamond" };
+  if (name.includes("cubs")) return { name: "Wrigley Field", scene: "diamond" };
+  if (team.sport === "Hockey") return { name: "Home ice", scene: "rink" };
+  if (team.sport === "Volleyball" || team.sport === "College Basketball" || team.sport === "Cheerleading") return { name: "Home court", scene: "court" };
+  if (team.sport === "Baseball") return { name: "Home ballpark", scene: "diamond" };
+  return { name: "Home field", scene: "field" };
+}
+
 function lockerUniformAsset(team: LockerTeam) {
   const name = team.name.toLowerCase();
 
@@ -4010,9 +4030,11 @@ export default function Home() {
   const matchesEventSport = (sport: string) =>
     eventSportFilter === "All" || eventSportGroup(sport) === eventSportFilter;
 
+  const conferenceLeagueActive = currentTime !== null && currentTime >= new Date("2026-10-15T00:00:00-04:00").getTime();
+
   const eventReminderGroups = [
     ...Object.keys(EVENT_GAME_MATCHES)
-      .filter((eventId) => !profileLoading && !hiddenEventIds.includes(eventId) && eventPicksLoaded[eventId] === signedInPlayer?.id)
+      .filter((eventId) => !profileLoading && !hiddenEventIds.includes(eventId) && eventPicksLoaded[eventId] === signedInPlayer?.id && (eventId !== "conference-league" || conferenceLeagueActive))
       .map((eventId) => ({
         eventId,
         missing: realGames
@@ -6660,8 +6682,23 @@ export default function Home() {
           <div className="mx-auto max-w-[1500px] px-2 sm:px-5 sm:py-3">
             <div className="relative overflow-hidden border-x border-[#7b542e] bg-[#1b110b] shadow-2xl sm:rounded-[1.75rem] sm:border">
               <div className="bg-gradient-to-b from-[#15110f] via-[#2a1b12] to-[#100c0a] p-2 sm:p-5">
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Filter locker teams by sport">
+                    {["All", ...Array.from(new Set(lockerPlayers.find((player) => player.id === signedInPlayer?.id)?.teams.map((team) => team.sport) ?? []))].map((sport) => (
+                      <button key={sport} type="button" onClick={() => setLockerSportFilter(sport)}
+                        aria-pressed={lockerSportFilter === sport}
+                        className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black ${lockerSportFilter === sport ? "border-[#f3c64f] bg-[#f3c64f] text-[#33200f]" : "border-[#9a7047] bg-black/20 text-[#f4e6d2]"}`}>
+                        {sport}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => void openProfile()}
+                    className="shrink-0 rounded-xl border border-[#f3c64f] bg-black/30 px-3 py-2 text-xs font-black text-[#f3c64f]">
+                    Edit
+                  </button>
+                </div>
                 <div
-                  className="relative flex min-h-[610px] snap-x snap-mandatory gap-0 overflow-x-auto rounded-xl border border-[#8b6235] bg-[#17110d] pb-3 pr-[12vw] pt-2 shadow-[inset_0_0_55px_rgba(0,0,0,.55)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:pr-[6vw]"
+                  className="relative flex min-h-[535px] snap-x snap-mandatory gap-0 overflow-x-auto rounded-xl border border-[#8b6235] bg-[#17110d] pb-3 pr-[12vw] pt-2 shadow-[inset_0_0_55px_rgba(0,0,0,.55)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:pr-[6vw]"
                 >
                   {(lockerPlayers
                     .find((player) => player.id === signedInPlayer?.id)
@@ -6707,12 +6744,12 @@ export default function Home() {
                             </div>
                           </div>
 
-                          <div className="relative flex min-h-[550px] flex-col overflow-hidden px-3 pb-3 pt-3 sm:px-4">
-                            <div className="absolute inset-x-3 bottom-3 h-[164px] rounded-lg border border-white/10 bg-[linear-gradient(180deg,rgba(20,13,9,.84),rgba(11,8,6,.95))] shadow-[0_10px_24px_rgba(0,0,0,.55)] backdrop-blur-sm" />
+                          <div className="relative flex min-h-[470px] flex-col overflow-hidden px-3 pb-3 pt-2 sm:px-4">
+                            <div className="absolute inset-x-3 bottom-3 h-[133px] rounded-lg border border-white/10 bg-[linear-gradient(180deg,rgba(20,13,9,.84),rgba(11,8,6,.95))] shadow-[0_10px_24px_rgba(0,0,0,.55)] backdrop-blur-sm" />
                             <div className="absolute left-1/2 top-0 h-8 w-px bg-[#a87845]" />
                             <div className="absolute left-1/2 top-7 h-2 w-7 -translate-x-1/2 rounded-full border border-[#a87845] bg-[#352012]" />
 
-                            <div className="relative mx-auto flex h-20 w-20 shrink-0 items-center justify-center p-2 drop-shadow-[0_8px_12px_rgba(0,0,0,.75)] sm:h-24 sm:w-24">
+                            <div className="relative mx-auto flex h-14 w-14 shrink-0 items-center justify-center p-2 drop-shadow-[0_8px_12px_rgba(0,0,0,.75)] sm:h-16 sm:w-16">
                               {logoUrl ? (
                                 <img
                                   src={logoUrl}
@@ -6726,7 +6763,7 @@ export default function Home() {
                               )}
                             </div>
 
-                            <div className="relative mt-1 flex h-10 shrink-0 items-center justify-center text-center text-sm font-black leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-base">
+                            <div className="relative mt-1 flex h-8 shrink-0 items-center justify-center text-center text-sm font-black leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-base">
                               <span className="line-clamp-2">
                               {team.name}
                               </span>
@@ -6736,7 +6773,7 @@ export default function Home() {
                               {team.is_primary ? " · ⭐ Favorite" : ""}
                             </div>
 
-                            <div className="relative mt-1 h-[238px] shrink-0 overflow-visible">
+                            <div className="relative mt-1 h-[175px] shrink-0 overflow-visible">
                               {(() => {
                                 const colors = lockerTeamColors(team);
                                 const label = (team.short_name ?? team.name).replace(/\s+(FC|Football|Cheerleading)$/i, "");
@@ -6750,7 +6787,7 @@ export default function Home() {
                                         <img
                                           src={uniformAsset}
                                           alt={`${team.name} uniform hanging in the locker`}
-                                          className="absolute left-1/2 top-0 z-10 h-[228px] w-[94%] -translate-x-1/2 object-contain object-top drop-shadow-[0_18px_14px_rgba(0,0,0,.8)]"
+                                          className="absolute left-1/2 top-0 z-10 h-[171px] w-[94%] -translate-x-1/2 object-contain object-top drop-shadow-[0_18px_14px_rgba(0,0,0,.8)]"
                                           onError={(event) => {
                                             event.currentTarget.style.display = "none";
                                             event.currentTarget.nextElementSibling?.classList.remove("hidden");
@@ -6758,7 +6795,7 @@ export default function Home() {
                                         />
                                         <div
                                           aria-hidden="true"
-                                          className="absolute inset-0 hidden"
+                                          className="absolute inset-0 hidden scale-[.78] origin-top"
                                         >
                                           <div className="absolute left-1/2 top-0 h-5 w-px -translate-x-1/2 bg-[#c89b67]" />
                                           <div className="absolute left-1/2 top-3 h-5 w-14 -translate-x-1/2 rounded-t-full border-2 border-[#9f744b] border-b-0" />
@@ -6797,7 +6834,7 @@ export default function Home() {
                                 }
 
                                 return (
-                                  <div className="absolute inset-0">
+                                  <div className="absolute inset-0 scale-[.78] origin-top">
                                     <div className="absolute left-3 right-3 top-4 h-[3px] rounded-full bg-[linear-gradient(180deg,#d9b17c,#6c4527)] shadow-[0_3px_5px_rgba(0,0,0,.65)]" />
                                     <div className="absolute left-1/2 top-4 h-5 w-px -translate-x-1/2 bg-[#c89b67]" />
                                     <div className="absolute left-1/2 top-7 h-5 w-14 -translate-x-1/2 rounded-t-full border-2 border-[#9f744b] border-b-0" />
@@ -6832,20 +6869,43 @@ export default function Home() {
                               })()}
                             </div>
 
-                            <div className="relative mx-3 mt-2 min-h-[112px] border-t border-[#8b6235]/80 px-3 pt-3">
+                            {(() => {
+                              const venue = lockerVenue(team);
+                              const colors = lockerTeamColors(team);
+                              const sceneBackground = venue.scene === "rink"
+                                ? "linear-gradient(180deg,#131f31 0%,#32445a 44%,#ecf1f3 45%,#ced9e2 100%)"
+                                : venue.scene === "court"
+                                  ? "linear-gradient(180deg,#1b2436 0%,#384150 44%,#b47b43 45%,#8c5630 100%)"
+                                  : venue.scene === "diamond"
+                                    ? "linear-gradient(180deg,#14243b 0%,#34455a 44%,#396d42 45%,#267141 100%)"
+                                    : "linear-gradient(180deg,#14263c 0%,#34485a 44%,#29824c 45%,#195a37 100%)";
+                              return (
+                                <div className="relative mx-3 mt-1 h-[62px] shrink-0 overflow-hidden rounded border border-[#b8874f] shadow-[0_5px_12px_rgba(0,0,0,.6)]"
+                                  role="img" aria-label={`${venue.name} venue view`}
+                                  style={venue.previewX !== undefined
+                                    ? { backgroundImage: "url('/locker-room-preview.png')", backgroundPosition: `-${venue.previewX}px -654px`, backgroundSize: "1222px 1287px", backgroundRepeat: "no-repeat" }
+                                    : { background: sceneBackground }}>
+                                  {venue.previewX === undefined && <>
+                                    <div className="absolute inset-x-2 top-3 h-3 rounded-[50%] border-t-2 opacity-60" style={{ borderColor: colors.secondary }} />
+                                    <div className="absolute inset-x-5 top-7 h-9 rounded-[50%] border border-white/50 opacity-70" />
+                                    <div className="absolute left-1/2 top-7 h-9 w-px -translate-x-1/2 bg-white/40" />
+                                  </>}
+                                  <div className="absolute inset-x-0 bottom-0 truncate bg-black/80 px-2 py-1 text-center text-[10px] font-black text-white">{venue.name}</div>
+                                </div>
+                              );
+                            })()}
+
+                            <div className="relative mx-3 mt-2 min-h-[78px] border-t border-[#8b6235]/80 px-2 pt-2">
                               <div className="mb-1 text-[10px] font-black uppercase tracking-[0.1em] text-[#f3c64f]">
                                 {nextGame ? "Next Game" : "Team Locker"}
                               </div>
                               {nextGame ? (
                                 <>
-                                  <div className="line-clamp-2 min-h-9 text-sm font-black leading-tight text-[#f8efe0]">
+                                  <div className="truncate text-xs font-black leading-tight text-[#f8efe0]">
                                     {teamIsHome ? "vs" : "at"} {opponent}
                                   </div>
-                                  <div className="mt-1 text-[11px] font-semibold leading-tight text-[#cdb89e]">
+                                  <div className="mt-1 text-[10px] font-semibold leading-tight text-[#cdb89e]">
                                     {formatGameDate(nextGame.startsAt)} · {formatGameTime(nextGame.startsAt, nextGame.startTimeTbd)}
-                                  </div>
-                                  <div className="mt-1 truncate text-[10px] font-semibold text-white/55">
-                                    {nextGame.competition}
                                   </div>
                                 </>
                               ) : (
@@ -6855,7 +6915,7 @@ export default function Home() {
                               )}
                             </div>
 
-                            <div className="relative mx-3 mt-auto flex items-center justify-between border-t border-[#8b6235]/60 px-3 pt-2 text-[10px] font-black uppercase tracking-wide text-[#d7c2a7]">
+                            <div className="relative mx-3 mt-auto flex items-center justify-between border-t border-[#8b6235]/60 px-2 pt-1 text-[10px] font-black uppercase tracking-wide text-[#d7c2a7]">
                               <span>{nextGame ? "Open Matchup" : "Browse Games"}</span>
                               <span className="text-[#f3c64f] transition group-hover:translate-x-1">→</span>
                             </div>
@@ -6888,57 +6948,6 @@ export default function Home() {
                     )}
                 </div>
 
-                <div className="mt-3 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {[
-                    "All",
-                    ...Array.from(
-                      new Set(
-                        lockerPlayers
-                          .find((player) => player.id === signedInPlayer?.id)
-                          ?.teams.map((team) => team.sport) ?? [],
-                      ),
-                    ),
-                  ].map((sport) => (
-                    <button
-                      key={sport}
-                      type="button"
-                      onClick={() => setLockerSportFilter(sport)}
-                      className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black ${
-                        lockerSportFilter === sport
-                          ? "border-[#f3c64f] bg-[#f3c64f] text-[#33200f]"
-                          : "border-[#9a7047] bg-black/20 text-[#f4e6d2]"
-                      }`}
-                    >
-                      {sport}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-2 flex items-center justify-between gap-3 border-y border-[#7b542e] py-3">
-                  <div>
-                    <div className="text-[10px] font-black uppercase tracking-[0.1em] text-[#f3c64f]">
-                      My Teams
-                    </div>
-                    <div className="mt-0.5 text-xs font-bold text-[#d7c2a7]">
-                      {lockerSportFilter === "All"
-                        ? "Everything I follow"
-                        : lockerSportFilter}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void openProfile()}
-                    className="rounded-xl border border-[#f3c64f] bg-black/20 px-3 py-2 text-xs font-black text-[#f3c64f]"
-                  >
-                    + Edit Teams
-                  </button>
-                </div>
-
-                <div className="mt-4 rounded-xl border border-[#7b542e] bg-[#1a100a] px-4 py-4 text-center">
-                  <div className="text-sm font-black text-[#f4e6d2]">
-                    Good teams make great memories. 💛
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -8401,7 +8410,7 @@ export default function Home() {
                 </div>
               )}
 
-                  {[{"id":"mlb-playoffs-world-series","icon":"⚾","name":"MLB Playoffs & World Series","sport":"Baseball","season":"September–October","format":"Wild Card → Division → League Championship → World Series","description":"One event for the whole postseason, with new game picks as matchups are set.","dates":["Wild Card: September 29–October 1","Division Series: begins October 3","League Championship Series: begins October 11","World Series: begins October 23"],"learning":"Pick individual game winners as each round arrives. Your picks lock at first pitch; teams advance by winning their series.","matches":["mlb postseason"]},{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"europa-league","icon":"🟠","name":"Europa League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"UEFA Europa League. League phase began September 16–17.","dates":["League phase began September 16–17","Next league matchday: October 15","Knockout rounds: February–May"],"learning":"Follow UEFA league-phase standings and knockout games. This is separate from the Champions and Conference Leagues.","matches":["europa league"]},{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}]
+                  {[{"id":"mlb-playoffs-world-series","icon":"⚾","name":"MLB Playoffs & World Series","sport":"Baseball","season":"September–October","format":"Wild Card → Division → League Championship → World Series","description":"One event for the whole postseason, with new game picks as matchups are set.","dates":["Wild Card: September 29–October 1","Division Series: begins October 3","League Championship Series: begins October 11","World Series: begins October 23"],"learning":"Pick individual game winners as each round arrives. Your picks lock at first pitch; teams advance by winning their series.","matches":["mlb postseason"]},{"id":"efl-trophy","icon":"🏆","name":"EFL Trophy","sport":"Soccer","season":"August–April","format":"Groups + Knockout","description":"A cup path especially relevant to AFC Wimbledon.","dates":["Group stage: August–November","Knockout rounds: December–March","Final at Wembley: usually April"],"learning":"Regional groups of four play three matches. A win earns 3 points. A group-stage draw goes straight to penalties: both clubs earn 1 point and the shootout winner earns a bonus point. The top two in each group advance.","matches":["efl trophy","english football league trophy","football league trophy","vertu trophy","papa john","bristol street motors trophy"]},{"id":"carabao-cup","icon":"🥤","name":"Carabao Cup","sport":"Soccer","season":"August–March","format":"Knockout","description":"England’s professional League Cup.","dates":["Early rounds: August–September","Knockout rounds: October–February","Final: usually March"],"learning":"Learn single-elimination brackets, extra time, penalties and how lower-league clubs can upset Premier League teams.","matches":["carabao cup","efl cup","league cup"]},{"id":"champions-league","icon":"🌟","name":"Champions League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"Europe’s biggest club competition.","dates":["League phase: September–January","Knockout rounds: February–May","Final: late May"],"learning":"Learn the league-phase table, qualification places, two-leg aggregate scores and knockout advancement.","matches":["champions league"]},{"id":"europa-league","icon":"🟠","name":"Europa League","sport":"Soccer","season":"September–May","format":"League + Knockout","description":"UEFA Europa League. League phase began September 16–17.","dates":["League phase began September 16–17","Next league matchday: October 15","Knockout rounds: February–May"],"learning":"Follow UEFA league-phase standings and knockout games. This is separate from the Champions and Conference Leagues.","matches":["europa league"]},...(conferenceLeagueActive ? [{"id":"conference-league","icon":"🟢","name":"Conference League","sport":"Soccer","season":"October–May","format":"League + Knockout","description":"UEFA Conference League league phase begins October 15.","dates":["League phase begins October 15","League phase: October–December","Knockout rounds: February–May"],"learning":"The Conference League is a separate UEFA competition with its own standings and picks.","matches":["conference league"]}] : []),{"id":"fa-cup","icon":"⚽","name":"FA Cup","sport":"Soccer","season":"August–May","format":"Knockout","description":"Hundreds of English clubs share one road to Wembley.","dates":["Qualifying: August–October","First Round Proper: November","Premier League clubs enter: January","Final: May"],"learning":"Smaller clubs enter first and bigger clubs join later. Win and advance; lose and the cup run is over. That setup creates famous giant-killing upsets.","matches":["fa cup"]}]
                     .filter((event) => !hiddenEventIds.includes(event.id) && matchesEventSport(event.sport))
                     .map((event) => {
                     const eventGames = realGames
@@ -8688,7 +8697,7 @@ export default function Home() {
                       learning: "Follow medal tables, heats, qualification rounds and finals across many sports.",
                     },
                   ]
-                    .filter((event) => !["Carabao Cup", "Champions League", "Europa League", "EFL Trophy"].includes(event.name))
+                    .filter((event) => !["Carabao Cup", "Champions League", "Europa League", "EFL Trophy"].includes(event.name) && !(conferenceLeagueActive && event.name === "Conference League"))
                     .filter((event) => !hiddenEventIds.includes(eventIdFromName(event.name)) && matchesEventSport(event.sport))
                     .sort((a, b) => {
                       const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];

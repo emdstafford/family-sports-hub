@@ -8865,25 +8865,12 @@ export default function Home() {
         challenge && (
           <section className="w-full px-0.5 py-4">
             <div className="w-full overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-lg">
-              <div className="border-b border-[#e5dcc5] bg-[#fffaf0] px-3 py-2.5">
-                <div className="flex items-end justify-between gap-3">
-                  <div>
-                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b28a2e]">Current Challenge</div>
-                    <div className="mt-0.5 text-base font-black tracking-tight text-[#06284a]">{signedInPlayer.display_name}&apos;s Scoreboard</div>
+              <div className="border-b border-[#e5dcc5] bg-[#fffaf0] px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">Your Accuracy</div>
+                  <div className="text-lg font-black text-[#06284a]">
+                    {trophyStanding?.completed_picks ? `${Math.round(trophyStanding.accuracy)}%` : "0%"}
                   </div>
-                  <div className="text-[9px] font-bold text-slate-400">Updates as games finish</div>
-                </div>
-                <div className="mt-2 grid grid-cols-3 gap-1.5">
-                  {[
-                    [trophyStanding?.points ?? 0, "Points"],
-                    [trophyStanding?.correct ?? 0, "Correct"],
-                    [trophyStanding?.completed_picks ? `${Math.round(trophyStanding.accuracy)}%` : "0%", "Accuracy"],
-                  ].map(([value, label]) => (
-                    <div key={label} className="rounded-lg border border-[#e5dcc5] bg-white px-2 py-1.5 text-center shadow-sm">
-                      <div className="text-lg font-black leading-tight text-[#b28a2e]">{value}</div>
-                      <div className="text-[8px] font-black uppercase tracking-wide text-slate-500">{label}</div>
-                    </div>
-                  ))}
                 </div>
               </div>
 

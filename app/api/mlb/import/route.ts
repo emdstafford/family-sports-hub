@@ -16,6 +16,8 @@ type MlbGame = {
   gamePk: number;
   gameType: string;
   season: string;
+  seriesDescription?: string;
+  ifNecessary?: string | boolean;
   gameDate: string;
   status: {
     abstractGameState: string;
@@ -75,6 +77,13 @@ export async function POST(request: Request) {
       url.searchParams.get("date") ??
       body.date ??
       new Date().toISOString().slice(0, 10);
+    const postseason = url.searchParams.get("postseason") === "1";
+    const startDate = url.searchParams.get("startDate") ?? date;
+    const endDate = url.searchParams.get("endDate") ?? startDate;
+
+    if (postseason && (![startDate, endDate].every((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)) || endDate < startDate)) {
+      return NextResponse.json({ error: "Invalid postseason date range." }, { status: 400 });
+    }
 
     const supabase = createClient(
       supabaseUrl,
@@ -106,13 +115,35 @@ export async function POST(request: Request) {
       );
     }
 
-    const competitionId = competition.id;
+    let competitionId = competition.id;
     const competitionSportId = competition.sport_id;
 
+    if (postseason) {
+      const existing = await supabase.from("competitions").select("id")
+        .eq("name", "MLB Postseason").maybeSingle();
+      if (existing.error) throw existing.error;
+      if (existing.data) {
+        competitionId = existing.data.id;
+      } else {
+        const created = await supabase.from("competitions")
+          .insert({ sport_id: competitionSportId, name: "MLB Postseason" })
+          .select("id").single();
+        if (created.error || !created.data) throw created.error ?? new Error("Could not create MLB Postseason competition.");
+        competitionId = created.data.id;
+      }
+    }
+
+    const scheduleParams = new URLSearchParams({ sportId: "1", hydrate: "team" });
+    if (postseason) {
+      scheduleParams.set("startDate", startDate);
+      scheduleParams.set("endDate", endDate);
+      scheduleParams.set("gameTypes", "F,D,L,W");
+    } else {
+      scheduleParams.set("date", date);
+    }
+
     const response = await fetch(
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${encodeURIComponent(
-        date,
-      )}&hydrate=team`,
+      `https://statsapi.mlb.com/api/v1/schedule?${scheduleParams.toString()}`,
       {
         cache: "no-store",
       },
@@ -131,11 +162,12 @@ export async function POST(request: Request) {
     const schedule =
       (await response.json()) as MlbScheduleResponse;
 
-    const games =
-      schedule.dates
-        ?.find((day) => day.date === date)
-        ?.games?.filter((game) => game.gameType === "R") ??
-      [];
+    const games = (schedule.dates ?? [])
+      .filter((day) => postseason || day.date === date)
+      .flatMap((day) => day.games ?? [])
+      .filter((game) => postseason
+        ? ["F", "D", "L", "W"].includes(game.gameType)
+        : game.gameType === "R");
 
     const teamCache = new Map<number, string>();
 
@@ -188,6 +220,15 @@ export async function POST(request: Request) {
 
     for (const game of games) {
       try {
+        // The schedule may publish bracket slots before the teams are known.
+        // Only named matchups should become pickable games.
+        if (!game.teams.away.team?.id || !game.teams.home.team?.id ||
+          !game.teams.away.team.name || !game.teams.home.team.name ||
+          (postseason && (game.status.startTimeTBD || !game.gameDate ||
+            game.gameDate.includes("T00:00:00Z") || game.ifNecessary === "Y" || game.ifNecessary === true))) {
+          gamesSkipped += 1;
+          continue;
+        }
         const awayTeamId = await getOrCreateTeam(
           game.teams.away.team,
         );
@@ -207,7 +248,9 @@ export async function POST(request: Request) {
               starts_at: game.gameDate,
               start_time_tbd:
                 game.status.startTimeTBD ?? false,
-              source_notes: `MLB ${game.season}`,
+              source_notes: postseason
+                ? `MLB Postseason ${game.season} · ${game.seriesDescription?.trim() || ({ F: "Wild Card Series", D: "Division Series", L: "League Championship Series", W: "World Series" } as Record<string, string>)[game.gameType]}`
+                : `MLB ${game.season}`,
               home_score:
                 typeof game.teams.home.score === "number"
                   ? game.teams.home.score
@@ -255,7 +298,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       source: "mlb",
-      date,
+      date: postseason ? `${startDate}–${endDate}` : date,
       gamesReceived: games.length,
       gamesImported,
       gamesSkipped,

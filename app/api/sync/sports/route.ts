@@ -133,6 +133,18 @@ async function runSync(request: NextRequest) {
     ),
   );
 
+  // Refresh known MLB playoff matchups and results as each round is set.
+  // Bracket placeholders without named teams are ignored by the importer.
+  const today = new Date();
+  const seasonYear = today.getUTCFullYear();
+  if (today >= new Date(Date.UTC(seasonYear, 8, 20)) &&
+      today <= new Date(Date.UTC(seasonYear, 10, 2))) {
+    const start = new Date(today.getTime() - 2 * 86_400_000).toISOString().slice(0, 10);
+    const end = new Date(today.getTime() + 14 * 86_400_000).toISOString().slice(0, 10);
+    results.push(await callInternalRoute(request,
+      `/api/mlb/import?postseason=1&startDate=${start}&endDate=${end}`));
+  }
+
   /*
    * CollegeFootballData is intentionally NOT called by
    * the hourly sports sync.

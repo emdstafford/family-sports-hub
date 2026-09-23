@@ -27,6 +27,25 @@ type EventPick = {
   submittedAt: string;
 };
 
+type NhlSchedule = {
+  gameWeek?: Array<{
+    games?: Array<{
+      id: number;
+      gameState: string;
+      homeTeam: { score?: number };
+      awayTeam: { score?: number };
+    }>;
+  }>;
+};
+
+function easternDate(value: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date(value));
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
@@ -108,10 +127,41 @@ export async function GET(request: NextRequest) {
     const { data: games, error: gamesError } = gameIds.length
       ? await supabase
           .from("games")
-          .select("id, status, home_score, away_score")
+          .select("id, status, home_score, away_score, starts_at, external_provider, external_id")
           .in("id", gameIds)
       : { data: [], error: null };
     if (gamesError) throw gamesError;
+
+    // The daily sports import can lag a late NHL finish. Check selected games
+    // directly with the NHL before grading this week's hockey event.
+    if (mamaHockeyEventPattern.test(eventId)) {
+      const stale = (games ?? []).filter((game) =>
+        game.external_provider === "nhl" && game.external_id && game.starts_at &&
+        new Date(game.starts_at).getTime() < Date.now() - 3 * 60 * 60 * 1000 &&
+        (game.home_score === null || game.away_score === null ||
+          !["final", "finished", "complete", "completed", "closed"].some((status) =>
+            String(game.status ?? "").toLowerCase().includes(status))));
+      const dates = [...new Set(stale.map((game) => easternDate(game.starts_at!)))];
+      await Promise.all(dates.map(async (date) => {
+        try {
+          const response = await fetch(`https://api-web.nhle.com/v1/schedule/${date}`, { cache: "no-store" });
+          if (!response.ok) return;
+          const schedule = (await response.json()) as NhlSchedule;
+          const providerGames = schedule.gameWeek?.flatMap((day) => day.games ?? []) ?? [];
+          for (const game of stale.filter((candidate) => easternDate(candidate.starts_at!) === date)) {
+            const latest = providerGames.find((candidate) => String(candidate.id) === game.external_id);
+            if (!latest || !["OFF", "FINAL"].includes(latest.gameState.toUpperCase()) ||
+                typeof latest.homeTeam.score !== "number" || typeof latest.awayTeam.score !== "number") continue;
+            const update = { status: "final", home_score: latest.homeTeam.score, away_score: latest.awayTeam.score };
+            const { error } = await supabase.from("games").update(update).eq("id", game.id);
+            if (error) { console.error("Could not refresh NHL event result:", error); continue; }
+            Object.assign(game, update);
+          }
+        } catch (error) {
+          console.error("Could not check NHL event results:", error);
+        }
+      }));
+    }
 
     const gameById = new Map((games ?? []).map((game) => [game.id, game]));
     const playerPicks = picks.filter((pick) => pick.playerId === playerId);

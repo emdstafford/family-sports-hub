@@ -8865,23 +8865,23 @@ export default function Home() {
         challenge && (
           <section className="mx-auto max-w-5xl px-2 py-4">
             <div className="mx-auto max-w-2xl overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-lg">
-              <div className="border-b border-[#e5dcc5] bg-[#fffaf0] px-4 py-4">
+              <div className="border-b border-[#e5dcc5] bg-[#fffaf0] px-3 py-2.5">
                 <div className="flex items-end justify-between gap-3">
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b28a2e]">Current Challenge</div>
-                    <div className="mt-0.5 text-lg font-black tracking-tight text-[#06284a]">{signedInPlayer.display_name}&apos;s Scoreboard</div>
+                    <div className="mt-0.5 text-base font-black tracking-tight text-[#06284a]">{signedInPlayer.display_name}&apos;s Scoreboard</div>
                   </div>
                   <div className="text-[9px] font-bold text-slate-400">Updates as games finish</div>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="mt-2 grid grid-cols-3 gap-1.5">
                   {[
                     [trophyStanding?.points ?? 0, "Points"],
                     [trophyStanding?.correct ?? 0, "Correct"],
                     [trophyStanding?.completed_picks ? `${Math.round(trophyStanding.accuracy)}%` : "0%", "Accuracy"],
                   ].map(([value, label]) => (
-                    <div key={label} className="rounded-xl border border-[#e5dcc5] bg-white p-3 text-center shadow-sm">
-                      <div className="text-2xl font-black text-[#b28a2e]">{value}</div>
-                      <div className="mt-0.5 text-[9px] font-black uppercase tracking-wide text-slate-500">{label}</div>
+                    <div key={label} className="rounded-lg border border-[#e5dcc5] bg-white px-2 py-1.5 text-center shadow-sm">
+                      <div className="text-lg font-black leading-tight text-[#b28a2e]">{value}</div>
+                      <div className="text-[8px] font-black uppercase tracking-wide text-slate-500">{label}</div>
                     </div>
                   ))}
                 </div>
@@ -8891,10 +8891,10 @@ export default function Home() {
               {weeklyLeaderboard.length > 0 && (
                 <div className="border-b border-[#e5dcc5] bg-white px-3 py-2.5">
                   <div className="mb-1.5 flex items-center justify-between">
-                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#b28a2e]">
+                    <div className="text-xs font-black uppercase tracking-[0.12em] text-[#b28a2e]">
                       This Week 🏆
                     </div>
-                    <div className="text-[9px] font-bold text-slate-400">
+                    <div className="text-[10px] font-bold text-slate-400">
                       Score · picks ready
                     </div>
                   </div>
@@ -8911,17 +8911,17 @@ export default function Home() {
                               {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-[11px] font-black text-[#06284a]">{row.display_name}</div>
-                              <div className="text-[8px] font-semibold text-slate-500">
+                              <div className="truncate text-sm font-black text-[#06284a]">{row.display_name}</div>
+                              <div className="text-[10px] font-semibold text-slate-500">
                                 {row.correct} correct · {row.completed_picks}/{row.total_picks} scored
                               </div>
                             </div>
-                            <div className={`shrink-0 rounded-full px-2 py-1 text-[8px] font-black ${ready ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"}`}>
+                            <div className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-black ${ready ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"}`}>
                               {ready ? "READY" : `${Math.max(0, challengeGames.length - pickCount)} LEFT`}
                             </div>
                             <div className="w-7 shrink-0 text-right">
-                              <div className="text-sm font-black leading-none text-[#06284a]">{row.points}</div>
-                              <div className="text-[7px] font-black uppercase text-slate-400">pts</div>
+                              <div className="text-base font-black leading-none text-[#06284a]">{row.points}</div>
+                              <div className="text-[8px] font-black uppercase text-slate-400">pts</div>
                             </div>
                           </div>
                         );

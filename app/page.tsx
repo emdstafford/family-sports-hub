@@ -8812,6 +8812,24 @@ export default function Home() {
                     .filter((event) => !["Carabao Cup", "Champions League", "Europa League", "EFL Trophy"].includes(event.name) && !(conferenceLeagueActive && event.name === "Conference League"))
                     .filter((event) => !hiddenEventIds.includes(eventIdFromName(event.name)) && matchesEventSport(event.sport))
                     .sort((a, b) => {
+                      // Events with real upcoming games always rise to the top automatically.
+                      // This keeps the page useful in future seasons without hand-reordering cards.
+                      const nowMs = currentTime ?? Date.now();
+                      const nextGameTime = (eventName: string) => {
+                        const eventId = eventIdFromName(eventName);
+                        const times = realGames
+                          .filter((game) => matchesEventGame(eventId, game) && game.startsAt && new Date(game.startsAt).getTime() >= nowMs)
+                          .map((game) => new Date(game.startsAt!).getTime());
+                        return times.length ? Math.min(...times) : Number.POSITIVE_INFINITY;
+                      };
+                      const aGame = nextGameTime(a.name);
+                      const bGame = nextGameTime(b.name);
+                      if (Number.isFinite(aGame) || Number.isFinite(bGame)) {
+                        if (!Number.isFinite(aGame)) return 1;
+                        if (!Number.isFinite(bGame)) return -1;
+                        if (aGame !== bGame) return aGame - bGame;
+                      }
+
                       const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                       const now = new Date(currentTime ?? Date.now());
                       const month = Number(new Intl.DateTimeFormat("en-US", {

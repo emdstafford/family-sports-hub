@@ -60,7 +60,8 @@ function matchesEventGame(eventId: string, game: BrowserGame) {
   const notes = (game.sourceNotes ?? "").toLowerCase();
   if (eventId === "stanley-cup") return competition.includes("nhl") && notes.includes("stanley cup");
   if (eventId === "nfl-playoffs-super-bowl") return competition.includes("nfl") && /(playoff|wild card|divisional|conference championship|super bowl)/.test(competition + " " + notes);
-  if (eventId === "sec-basketball-tournaments") return competition.includes("sec") && competition.includes("basketball");
+  if (eventId === "sec-mens-basketball-tournament") return game.sport === "College Basketball" && competition.includes("sec") && !/(women|womens|women’s)/.test(competition);
+  if (eventId === "sec-womens-basketball-tournament") return game.sport === "College Basketball" && competition.includes("sec") && /(women|womens|women’s)/.test(competition);
   if (eventId === "college-world-series") return /(college world series|ncaa baseball)/.test(competition);
   if (eventId === "pro-volleyball-playoffs") return competition.includes("volleyball") && /(playoff|championship)/.test(competition + " " + notes);
   if (eventId === "acha-college-hockey-postseason") return /(acha|acchl)/.test(competition) && /(postseason|tournament|playoff|championship)/.test(competition + " " + notes);
@@ -73,6 +74,9 @@ function matchesEventGame(eventId: string, game: BrowserGame) {
   if (eventId === "ncaa-volleyball-tournament") return game.sport === "Volleyball" && /(ncaa|national championship)/.test(competition);
   if (eventId === "world-cups-euros") return game.sport === "Soccer" && /(world cup|euro)/.test(competition);
   if (eventId === "olympics") return /(olympic)/.test(competition + " " + notes);
+  if (eventId === "champions-league") {
+    return competition.includes("champions league") && !/(women|womens|women’s)/.test(competition);
+  }
   return (EVENT_GAME_MATCHES[eventId] ?? []).some((name) => competition.includes(name));
 }
 
@@ -1224,7 +1228,8 @@ type PhotoCropRequest = {
 const EVENT_NAMES: Record<string, string> = {
   "mlb-playoffs-world-series": "MLB Playoffs & World Series",
   "nfl-playoffs-super-bowl": "NFL Playoffs & Super Bowl",
-  "sec-basketball-tournaments": "SEC Basketball Tournaments",
+  "sec-mens-basketball-tournament": "SEC Men’s Basketball Tournament",
+  "sec-womens-basketball-tournament": "SEC Women’s Basketball Tournament",
   "college-world-series": "College World Series",
   "pro-volleyball-playoffs": "Pro Volleyball Playoffs",
   "carabao-cup": "Carabao Cup",
@@ -8662,7 +8667,7 @@ export default function Home() {
                       Coming Up Next
                     </h3>
                     <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                      Soonest first, based on the usual event months. Events awaiting dates appear last. Tap for details.
+                      Live events and upcoming games rise automatically. Future events follow their season dates. Tap for details.
                     </div>
                   </div>
                   <div className="text-[10px] font-black uppercase text-[#b28a2e]">
@@ -8672,7 +8677,8 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     {"icon": "🏈", "name": "NFL Playoffs & Super Bowl", "sport": "Football", "season": "January–February", "format": "Single-Elimination Playoffs", "description": "Pick your way through the NFL postseason.", "dates": ["Wild Card and Divisional rounds", "Conference championships", "Super Bowl"], "learning": "Learn playoff seeds, home-field advantage and how the conference champions reach the Super Bowl. Picks are coming later."},
-                    {"icon": "🏀", "name": "SEC Basketball Tournaments", "sport": "Basketball", "season": "March", "format": "Conference Tournaments", "description": "Follow the men’s and women’s SEC tournaments, including Kentucky.", "dates": ["Women’s tournament: usually early March", "Men’s tournament: usually mid-March", "Brackets confirmed near the end of the regular season"], "learning": "Learn conference seeding, byes and automatic NCAA tournament bids. Men’s and women’s picks will be separate when activated."},
+                    {"icon": "🏀", "name": "SEC Women’s Basketball Tournament", "sport": "Women’s Basketball", "season": "March", "format": "Interactive Conference Bracket", "description": "Build a complete women’s SEC Tournament bracket and follow Kentucky through its own field.", "dates": ["Tournament: usually early March", "Bracket released after the regular season", "Picks lock when tournament play begins"], "learning": "Learn conference seeding, byes, upset paths and the automatic NCAA tournament bid. This bracket stays completely separate from the men’s tournament."},
+                    {"icon": "🏀", "name": "SEC Men’s Basketball Tournament", "sport": "Men’s Basketball", "season": "March", "format": "Interactive Conference Bracket", "description": "Build a complete men’s SEC Tournament bracket and follow Kentucky through its own field.", "dates": ["Tournament: usually mid-March", "Bracket released after the regular season", "Picks lock when tournament play begins"], "learning": "Learn conference seeding, byes, upset paths and the automatic NCAA tournament bid. Your picks advance through your own bracket until it locks."},
                     {"icon": "⚾", "name": "College World Series", "sport": "Baseball", "season": "May–June", "format": "NCAA Tournament", "description": "Follow college baseball from regionals to Omaha.", "dates": ["Regionals: usually late May–early June", "Super regionals: June", "College World Series: June"], "learning": "Learn double elimination, super-regional series and the championship series. Picks will open when the bracket is available."},
                     {"icon": "🏐", "name": "Pro Volleyball Playoffs", "sport": "Volleyball", "season": "Dates to be announced", "format": "League Playoffs", "description": "Follow the postseason race for Atlanta Vibe’s league.", "dates": ["Playoff dates: to be confirmed", "Qualifying teams and format: to be confirmed", "Championship: to be confirmed"], "learning": "Learn how regular-season standings determine playoff qualification and how teams advance. Atlanta Vibe’s participation depends on qualifying."},
                     {
@@ -8761,15 +8767,15 @@ export default function Home() {
                     },
                     {
                       icon: "🏀", name: "Men’s March Madness", sport: "Basketball",
-                      season: "March–April", format: "68-Team Bracket",
-                      description: "The men’s NCAA tournament challenge.",
+                      season: "March–April", format: "Interactive 68-Team Bracket",
+                      description: "Build your full men’s NCAA bracket, advance your picks round by round and choose your champion.",
                       dates: ["Selection Sunday: March", "Tournament: mid-March–early April", "Championship: early April"],
                       learning: "Learn seeds, regions, upset picks, the Sweet 16, Elite Eight and Final Four.",
                     },
                     {
                       icon: "🏀", name: "Women’s March Madness", sport: "Basketball",
-                      season: "March–April", format: "68-Team Bracket",
-                      description: "The women’s NCAA tournament challenge.",
+                      season: "March–April", format: "Interactive 68-Team Bracket",
+                      description: "Build your full women’s NCAA bracket, advance your picks round by round and choose your champion.",
                       dates: ["Selection Sunday: March", "Tournament: mid-March–early April", "Championship: early April"],
                       learning: "Learn bracket strategy, seeds, Cinderella runs and how each region reaches the Final Four.",
                     },
@@ -8796,10 +8802,10 @@ export default function Home() {
                     },
                     {
                       icon: "🌹", name: "Kentucky Derby", sport: "Horse Racing",
-                      season: "First Saturday in May", format: "Single Race",
-                      description: "Pick the Derby winner and learn the field.",
+                      season: "First Saturday in May", format: "Race Day Picks + Meet the Horses",
+                      description: "Meet every Derby horse and jockey, then make your Winner and Top 3 picks.",
                       dates: ["Prep season: winter–spring", "Post-position draw: Derby week", "Kentucky Derby: first Saturday in May"],
-                      learning: "Learn qualifying points, post positions, odds, track conditions and how the Derby begins the Triple Crown.",
+                      learning: "Explore each horse’s post position, jockey, trainer, silks, odds, story and a fun fact before making picks. Then save the family’s Derby results and memories in FamBam History.",
                     },
                     {
                       icon: "👑", name: "Triple Crown", sport: "Horse Racing",

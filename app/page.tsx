@@ -5507,7 +5507,7 @@ export default function Home() {
                     </div>
                     <div className="mt-0.5 text-sm font-black text-[#10254a]">
                       {currentPlayerReady
-                        ? `${challengeGamesWithSavedPick}/${challengeGames.length} — You’re all set!`
+                        ? "You’re all set!"
                         : challengeGames.length > 0
                           ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved`
                           : "This week’s picks are coming soon."}
@@ -6957,7 +6957,7 @@ export default function Home() {
                               );
                             })()}
 
-                            <div className="relative mx-3 mt-2 min-h-[78px] border-t border-[#8b6235]/80 px-2 pt-2">
+                            <div className="relative mx-3 mt-4 min-h-[78px] border-t border-[#8b6235]/80 px-2 pt-2">
                               <div className="mb-1 text-[10px] font-black uppercase tracking-[0.1em] text-[#f3c64f]">
                                 {nextGame ? "Next Game" : "Team Locker"}
                               </div>

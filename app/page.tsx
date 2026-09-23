@@ -8865,17 +8865,6 @@ export default function Home() {
         challenge && (
           <section className="mx-auto max-w-5xl px-2 py-4">
             <div className="mx-auto max-w-2xl overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-lg">
-              <div className="bg-[#06284a] p-5 text-white">
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f3c64f]">
-                    This Week&apos;s Challenge
-                  </div>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight">
-                    {signedInPlayer.display_name}&apos;s Picks
-                  </h2>
-                </div>
-              </div>
-
               <div className="border-b border-[#e5dcc5] bg-[#fffaf0] px-4 py-4">
                 <div className="flex items-end justify-between gap-3">
                   <div>

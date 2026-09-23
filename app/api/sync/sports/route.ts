@@ -72,6 +72,19 @@ async function runSync(request: NextRequest) {
   const results: SyncResult[] = [];
 
   /*
+   * NHL's schedule response includes the current week.
+   * Refresh it on each sync for upcoming games, live scores,
+   * final results, and Stanley Cup playoff fixtures.
+   */
+  results.push(
+    await callInternalRoute(
+      request,
+      "/api/nhl/import",
+    ),
+  );
+
+
+  /*
    * Soccer can happen throughout the week, so refresh
    * both supported soccer competitions every sync.
    */
@@ -94,18 +107,6 @@ async function runSync(request: NextRequest) {
     await callInternalRoute(
       request,
       "/api/soccer/espn/import",
-    ),
-  );
-
-  /*
-   * NHL's schedule response includes the current week.
-   * Refresh it hourly for upcoming games, live scores,
-   * final results, and Stanley Cup playoff fixtures.
-   */
-  results.push(
-    await callInternalRoute(
-      request,
-      "/api/nhl/import",
     ),
   );
 

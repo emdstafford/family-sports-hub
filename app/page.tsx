@@ -38,6 +38,11 @@ type Sport =
   | "Baseball"
   | "Cheerleading";
 
+const RADAR_SPORTS: Sport[] = [
+  "All", "Soccer", "College Football", "College Basketball",
+  "Volleyball", "Hockey", "Baseball",
+];
+
 type ProfileSport = {
   id: string;
   slug: string;
@@ -1166,6 +1171,9 @@ export default function Home() {
     useState(false);
 
   const [activeSport, setActiveSport] =
+    useState<Sport>("All");
+
+  const [resultsSport, setResultsSport] =
     useState<Sport>("All");
 
   const [gamesPageView, setGamesPageView] =
@@ -4041,6 +4049,10 @@ export default function Home() {
         new Date(a.startsAt ?? 0).getTime(),
     );
 
+  const filteredRecentResults = resultsSport === "All"
+    ? recentResults
+    : recentResults.filter((game) => game.sport === resultsSport);
+
   const sportFilteredGames =
     activeSport === "All"
       ? watchGames
@@ -5391,15 +5403,7 @@ export default function Home() {
           <div className={gamesPageView === "games" ? "block" : "hidden"}>
 
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-            {[
-              "All",
-              "Soccer",
-              "College Football",
-              "College Basketball",
-              "Volleyball",
-              "Hockey",
-              "Baseball",
-            ].map((sport) => (
+            {RADAR_SPORTS.map((sport) => (
               <button
                 key={sport}
                 onClick={() => setActiveSport(sport as Sport)}
@@ -5750,6 +5754,24 @@ export default function Home() {
           </div>
         {/* RECENT RESULTS */}
           {gamesPageView === "results" && (
+          <div>
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1" aria-label="Filter results by sport">
+            {RADAR_SPORTS.map((sport) => (
+              <button
+                key={sport}
+                type="button"
+                onClick={() => setResultsSport(sport)}
+                aria-pressed={resultsSport === sport}
+                className={`shrink-0 rounded-full px-4 py-2 text-[10px] font-black ${
+                  resultsSport === sport
+                    ? "bg-[#06284a] text-white"
+                    : "bg-white text-[#10254a] shadow-sm"
+                }`}
+              >
+                {sport}
+              </button>
+            ))}
+          </div>
           <section className="mb-2.5 overflow-hidden rounded-2xl bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
               <div className="flex items-center gap-2">
@@ -5764,11 +5786,15 @@ export default function Home() {
               </div>
             </div>
 
-            {recentResults.length === 0 ? (
-              <p className="p-4 text-xs font-semibold text-slate-500">No final scores from your games in the last seven days.</p>
+            {filteredRecentResults.length === 0 ? (
+              <p className="p-4 text-xs font-semibold text-slate-500">
+                {resultsSport === "All"
+                  ? "No final scores from your games in the last seven days."
+                  : `No ${resultsSport.toLowerCase()} results in the last seven days.`}
+              </p>
             ) : (
             <div className="grid grid-cols-2 gap-2 p-3">
-              {recentResults.map((game) => {
+              {filteredRecentResults.map((game) => {
                 const hasScore =
                   game.awayScore !== null &&
                   game.homeScore !== null;
@@ -5857,6 +5883,7 @@ export default function Home() {
             </div>
             )}
           </section>
+          </div>
           )}
 
         </section>

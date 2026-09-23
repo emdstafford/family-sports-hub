@@ -410,8 +410,10 @@ export async function POST(request: Request) {
         team.external_provider === "espn" &&
         team.external_id
       ) {
+        const teamName = `${team.name} ${team.short_name ?? ""}`;
+        const genderKey = /\\b(women|wfc|ladies)\\b/i.test(teamName) ? "women" : "men";
         teamByEspnId.set(
-          String(team.external_id),
+          `${genderKey}:${String(team.external_id)}`,
           team.id,
         );
       }
@@ -518,8 +520,9 @@ export async function POST(request: Request) {
       const espnId =
         String(espnTeam.id);
 
+      const identityKey = `${women ? "women" : "men"}:${espnId}`;
       const cachedEspnTeam =
-        teamByEspnId.get(espnId);
+        teamByEspnId.get(identityKey);
 
       if (cachedEspnTeam) {
         teamsReused += 1;
@@ -580,7 +583,7 @@ export async function POST(request: Request) {
         }
 
         teamByEspnId.set(
-          espnId,
+          identityKey,
           existingTeamId,
         );
 
@@ -635,7 +638,7 @@ export async function POST(request: Request) {
       }
 
       teamByEspnId.set(
-        espnId,
+        identityKey,
         createdTeam.id,
       );
 

@@ -8865,15 +8865,6 @@ export default function Home() {
         challenge && (
           <section className="w-full px-0.5 py-4">
             <div className="w-full overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-lg">
-              <div className="border-b border-[#e5dcc5] bg-[#fffaf0] px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">Your Accuracy</div>
-                  <div className="text-lg font-black text-[#06284a]">
-                    {trophyStanding?.completed_picks ? `${Math.round(trophyStanding.accuracy)}%` : "0%"}
-                  </div>
-                </div>
-              </div>
-
               {/* COMPACT WEEKLY SCOREBOARD + READINESS */}
               {weeklyLeaderboard.length > 0 && (
                 <div className="border-b border-[#e5dcc5] bg-white px-3 py-2.5">

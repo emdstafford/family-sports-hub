@@ -6889,11 +6889,15 @@ export default function Home() {
                                     ? "linear-gradient(180deg,#14243b 0%,#34455a 44%,#396d42 45%,#267141 100%)"
                                     : "linear-gradient(180deg,#14263c 0%,#34485a 44%,#29824c 45%,#195a37 100%)";
                               return (
-                                <div className="relative mx-3 mt-1 h-[80px] shrink-0 overflow-hidden rounded border border-[#b8874f] shadow-[0_5px_12px_rgba(0,0,0,.6)]"
-                                  role="img" aria-label={`${venue.name} venue view`}
-                                  style={venue.previewX !== undefined
-                                    ? { backgroundImage: "url('/locker-room-preview.png')", backgroundPosition: `-${venue.previewX}px -654px`, backgroundSize: "1222px 1287px", backgroundRepeat: "no-repeat" }
-                                    : { background: sceneBackground }}>
+                                <div className="relative mx-3 mt-1 shrink-0">
+                                  <div className="mb-1 text-center text-[10px] font-black leading-tight text-[#f3c64f]">
+                                    <span className="text-[#cdb89e]">Home venue · </span>{venue.name}
+                                  </div>
+                                  <div className="relative h-[72px] overflow-hidden rounded border border-[#b8874f] shadow-[0_5px_12px_rgba(0,0,0,.6)]"
+                                    role="img" aria-label={`${venue.name} venue view`}
+                                    style={venue.previewX !== undefined
+                                      ? { backgroundImage: "url('/locker-room-preview.png')", backgroundPosition: `-${venue.previewX}px -654px`, backgroundSize: "1222px 1287px", backgroundRepeat: "no-repeat" }
+                                      : { background: sceneBackground }}>
                                   {lockerVenuePhotos[venue.name] && (
                                     <img
                                       src={`https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(lockerVenuePhotos[venue.name])}?width=480`}
@@ -6908,7 +6912,7 @@ export default function Home() {
                                     <div className="absolute inset-x-5 top-7 h-9 rounded-[50%] border border-white/50 opacity-70" />
                                     <div className="absolute left-1/2 top-7 h-9 w-px -translate-x-1/2 bg-white/40" />
                                   </>}
-                                  <div className="absolute inset-x-0 bottom-0 truncate bg-black/80 px-2 py-1 text-center text-[10px] font-black text-white">Home venue · {venue.name}</div>
+                                  </div>
                                 </div>
                               );
                             })()}

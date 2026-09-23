@@ -1169,9 +1169,7 @@ export default function Home() {
     useState<Sport>("All");
 
   const [gamesPageView, setGamesPageView] =
-    useState<"games" | "standings">("games");
-
-  const [showAllRecentResults, setShowAllRecentResults] = useState(false);
+    useState<"games" | "standings" | "results">("games");
 
   const [activeWatchFilter, setActiveWatchFilter] =
     useState<
@@ -4041,8 +4039,7 @@ export default function Home() {
       (a, b) =>
         new Date(b.startsAt ?? 0).getTime() -
         new Date(a.startsAt ?? 0).getTime(),
-    )
-    .slice(0, 24);
+    );
 
   const sportFilteredGames =
     activeSport === "All"
@@ -5352,16 +5349,18 @@ export default function Home() {
               FamBam Radar
             </div>
             <h1 className="mt-1 text-2xl font-black text-[#10254a]">
-              Games to Watch 👀
+              {gamesPageView === "results" ? "Recent Results 🏁" : gamesPageView === "standings" ? "Standings 📊" : "Games to Watch 👀"}
             </h1>
             <p className="mt-1 text-xs font-semibold text-slate-500">
               {gamesPageView === "games"
                 ? "Tap any game for scores, context, picks and everything you need to know."
-                : "Follow league tables, divisions and national rankings in one place."}
+                : gamesPageView === "standings"
+                  ? "Follow league tables, divisions and national rankings in one place."
+                  : "Tap a final score for the game details."}
             </p>
           </div>
 
-          <div className="mb-4 grid grid-cols-2 rounded-2xl bg-white p-1 shadow-sm">
+          <div className="mb-4 grid grid-cols-3 rounded-2xl bg-white p-1 shadow-sm">
             <button
               type="button"
               onClick={() => setGamesPageView("games")}
@@ -5375,6 +5374,13 @@ export default function Home() {
               className={`rounded-xl px-4 py-2.5 text-xs font-black ${gamesPageView === "standings" ? "bg-[#06284a] text-white" : "text-[#10254a]"}`}
             >
               📊 Standings
+            </button>
+            <button
+              type="button"
+              onClick={() => setGamesPageView("results")}
+              className={`rounded-xl px-1 py-2.5 text-[10px] font-black sm:text-xs ${gamesPageView === "results" ? "bg-[#06284a] text-white" : "text-[#10254a]"}`}
+            >
+              🏁 Results
             </button>
           </div>
 
@@ -5741,7 +5747,9 @@ export default function Home() {
               </div>
             );
           })()}
+          </div>
         {/* RECENT RESULTS */}
+          {gamesPageView === "results" && (
           <section className="mb-2.5 overflow-hidden rounded-2xl bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
               <div className="flex items-center gap-2">
@@ -5760,7 +5768,7 @@ export default function Home() {
               <p className="p-4 text-xs font-semibold text-slate-500">No final scores from your games in the last seven days.</p>
             ) : (
             <div className="grid grid-cols-2 gap-2 p-3">
-              {(showAllRecentResults ? recentResults : recentResults.slice(0, 4)).map((game) => {
+              {recentResults.map((game) => {
                 const hasScore =
                   game.awayScore !== null &&
                   game.homeScore !== null;
@@ -5848,17 +5856,8 @@ export default function Home() {
               })}
             </div>
             )}
-            {recentResults.length > 4 && (
-              <button
-                type="button"
-                onClick={() => setShowAllRecentResults((value) => !value)}
-                className="w-full border-t border-slate-200 px-4 py-3 text-xs font-black text-[#164d9b]"
-              >
-                {showAllRecentResults ? "Show fewer results" : `See all ${recentResults.length} results`}
-              </button>
-            )}
           </section>
-          </div>
+          )}
 
         </section>
       )}

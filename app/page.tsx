@@ -1412,7 +1412,6 @@ export default function Home() {
   const [showHiddenEvents, setShowHiddenEvents] = useState(false);
   const [eventSportFilter, setEventSportFilter] = useState("All");
   const [showAllUpcomingEvents, setShowAllUpcomingEvents] = useState(false);
-  const [showEventResults, setShowEventResults] = useState(false);
   const [eventVisibilitySavingId, setEventVisibilitySavingId] = useState<string | null>(null);
   const [eventVisibilityMessage, setEventVisibilityMessage] = useState<string | null>(null);
 
@@ -4030,15 +4029,20 @@ export default function Home() {
   const eventPicksCheckFailed = visiblePickEventIds.some((eventId) =>
     eventPicksLoadFailed[eventId] === signedInPlayer?.id);
 
-  const gradedEventPicks = Object.entries(eventPickOutcomes)
-    .filter(([eventId]) => eventPicksLoaded[eventId] === signedInPlayer?.id && !hiddenEventIds.includes(eventId))
-    .flatMap(([eventId, outcomes]) => outcomes.map((outcome) => ({
-      ...outcome,
-      eventId,
-      game: realGames.find((game) => game.id === outcome.gameId),
-      pick: eventPicks[eventId]?.[outcome.gameId],
-    })))
-    .sort((a, b) => new Date(b.game?.startsAt ?? 0).getTime() - new Date(a.game?.startsAt ?? 0).getTime());
+  const eventGuideId = selectedEventGuide?.id;
+  const eventGuideGames = eventGuideId
+    ? (eventGuideId === mamasHockeyEventId
+        ? mamasHockeyGames
+        : realGames.filter((game) => matchesEventGame(eventGuideId, game)))
+        .filter((game) => {
+          if (!game.startsAt || challengeStartsAt === null || challengeEndsAt === null) return false;
+          const start = new Date(game.startsAt).getTime();
+          return start >= challengeStartsAt && start <= challengeEndsAt &&
+            (Boolean(eventPicks[eventGuideId]?.[game.id]) || !gameIsLocked(game, currentTime));
+        })
+        .sort((a, b) => new Date(a.startsAt ?? 0).getTime() - new Date(b.startsAt ?? 0).getTime())
+        .slice(0, 12)
+    : [];
 
   const personalTeamSports = new Set([
     "Hockey",
@@ -7626,7 +7630,7 @@ export default function Home() {
             <div className="space-y-3 p-4">
               {selectedEventGuide.id && (
                 <div className="rounded-2xl border border-[#e8dba8] bg-white p-4 shadow-sm">
-                  <div className="text-xs font-black uppercase tracking-wide text-[#b28a2e]">Your picks in this event</div>
+                  <div className="text-xs font-black uppercase tracking-wide text-[#b28a2e]">Your overall event record</div>
                   {eventProgress[selectedEventGuide.id]?.completed ? (
                     <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                       {([
@@ -7646,6 +7650,33 @@ export default function Home() {
                     </p>
                   )}
                   <div className="mt-3 text-xs font-semibold text-slate-600">{eventProgress[selectedEventGuide.id]?.made ?? 0} picks made · Results update as games finish.</div>
+                  <div className="mt-4 border-t border-slate-200 pt-3">
+                    <div className="text-xs font-black uppercase tracking-wide text-[#b28a2e]">This week’s games</div>
+                    {eventGuideGames.length > 0 ? (
+                      <div className="mt-2 divide-y divide-slate-100">
+                        {eventGuideGames.map((game) => {
+                          const pick = eventPicks[selectedEventGuide.id!]?.[game.id];
+                          const outcome = eventPickOutcomes[selectedEventGuide.id!]?.find((item) => item.gameId === game.id);
+                          return (
+                            <div key={game.id} className="flex items-center justify-between gap-2 py-2.5">
+                              <div className="min-w-0">
+                                <div className="text-xs font-black text-[#10254a]">{game.away} at {game.home}</div>
+                                <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                                  {formatGameDate(game.startsAt)} · {outcome ? `${outcome.awayScore}–${outcome.homeScore}` : formatGameTime(game.startsAt, game.startTimeTbd)}
+                                  {pick ? ` · Picked ${pick === "away" ? game.away : game.home}` : " · No pick yet"}
+                                </div>
+                              </div>
+                              <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${outcome?.result === "correct" ? "bg-emerald-100 text-emerald-800" : outcome?.result === "incorrect" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600"}`}>
+                                {outcome?.result === "correct" ? "✓ Correct" : outcome?.result === "incorrect" ? "✕ Missed" : outcome?.result === "draw" ? "Draw" : pick ? "Pending" : "Open"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs font-semibold text-slate-500">No games for this event in the current challenge week yet.</p>
+                    )}
+                  </div>
                 </div>
               )}
               <div className="rounded-2xl bg-white p-4 shadow-sm">
@@ -8481,34 +8512,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {gradedEventPicks.length > 0 && (
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                  <button type="button" onClick={() => setShowEventResults((open) => !open)}
-                    aria-expanded={showEventResults}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
-                    <span className="text-xs font-black text-[#10254a]">🏁 Your event results</span>
-                    <span className="text-xs font-bold text-slate-600">
-                      {gradedEventPicks.filter((pick) => pick.result === "correct").length} correct · {gradedEventPicks.filter((pick) => pick.result === "incorrect").length} missed {showEventResults ? "▲" : "▼"}
-                    </span>
-                  </button>
-                  {showEventResults && <div className="divide-y divide-slate-100 border-t border-slate-200">
-                    {gradedEventPicks.map((entry) => (
-                      <div key={`${entry.eventId}:${entry.gameId}`} className="flex items-center justify-between gap-3 px-4 py-3">
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-bold text-slate-500">{entry.eventId.startsWith("mamas-hockey-") ? "Weekly Hockey Challenge" : EVENT_NAMES[entry.eventId] ?? "Event pick"}</div>
-                          <div className="truncate text-xs font-black text-[#10254a]">
-                            {entry.game ? `${entry.game.away} ${entry.awayScore} · ${entry.game.home} ${entry.homeScore}` : `Final: ${entry.awayScore}–${entry.homeScore}`}
-                          </div>
-                          <div className="text-[11px] font-semibold text-slate-500">You picked {entry.game ? (entry.pick === "away" ? entry.game.away : entry.game.home) : entry.pick === "away" ? "the away team" : "the home team"}</div>
-                        </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1.5 text-xs font-black ${entry.result === "correct" ? "bg-emerald-100 text-emerald-800" : entry.result === "incorrect" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600"}`}>
-                          {entry.result === "correct" ? "✓ Correct" : entry.result === "incorrect" ? "✕ Missed" : "Draw · not graded"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>}
-                </div>
-              )}
               <div>
                 <div className="mb-2 flex items-end justify-between gap-3">
                   <div>

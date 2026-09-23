@@ -62,7 +62,9 @@ export default function StandingsHub({ favoriteTeamNames }: { favoriteTeamNames:
       cache: "no-store",
     })
       .then(async (response) => {
-        const body = await response.json();
+        const body = await response.json().catch(() => {
+          throw new Error("Standings could not load. Please try again shortly.");
+        });
         if (!response.ok) throw new Error(body?.error ?? "Could not load standings.");
         return body as StandingsData;
       })
@@ -70,7 +72,9 @@ export default function StandingsHub({ favoriteTeamNames }: { favoriteTeamNames:
         if (!cancelled) setData(body);
       })
       .catch((reason) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "Could not load standings.");
+        if (!cancelled) setError(reason instanceof Error && !/string did not match the expected pattern/i.test(reason.message)
+          ? reason.message
+          : "Standings could not load. Please try again shortly.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

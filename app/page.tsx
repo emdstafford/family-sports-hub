@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import StandingsHub from "@/components/standings-hub";
 
 type Player = {
   id: string;
@@ -1166,6 +1167,9 @@ export default function Home() {
 
   const [activeSport, setActiveSport] =
     useState<Sport>("All");
+
+  const [gamesPageView, setGamesPageView] =
+    useState<"games" | "standings">("games");
 
   const [activeWatchFilter, setActiveWatchFilter] =
     useState<
@@ -5871,9 +5875,34 @@ export default function Home() {
               Games to Watch 👀
             </h1>
             <p className="mt-1 text-xs font-semibold text-slate-500">
-              Tap any game for scores, context, picks and everything you need to know.
+              {gamesPageView === "games"
+                ? "Tap any game for scores, context, picks and everything you need to know."
+                : "Follow league tables, divisions and national rankings in one place."}
             </p>
           </div>
+
+          <div className="mb-4 grid grid-cols-2 rounded-2xl bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setGamesPageView("games")}
+              className={`rounded-xl px-4 py-2.5 text-xs font-black ${gamesPageView === "games" ? "bg-[#06284a] text-white" : "text-[#10254a]"}`}
+            >
+              🗓️ Games
+            </button>
+            <button
+              type="button"
+              onClick={() => setGamesPageView("standings")}
+              className={`rounded-xl px-4 py-2.5 text-xs font-black ${gamesPageView === "standings" ? "bg-[#06284a] text-white" : "text-[#10254a]"}`}
+            >
+              📊 Standings
+            </button>
+          </div>
+
+          {gamesPageView === "standings" && (
+            <StandingsHub favoriteTeamNames={favoriteProfileTeams.map((team) => team.name)} />
+          )}
+
+          <div className={gamesPageView === "games" ? "block" : "hidden"}>
 
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
             {[
@@ -6232,6 +6261,7 @@ export default function Home() {
               </div>
             );
           })()}
+          </div>
         </section>
       )}
 

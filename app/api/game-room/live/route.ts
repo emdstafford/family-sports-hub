@@ -499,6 +499,8 @@ export async function GET(request: NextRequest) {
         "EFL Trophy": "eng.trophy",
         "UEFA Champions League":
           "uefa.champions",
+        "UEFA Europa League": "uefa.europa",
+        "UEFA Conference League": "uefa.europa.conf",
       };
 
       const espnSlug = competitionName

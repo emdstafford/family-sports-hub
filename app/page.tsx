@@ -9126,7 +9126,7 @@ export default function Home() {
                         return (
                           <div
                             key={game.id}
-                            className="rounded-xl border border-[#e3dccd] bg-white p-3 shadow-sm"
+                            className="rounded-xl border border-[#e3dccd] bg-white p-2.5 shadow-sm"
                           >
                             <div className="flex items-start justify-between">
                               <div>

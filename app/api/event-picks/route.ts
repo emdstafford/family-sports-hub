@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const bucket = "fambam-event-picks";
 const validEvents = new Set([
+  "mlb-playoffs-world-series",
   "fa-cup",
   "carabao-cup",
   "champions-league",

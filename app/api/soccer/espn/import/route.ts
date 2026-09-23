@@ -45,9 +45,14 @@ type EspnScoreboard = {
 type CompetitionConfig = {
   espnSlug: string;
   fambamName: string;
+  women?: boolean;
+  league?: boolean;
 };
 
 const COMPETITIONS: CompetitionConfig[] = [
+  { espnSlug: "eng.w.1", fambamName: "Women’s Super League", women: true, league: true },
+  { espnSlug: "uefa.wchampions", fambamName: "UEFA Women’s Champions League", women: true },
+  { espnSlug: "eng.w.league_cup", fambamName: "Subway Players Cup", women: true },
   {
     espnSlug: "eng.3",
     fambamName: "EFL League One",
@@ -508,6 +513,7 @@ export async function POST(request: Request) {
 
     async function getOrCreateTeam(
       espnTeam: EspnTeam,
+      women = false,
     ) {
       const espnId =
         String(espnTeam.id);
@@ -529,13 +535,17 @@ export async function POST(request: Request) {
         );
       }
 
-      const normalized =
-        aliasKey(displayName);
+      const normalized = aliasKey(displayName);
+      const canonicalKey = women ? `women:${normalized}` : normalized;
 
-      const existingTeamId =
-        canonicalTeamMap.get(
-          normalized,
+      let existingTeamId = canonicalTeamMap.get(canonicalKey);
+      if (women && !existingTeamId) {
+        const womenMatch = (existingTeams ?? []).find((team) =>
+          /\b(women|wfc|ladies)\b/i.test(team.name) && aliasKey(team.name) === normalized,
         );
+        existingTeamId = womenMatch?.id;
+        if (existingTeamId) canonicalTeamMap.set(canonicalKey, existingTeamId);
+      }
 
       if (existingTeamId) {
         /*
@@ -590,10 +600,10 @@ export async function POST(request: Request) {
         .upsert(
           {
             sport_id: soccerSportId,
-            name: displayName,
-            short_name:
-              espnTeam.shortDisplayName ??
-              displayName,
+            name: women ? `${displayName} Women` : displayName,
+            short_name: women
+              ? `${espnTeam.shortDisplayName ?? displayName} Women`
+              : espnTeam.shortDisplayName ?? displayName,
             abbreviation:
               espnTeam.abbreviation ??
               null,
@@ -630,7 +640,7 @@ export async function POST(request: Request) {
       );
 
       canonicalTeamMap.set(
-        normalized,
+        canonicalKey,
         createdTeam.id,
       );
 
@@ -671,7 +681,7 @@ export async function POST(request: Request) {
       const competitionEndDate =
         !requestedDate &&
         !(requestedStart && requestedEnd) &&
-        config.espnSlug !== "eng.3"
+        !config.league && config.espnSlug !== "eng.3"
           ? new Date(
               Date.now() +
                 120 * 24 * 60 * 60 * 1000,
@@ -792,11 +802,13 @@ export async function POST(request: Request) {
         const homeTeamId =
           await getOrCreateTeam(
             home.team,
+            config.women === true,
           );
 
         const awayTeamId =
           await getOrCreateTeam(
             away.team,
+            config.women === true,
           );
 
         const status =

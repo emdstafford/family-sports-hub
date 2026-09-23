@@ -385,7 +385,7 @@ function LockerTeamStanding({ team }: { team: LockerTeam }) {
     return () => { mounted = false; };
   }, [competition]);
 
-  if (!competition || !data) return <div className="h-7" />;
+  if (!competition || !data) return <div className="h-5" />;
   const name = team.name.toLowerCase();
   const row = data.groups.flatMap((group) => group.rows).find((item) => {
     const label = item.team.toLowerCase();
@@ -401,9 +401,9 @@ function LockerTeamStanding({ team }: { team: LockerTeam }) {
     if (name.includes("cubs")) return label.includes("cubs");
     return false;
   });
-  if (!row) return <div className="h-7 text-center text-[10px] font-semibold text-[#cdb89e]">{data.kind === "rankings" ? "Not in the current top 25" : ""}</div>;
+  if (!row) return <div className="min-h-5 text-center text-[9px] font-semibold leading-tight text-[#cdb89e]">{data.kind === "rankings" ? "Not in current Top 25" : ""}</div>;
   const score = data.kind === "rankings" ? row.record : data.kind === "soccer" ? `${row.wins}W · ${row.draws}D · ${row.losses}L · ${row.points} pts` : data.kind === "nhl" ? `${row.wins}W · ${row.losses}L · ${row.overtimeLosses}OT` : `${row.wins}W · ${row.losses}L`;
-  return <div className="min-h-7 text-center text-[10px] font-bold leading-tight text-[#f3c64f]">#{row.position} {data.kind === "rankings" ? "nationally" : data.kind === "nhl" || data.kind === "mlb" ? "division" : "table"}<span className="block text-[#f8efe0]">{score}</span></div>;
+  return <div className="min-h-5 text-center text-[10px] font-bold leading-tight text-[#f3c64f]">#{row.position} {data.kind === "rankings" ? "nationally" : data.kind === "nhl" || data.kind === "mlb" ? "division" : "table"}<span className="block text-[#f8efe0]">{score}</span></div>;
 }
 
 const lockerVenuePhotos: Record<string, string> = {
@@ -6914,7 +6914,7 @@ export default function Home() {
                               })()}
                             </div>
 
-                            <div className="relative mx-2 mt-2 min-h-7 shrink-0">
+                            <div className="relative mx-2 mt-1 min-h-5 shrink-0">
                               <LockerTeamStanding team={team} />
                             </div>
                             {(() => {
@@ -6928,12 +6928,12 @@ export default function Home() {
                                     ? "linear-gradient(180deg,#14243b 0%,#34455a 44%,#396d42 45%,#267141 100%)"
                                     : "linear-gradient(180deg,#14263c 0%,#34485a 44%,#29824c 45%,#195a37 100%)";
                               return (
-                                <div className="relative mx-3 mt-1 shrink-0">
-                                  <div className="mb-1 text-center leading-tight">
+                                <div className="relative mx-3 mt-0 shrink-0">
+                                  <div className="mb-1 text-center leading-[1.05]">
                                     <div className="text-xs font-black text-[#f3c64f]">{venue.name}</div>
                                     <div className="text-[9px] font-bold uppercase tracking-wider text-[#cdb89e]">Home Venue</div>
                                   </div>
-                                  <div className="relative h-[72px] overflow-hidden rounded border border-[#b8874f] shadow-[0_5px_12px_rgba(0,0,0,.6)]"
+                                  <div className="relative h-[68px] overflow-hidden rounded border border-[#b8874f] shadow-[0_5px_12px_rgba(0,0,0,.6)]"
                                     role="img" aria-label={`${venue.name} venue view`}
                                     style={venue.previewX !== undefined
                                       ? { backgroundImage: "url('/locker-room-preview.png')", backgroundPosition: `-${venue.previewX}px -654px`, backgroundSize: "1222px 1287px", backgroundRepeat: "no-repeat" }
@@ -8533,7 +8533,7 @@ export default function Home() {
                         </div>
 
                         {eventGames.length > 0 ? (
-                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div className="mt-3 grid grid-cols-2 gap-2">
                             {eventGames.map((game) => {
                               const selected = eventPicks[event.id]?.[game.id];
                               const saving = eventPickSavingKey === `${event.id}:${game.id}`;
@@ -8549,12 +8549,22 @@ export default function Home() {
                                     onClick={() => void openGameRoom(game)}
                                     className="w-full text-left"
                                   >
-                                    <div className="text-xs font-black text-[#10254a]">
-                                      {game.away} at {game.home}
+                                    <div className="flex gap-2.5">
+                                      <div className="flex w-9 shrink-0 flex-col items-center text-center">
+                                        <div className="text-xl">{game.icon}</div>
+                                        <div className="mt-0.5 text-[6px] font-black uppercase leading-tight text-[#765800]">
+                                          {game.competition}
+                                        </div>
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="mb-1 text-right text-[9px] font-black text-[#10254a]">
+                                          {formatGameTime(game.startsAt, game.startTimeTbd)}
+                                        </div>
+                                        <div className="truncate text-[12px] font-black text-[#10254a]">{game.away}</div>
+                                        <div className="mt-0.5 truncate text-[12px] font-black text-[#10254a]">{game.home}</div>
+                                      </div>
                                     </div>
-                                    <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
-                                      {formatGameDate(game.startsAt)} · {formatGameTime(game.startsAt, game.startTimeTbd)}
-                                    </div>
+                                    <div className="mt-1 text-[9px] font-semibold text-slate-400">{formatGameDate(game.startsAt)}</div>
                                   </button>
                                   <div className="mt-2 grid grid-cols-2 gap-1.5">
                                     {([

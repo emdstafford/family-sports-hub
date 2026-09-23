@@ -136,6 +136,13 @@ export async function GET(request: NextRequest) {
     let completed = 0;
     let correct = 0;
 
+    const outcomes: Array<{
+      gameId: string;
+      result: "correct" | "incorrect" | "draw";
+      homeScore: number;
+      awayScore: number;
+    }> = [];
+
     for (const pick of playerPicks) {
       const game = gameById.get(pick.gameId);
       if (!game || game.home_score === null || game.away_score === null) continue;
@@ -143,9 +150,17 @@ export async function GET(request: NextRequest) {
       const final = ["final", "finished", "complete", "completed", "closed"]
         .some((value) => status.includes(value));
       if (!final) continue;
+      const homeScore = Number(game.home_score);
+      const awayScore = Number(game.away_score);
+      if (homeScore === awayScore) {
+        outcomes.push({ gameId: pick.gameId, result: "draw", homeScore, awayScore });
+        continue;
+      }
       completed += 1;
-      const winner = Number(game.home_score) > Number(game.away_score) ? "home" : "away";
-      if (pick.pickChoice === winner) correct += 1;
+      const winner = homeScore > awayScore ? "home" : "away";
+      const result = pick.pickChoice === winner ? "correct" : "incorrect";
+      if (result === "correct") correct += 1;
+      outcomes.push({ gameId: pick.gameId, result, homeScore, awayScore });
     }
 
     return NextResponse.json({
@@ -155,6 +170,7 @@ export async function GET(request: NextRequest) {
         pickChoice: pick.pickChoice,
         submittedAt: pick.submittedAt,
       })),
+      outcomes,
       progress: {
         made: playerPicks.length,
         completed,

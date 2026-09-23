@@ -348,6 +348,15 @@ function lockerVenue(team: LockerTeam) {
   return { name: "Home field", scene: "field" };
 }
 
+const lockerVenuePhotos: Record<string, string> = {
+  "Kroger Field": "Kroger Field during a Kentucky Football game.png",
+  "Sanford Stadium": "Sanford Stadium, August 2025.jpg",
+  "Rogers Arena": "Rogers arena vancouver 2016.jpg",
+  "Akins Ford Arena": "Akins Ford Arena building (1).jpg",
+  "Truist Park": "Truist Park 2025.jpg",
+  "Wrigley Field": "Wrigley Field, Chicago, Illinois (42488187655).jpg",
+};
+
 function lockerUniformAsset(team: LockerTeam) {
   const name = team.name.toLowerCase();
 
@@ -6698,7 +6707,7 @@ export default function Home() {
                   </button>
                 </div>
                 <div
-                  className="relative flex min-h-[535px] snap-x snap-mandatory gap-0 overflow-x-auto rounded-xl border border-[#8b6235] bg-[#17110d] pb-3 pr-[12vw] pt-2 shadow-[inset_0_0_55px_rgba(0,0,0,.55)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:pr-[6vw]"
+                  className="relative flex min-h-[615px] snap-x snap-mandatory gap-0 overflow-x-auto rounded-xl border border-[#8b6235] bg-[#17110d] pb-3 pr-[12vw] pt-2 shadow-[inset_0_0_55px_rgba(0,0,0,.55)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:pr-[6vw]"
                 >
                   {(lockerPlayers
                     .find((player) => player.id === signedInPlayer?.id)
@@ -6744,8 +6753,8 @@ export default function Home() {
                             </div>
                           </div>
 
-                          <div className="relative flex min-h-[470px] flex-col overflow-hidden px-3 pb-3 pt-2 sm:px-4">
-                            <div className="absolute inset-x-3 bottom-3 h-[133px] rounded-lg border border-white/10 bg-[linear-gradient(180deg,rgba(20,13,9,.84),rgba(11,8,6,.95))] shadow-[0_10px_24px_rgba(0,0,0,.55)] backdrop-blur-sm" />
+                          <div className="relative flex min-h-[550px] flex-col overflow-hidden px-3 pb-3 pt-2 sm:px-4">
+                            <div className="absolute inset-x-3 bottom-3 h-[149px] rounded-lg border border-white/10 bg-[linear-gradient(180deg,rgba(20,13,9,.84),rgba(11,8,6,.95))] shadow-[0_10px_24px_rgba(0,0,0,.55)] backdrop-blur-sm" />
                             <div className="absolute left-1/2 top-0 h-8 w-px bg-[#a87845]" />
                             <div className="absolute left-1/2 top-7 h-2 w-7 -translate-x-1/2 rounded-full border border-[#a87845] bg-[#352012]" />
 
@@ -6770,10 +6779,9 @@ export default function Home() {
                             </div>
                             <div className="relative mt-1 h-5 shrink-0 text-center text-xs font-semibold text-[#d7c2a7]">
                               {team.sport}
-                              {team.is_primary ? " · ⭐ Favorite" : ""}
                             </div>
 
-                            <div className="relative mt-1 h-[175px] shrink-0 overflow-visible">
+                            <div className="relative mt-2 h-[202px] shrink-0 overflow-visible">
                               {(() => {
                                 const colors = lockerTeamColors(team);
                                 const label = (team.short_name ?? team.name).replace(/\s+(FC|Football|Cheerleading)$/i, "");
@@ -6787,7 +6795,7 @@ export default function Home() {
                                         <img
                                           src={uniformAsset}
                                           alt={`${team.name} uniform hanging in the locker`}
-                                          className="absolute left-1/2 top-0 z-10 h-[171px] w-[94%] -translate-x-1/2 object-contain object-top drop-shadow-[0_18px_14px_rgba(0,0,0,.8)]"
+                                          className="absolute left-1/2 top-0 z-10 h-[198px] w-[94%] -translate-x-1/2 object-contain object-top drop-shadow-[0_18px_14px_rgba(0,0,0,.8)]"
                                           onError={(event) => {
                                             event.currentTarget.style.display = "none";
                                             event.currentTarget.nextElementSibling?.classList.remove("hidden");
@@ -6880,12 +6888,21 @@ export default function Home() {
                                     ? "linear-gradient(180deg,#14243b 0%,#34455a 44%,#396d42 45%,#267141 100%)"
                                     : "linear-gradient(180deg,#14263c 0%,#34485a 44%,#29824c 45%,#195a37 100%)";
                               return (
-                                <div className="relative mx-3 mt-1 h-[62px] shrink-0 overflow-hidden rounded border border-[#b8874f] shadow-[0_5px_12px_rgba(0,0,0,.6)]"
+                                <div className="relative mx-3 mt-1 h-[80px] shrink-0 overflow-hidden rounded border border-[#b8874f] shadow-[0_5px_12px_rgba(0,0,0,.6)]"
                                   role="img" aria-label={`${venue.name} venue view`}
                                   style={venue.previewX !== undefined
                                     ? { backgroundImage: "url('/locker-room-preview.png')", backgroundPosition: `-${venue.previewX}px -654px`, backgroundSize: "1222px 1287px", backgroundRepeat: "no-repeat" }
                                     : { background: sceneBackground }}>
-                                  {venue.previewX === undefined && <>
+                                  {lockerVenuePhotos[venue.name] && (
+                                    <img
+                                      src={`https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(lockerVenuePhotos[venue.name])}?width=480`}
+                                      alt=""
+                                      loading="lazy"
+                                      className="absolute inset-0 h-full w-full object-cover"
+                                      onError={(event) => { event.currentTarget.style.display = "none"; }}
+                                    />
+                                  )}
+                                  {venue.previewX === undefined && !lockerVenuePhotos[venue.name] && <>
                                     <div className="absolute inset-x-2 top-3 h-3 rounded-[50%] border-t-2 opacity-60" style={{ borderColor: colors.secondary }} />
                                     <div className="absolute inset-x-5 top-7 h-9 rounded-[50%] border border-white/50 opacity-70" />
                                     <div className="absolute left-1/2 top-7 h-9 w-px -translate-x-1/2 bg-white/40" />

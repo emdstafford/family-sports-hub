@@ -43,6 +43,22 @@ const RADAR_SPORTS: Sport[] = [
   "Volleyball", "Hockey", "Baseball",
 ];
 
+const EVENT_GAME_MATCHES: Record<string, string[]> = {
+  "efl-trophy": ["efl trophy", "english football league trophy", "football league trophy", "vertu trophy", "papa john", "bristol street motors trophy"],
+  "carabao-cup": ["carabao cup", "efl cup", "league cup"],
+  "champions-league": ["champions league"],
+  "fa-cup": ["fa cup"],
+};
+
+function matchesEventGame(eventId: string, game: BrowserGame) {
+  if (eventId === "stanley-cup") {
+    return game.competition.toLowerCase().includes("nhl") &&
+      (game.sourceNotes ?? "").toLowerCase().includes("stanley cup");
+  }
+  return (EVENT_GAME_MATCHES[eventId] ?? []).some((name) =>
+    game.competition.toLowerCase().includes(name));
+}
+
 type ProfileSport = {
   id: string;
   slug: string;
@@ -1359,6 +1375,15 @@ export default function Home() {
 
   const [eventPicks, setEventPicks] =
     useState<Record<string, Record<string, PickChoice>>>({});
+  const [eventPicksLoaded, setEventPicksLoaded] =
+    useState<Record<string, string>>({});
+  const [eventPickOutcomes, setEventPickOutcomes] =
+    useState<Record<string, Array<{
+      gameId: string;
+      result: "correct" | "incorrect" | "draw";
+      homeScore: number;
+      awayScore: number;
+    }>>>({});
   const [eventProgress, setEventProgress] =
     useState<Record<string, {
       made: number;
@@ -1770,6 +1795,11 @@ export default function Home() {
           ]),
         ),
       }));
+      setEventPickOutcomes((current) => ({
+        ...current,
+        [eventId]: data.outcomes ?? [],
+      }));
+      setEventPicksLoaded((current) => ({ ...current, [eventId]: signedInPlayer.id }));
       setEventProgress((current) => ({
         ...current,
         [eventId]: {
@@ -1984,7 +2014,7 @@ export default function Home() {
   useEffect(() => {
     if (
       !signedInPlayer ||
-      (activeSection !== "Events" && activeSection !== "Trophy Room")
+      (activeSection !== "Home" && activeSection !== "Events" && activeSection !== "Trophy Room")
     ) {
       return;
     }
@@ -3937,6 +3967,35 @@ export default function Home() {
         new Date(b.startsAt ?? 0).getTime(),
     );
 
+  const eventReminderGroups = [
+    ...Object.keys(EVENT_GAME_MATCHES)
+      .filter((eventId) => !profileLoading && !hiddenEventIds.includes(eventId) && eventPicksLoaded[eventId] === signedInPlayer?.id)
+      .map((eventId) => ({
+        eventId,
+        missing: realGames
+          .filter((game) => matchesEventGame(eventId, game) && !gameIsLocked(game, currentTime))
+          .sort((a, b) => new Date(a.startsAt ?? 0).getTime() - new Date(b.startsAt ?? 0).getTime())
+          .slice(0, 4)
+          .filter((game) => !eventPicks[eventId]?.[game.id]).length,
+      })),
+    ...(mamasHockeyEventId && !profileLoading && !hiddenEventIds.includes(mamasHockeyEventId) && eventPicksLoaded[mamasHockeyEventId] === signedInPlayer?.id ? [{
+      eventId: mamasHockeyEventId,
+      missing: mamasHockeyGames.filter((game) =>
+        !gameIsLocked(game, currentTime) && !eventPicks[mamasHockeyEventId]?.[game.id]).length,
+    }] : []),
+  ].filter((group) => group.missing > 0);
+  const eventPicksRemaining = eventReminderGroups.reduce((total, group) => total + group.missing, 0);
+
+  const gradedEventPicks = Object.entries(eventPickOutcomes)
+    .filter(([eventId]) => eventPicksLoaded[eventId] === signedInPlayer?.id && !hiddenEventIds.includes(eventId))
+    .flatMap(([eventId, outcomes]) => outcomes.map((outcome) => ({
+      ...outcome,
+      eventId,
+      game: realGames.find((game) => game.id === outcome.gameId),
+      pick: eventPicks[eventId]?.[outcome.gameId],
+    })))
+    .sort((a, b) => new Date(b.game?.startsAt ?? 0).getTime() - new Date(a.game?.startsAt ?? 0).getTime());
+
   const personalTeamSports = new Set([
     "Hockey",
     "Baseball",
@@ -5343,6 +5402,16 @@ export default function Home() {
                   )}
                 </button>
               </div>
+              {eventPicksRemaining > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveSection("Events")}
+                  className="flex w-full items-center justify-between gap-2 border-t border-[#e6dfd0] px-3 py-2.5 text-left text-[11px] font-black text-[#10254a]"
+                >
+                  <span>🏟️ {eventPicksRemaining} event {eventPicksRemaining === 1 ? "pick" : "picks"} waiting</span>
+                  <span className="shrink-0 text-[#164d9b]">Make picks →</span>
+                </button>
+              )}
             </section>
           </>
         )}
@@ -8048,7 +8117,33 @@ export default function Home() {
             </div>
 
             <div className="space-y-4 px-3 py-4">
-              {isMama && mamasHockeyEventId && (
+              {eventPicksRemaining > 0 && (
+                <div className="rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] px-4 py-3 text-xs font-black text-[#10254a]">
+                  🏟️ {eventPicksRemaining} {eventPicksRemaining === 1 ? "pick is" : "picks are"} ready across {eventReminderGroups.length} {eventReminderGroups.length === 1 ? "event" : "events"}. Picks lock when each game starts.
+                </div>
+              )}
+              {gradedEventPicks.length > 0 && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="border-b border-slate-200 px-4 py-3 text-sm font-black text-[#10254a]">🏁 How your event picks did</div>
+                  <div className="divide-y divide-slate-100">
+                    {gradedEventPicks.map((entry) => (
+                      <div key={`${entry.eventId}:${entry.gameId}`} className="flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <div className="text-[9px] font-bold text-slate-500">{entry.eventId.startsWith("mamas-hockey-") ? "Emily’s Hockey Challenge" : EVENT_NAMES[entry.eventId] ?? "Event pick"}</div>
+                          <div className="truncate text-[11px] font-black text-[#10254a]">
+                            {entry.game ? `${entry.game.away} ${entry.awayScore} · ${entry.game.home} ${entry.homeScore}` : `Final: ${entry.awayScore}–${entry.homeScore}`}
+                          </div>
+                          <div className="text-[9px] font-semibold text-slate-500">You picked {entry.game ? (entry.pick === "away" ? entry.game.away : entry.game.home) : entry.pick === "away" ? "the away team" : "the home team"}</div>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1.5 text-[10px] font-black ${entry.result === "correct" ? "bg-emerald-100 text-emerald-800" : entry.result === "incorrect" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600"}`}>
+                          {entry.result === "correct" ? "✓ Correct" : entry.result === "incorrect" ? "✕ Missed" : "Draw · not graded"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {isMama && mamasHockeyEventId && !hiddenEventIds.includes(mamasHockeyEventId) && (
                 <div className="overflow-hidden rounded-2xl border border-[#8eb6d8] bg-white shadow-sm">
                   <div className="bg-[linear-gradient(135deg,#06284a,#0b4a72)] px-4 py-4 text-white">
                     <div className="flex items-start justify-between gap-3">
@@ -8065,6 +8160,7 @@ export default function Home() {
                         {eventProgress[mamasHockeyEventId]?.made ?? 0}/5 picks · {eventProgress[mamasHockeyEventId]?.correct ?? 0} correct
                       </div>
                     </div>
+                    <button type="button" onClick={() => void setEventHidden(mamasHockeyEventId, true)} className="mt-2 text-[9px] font-black text-blue-100 underline">Hide this challenge</button>
                     <div className="mt-3 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-[9px] font-semibold leading-relaxed text-blue-50">
                       Your hockey picks are optional and completely separate from the regular 10-game FamBam Challenge, family standings and Record Book.
                     </div>
@@ -8169,7 +8265,7 @@ export default function Home() {
                         {hiddenEventIds.map((eventId) => (
                           <div key={eventId} className="flex items-center justify-between gap-3 rounded-xl bg-[#f7f4ec] px-3 py-2">
                             <div className="text-[10px] font-black text-[#10254a]">
-                              {EVENT_NAMES[eventId] ?? eventId.replaceAll("-", " ")}
+                              {eventId.startsWith("mamas-hockey-") ? "Emily’s Weekly Hockey Challenge" : EVENT_NAMES[eventId] ?? eventId.replaceAll("-", " ")}
                             </div>
                             <button
                               type="button"

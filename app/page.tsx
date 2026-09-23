@@ -335,7 +335,7 @@ function lockerVenue(team: LockerTeam) {
   if (name.includes("liverpool")) return { name: "Anfield", previewX: 629, scene: "field" };
   if (name.includes("wimbledon")) return { name: "Plough Lane", previewX: 1023, scene: "field" };
   if (name.includes("kentucky") && team.sport === "College Basketball") return { name: "Rupp Arena", previewX: 825, scene: "court" };
-  if (name.includes("kentucky") && team.sport === "College Football") return { name: "Commonwealth Stadium", scene: "field" };
+  if (name.includes("kentucky") && team.sport === "College Football") return { name: "Commonwealth", scene: "field" };
   if (name.includes("kentucky") && team.sport === "Hockey") return { name: "Lexington Ice Center", scene: "rink" };
   if (name.includes("kentucky") && team.sport === "Volleyball") return { name: "Historic Memorial Coliseum", scene: "court" };
   if (name.includes("vancouver") || name.includes("canucks")) return { name: "Rogers Arena", scene: "rink" };
@@ -364,7 +364,7 @@ function lockerStandingsCompetition(team: LockerTeam) {
   return null;
 }
 
-function LockerTeamStanding({ team }: { team: LockerTeam }) {
+function LockerTeamStanding({ team, games }: { team: LockerTeam; games: BrowserGame[] }) {
   const competition = lockerStandingsCompetition(team);
   const [data, setData] = useState<LockerStandings | null>(null);
 
@@ -401,13 +401,30 @@ function LockerTeamStanding({ team }: { team: LockerTeam }) {
     if (name.includes("cubs")) return label.includes("cubs");
     return false;
   });
-  if (!row) return <div className="min-h-6 text-center text-[10px] font-semibold leading-tight text-[#cdb89e]">{data.kind === "rankings" ? "Not in current Top 25" : ""}</div>;
+  if (!row) {
+    if (data.kind === "rankings" && team.sport === "College Football") {
+      let wins = 0;
+      let losses = 0;
+      games.filter((game) => lockerTeamMatchesGame(team, game)).forEach((game) => {
+        const status = (game.status ?? "").toLowerCase();
+        const final = ["final", "finished", "complete", "completed", "closed"].some((value) => status.includes(value));
+        if (!final || game.homeScore === null || game.awayScore === null) return;
+        const teamIsHome = [team.name, team.short_name ?? ""].map(normalizeLockerTeamName).filter((name) => name.length >= 3).includes(normalizeLockerTeamName(game.home));
+        const teamScore = teamIsHome ? game.homeScore : game.awayScore;
+        const opponentScore = teamIsHome ? game.awayScore : game.homeScore;
+        if (teamScore > opponentScore) wins += 1;
+        else if (teamScore < opponentScore) losses += 1;
+      });
+      return <div className="min-h-6 text-center text-[10px] font-semibold leading-tight text-[#cdb89e]"><span className="block">Not in current Top 25</span><span className="block text-[#f8efe0]">{wins}-{losses}</span></div>;
+    }
+    return <div className="min-h-6 text-center text-[10px] font-semibold leading-tight text-[#cdb89e]">{data.kind === "rankings" ? "Not in current Top 25" : ""}</div>;
+  }
   const score = data.kind === "rankings" ? row.record : data.kind === "soccer" ? `${row.wins}W · ${row.draws}D · ${row.losses}L · ${row.points} pts` : data.kind === "nhl" ? `${row.wins}W · ${row.losses}L · ${row.overtimeLosses}OT` : `${row.wins}W · ${row.losses}L`;
   return <div className="min-h-6 text-center text-[11px] font-bold leading-tight text-[#f3c64f]">#{row.position} {data.kind === "rankings" ? "nationally" : data.kind === "nhl" || data.kind === "mlb" ? "division" : "table"}<span className="block text-[#f8efe0]">{score}</span></div>;
 }
 
 const lockerVenuePhotos: Record<string, string> = {
-  "Commonwealth Stadium": "Kroger Field during a Kentucky Football game.png",
+  "Commonwealth": "KentuckyCommonwealthStadium-EZInterior.jpg",
   "Sanford Stadium": "Sanford Stadium, August 2025.jpg",
   "Rogers Arena": "Rogers arena vancouver 2016.jpg",
   "Akins Ford Arena": "Akins Ford Arena building (1).jpg",
@@ -6915,7 +6932,7 @@ export default function Home() {
                             </div>
 
                             <div className="relative mx-2 mt-2 min-h-6 shrink-0">
-                              <LockerTeamStanding team={team} />
+                              <LockerTeamStanding team={team} games={realGames} />
                             </div>
                             {(() => {
                               const venue = lockerVenue(team);

@@ -162,6 +162,12 @@ export default function StandingsHub({ favoriteTeamNames }: { favoriteTeamNames:
             <div className="mt-1 text-[10px] font-semibold text-blue-100">{data.subtitle}</div>
           </div>
 
+          {data.kind === "soccer" && (
+            <p className="px-1 text-[10px] font-semibold leading-relaxed text-slate-600">
+              Pts = points · P = played · W/D/L = wins/draws/losses · GF/GA = goals scored/conceded · GD = goal difference. Swipe the table for more →
+            </p>
+          )}
+
           {familyRows.length > 0 && (
             <section className="overflow-hidden rounded-2xl border-2 border-[#f3c64f] bg-white shadow-sm">
               <div className="bg-[#fff7dc] px-4 py-3">

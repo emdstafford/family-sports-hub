@@ -68,6 +68,8 @@ const COMPETITIONS: CompetitionConfig[] = [
     espnSlug: "uefa.champions",
     fambamName: "UEFA Champions League",
   },
+  { espnSlug: "uefa.europa", fambamName: "UEFA Europa League" },
+  { espnSlug: "uefa.europa.conf", fambamName: "UEFA Conference League" },
 ];
 
 /*
@@ -322,17 +324,6 @@ export async function POST(request: Request) {
           !competitionMap.has(name),
       );
 
-    if (missingCompetitions.length > 0) {
-      return NextResponse.json(
-        {
-          error:
-            "One or more required soccer competitions are missing.",
-          missingCompetitions,
-        },
-        { status: 500 },
-      );
-    }
-
     const soccerSportId =
       competitionRows?.[0]?.sport_id;
 
@@ -344,6 +335,22 @@ export async function POST(request: Request) {
         },
         { status: 500 },
       );
+    }
+
+    // A newly supported UEFA competition may not have a row yet.
+    for (const name of missingCompetitions) {
+      const { data: created, error: createError } = await supabase
+        .from("competitions")
+        .insert({ sport_id: soccerSportId, name })
+        .select("id, sport_id, name")
+        .single();
+      if (createError || !created) {
+        return NextResponse.json(
+          { error: `Could not create ${name}.`, details: createError?.message },
+          { status: 500 },
+        );
+      }
+      competitionMap.set(name, created);
     }
 
     /*

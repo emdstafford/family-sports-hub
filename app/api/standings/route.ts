@@ -9,6 +9,8 @@ type TableRow = {
   wins?: string;
   draws?: string;
   losses?: string;
+  goalsFor?: string;
+  goalsAgainst?: string;
   overtimeLosses?: string;
   differential?: string;
   points?: string;
@@ -114,12 +116,14 @@ async function getSoccerTable(id: string) {
     subtitle: data?.children?.[0]?.name ?? "Current season",
     kind: "soccer",
     columns: [
+      { key: "points", label: "Pts" },
       { key: "played", label: "P" },
       { key: "wins", label: "W" },
       { key: "draws", label: "D" },
       { key: "losses", label: "L" },
+      { key: "goalsFor", label: "GF" },
+      { key: "goalsAgainst", label: "GA" },
       { key: "differential", label: "GD" },
-      { key: "points", label: "Pts" },
     ],
     groups: [{
       name: config.title,
@@ -132,6 +136,8 @@ async function getSoccerTable(id: string) {
         wins: statValue(entry.stats, "wins"),
         draws: statValue(entry.stats, "ties"),
         losses: statValue(entry.stats, "losses"),
+        goalsFor: statValue(entry.stats, "pointsFor"),
+        goalsAgainst: statValue(entry.stats, "pointsAgainst"),
         differential: statValue(entry.stats, "pointDifferential"),
         points: statValue(entry.stats, "points"),
         note: entry.note?.description,

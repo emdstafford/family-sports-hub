@@ -335,7 +335,8 @@ function lockerVenue(team: LockerTeam) {
   if (name.includes("liverpool")) return { name: "Anfield", previewX: 629, scene: "field" };
   if (name.includes("wimbledon")) return { name: "Plough Lane", previewX: 1023, scene: "field" };
   if (name.includes("kentucky") && team.sport === "College Basketball") return { name: "Rupp Arena", previewX: 825, scene: "court" };
-  if (name.includes("kentucky") && team.sport === "College Football") return { name: "Kroger Field", scene: "field" };
+  if (name.includes("kentucky") && team.sport === "College Football") return { name: "Commonwealth Stadium", scene: "field" };
+  if (name.includes("kentucky") && team.sport === "Hockey") return { name: "Lexington Ice Center", scene: "rink" };
   if (name.includes("kentucky") && team.sport === "Volleyball") return { name: "Historic Memorial Coliseum", scene: "court" };
   if (name.includes("vancouver") || name.includes("canucks")) return { name: "Rogers Arena", scene: "rink" };
   if (name.includes("rock lobster")) return { name: "Akins Ford Arena", scene: "rink" };
@@ -349,7 +350,7 @@ function lockerVenue(team: LockerTeam) {
 }
 
 const lockerVenuePhotos: Record<string, string> = {
-  "Kroger Field": "Kroger Field during a Kentucky Football game.png",
+  "Commonwealth Stadium": "Kroger Field during a Kentucky Football game.png",
   "Sanford Stadium": "Sanford Stadium, August 2025.jpg",
   "Rogers Arena": "Rogers arena vancouver 2016.jpg",
   "Akins Ford Arena": "Akins Ford Arena building (1).jpg",

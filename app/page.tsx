@@ -8863,8 +8863,8 @@ export default function Home() {
       {activeSection === "Challenge" &&
         signedInPlayer &&
         challenge && (
-          <section className="mx-auto max-w-6xl px-1.5 py-4">
-            <div className="mx-auto max-w-3xl overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-lg">
+          <section className="mx-auto w-full max-w-6xl px-1 py-4">
+            <div className="mx-auto w-full max-w-5xl overflow-hidden rounded-[1.5rem] bg-[#f7f4ec] shadow-lg">
               <div className="border-b border-[#e5dcc5] bg-[#fffaf0] px-3 py-2.5">
                 <div className="flex items-end justify-between gap-3">
                   <div>

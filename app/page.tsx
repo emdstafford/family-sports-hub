@@ -349,6 +349,63 @@ function lockerVenue(team: LockerTeam) {
   return { name: "Home field", scene: "field" };
 }
 
+type LockerStandingRow = { position: number; team: string; abbreviation?: string; wins?: string; draws?: string; losses?: string; overtimeLosses?: string; points?: string; record?: string };
+type LockerStandings = { title: string; kind: string; groups: Array<{ rows: LockerStandingRow[] }> };
+const lockerStandingsCache = new Map<string, { expires: number; promise: Promise<LockerStandings> }>();
+
+function lockerStandingsCompetition(team: LockerTeam) {
+  const name = team.name.toLowerCase();
+  if (team.sport === "Soccer") return name.includes("wimbledon") ? "league-one" : "premier-league";
+  if (team.sport === "College Football") return "college-football";
+  if (team.sport === "College Basketball") return "college-basketball";
+  if (team.sport === "Volleyball" && name.includes("kentucky")) return "volleyball";
+  if (team.sport === "Hockey" && name.includes("canucks")) return "nhl";
+  if (team.sport === "Baseball" && (name.includes("braves") || name.includes("cubs"))) return "mlb";
+  return null;
+}
+
+function LockerTeamStanding({ team }: { team: LockerTeam }) {
+  const competition = lockerStandingsCompetition(team);
+  const [data, setData] = useState<LockerStandings | null>(null);
+
+  useEffect(() => {
+    if (!competition) return;
+    let mounted = true;
+    let cached = lockerStandingsCache.get(competition);
+    if (!cached || cached.expires < Date.now()) {
+      const promise = fetch(`/api/standings?competition=${competition}`).then(async (response) => {
+        if (!response.ok) throw new Error("Standings unavailable");
+        return response.json() as Promise<LockerStandings>;
+      });
+      cached = { expires: Date.now() + 15 * 60_000, promise };
+      lockerStandingsCache.set(competition, cached);
+      promise.catch(() => { if (lockerStandingsCache.get(competition)?.promise === promise) lockerStandingsCache.delete(competition); });
+    }
+    cached.promise.then((result) => { if (mounted) setData(result); }).catch(() => {});
+    return () => { mounted = false; };
+  }, [competition]);
+
+  if (!competition || !data) return <div className="h-7" />;
+  const name = team.name.toLowerCase();
+  const row = data.groups.flatMap((group) => group.rows).find((item) => {
+    const label = item.team.toLowerCase();
+    const abbr = item.abbreviation?.toLowerCase();
+    if (name.includes("kentucky")) return label.includes("kentucky") || abbr === "uk";
+    if (name.includes("georgia")) return label.includes("georgia") || abbr === "uga";
+    if (name.includes("wimbledon")) return label.includes("wimbledon");
+    if (name.includes("aston villa")) return label.includes("aston villa");
+    if (name.includes("arsenal")) return label.includes("arsenal");
+    if (name.includes("liverpool")) return label.includes("liverpool");
+    if (name.includes("canucks")) return label.includes("canucks");
+    if (name.includes("braves")) return label.includes("braves");
+    if (name.includes("cubs")) return label.includes("cubs");
+    return false;
+  });
+  if (!row) return <div className="h-7 text-center text-[10px] font-semibold text-[#cdb89e]">{data.kind === "rankings" ? "Not in the current top 25" : ""}</div>;
+  const score = data.kind === "rankings" ? row.record : data.kind === "soccer" ? `${row.wins}W · ${row.draws}D · ${row.losses}L · ${row.points} pts` : data.kind === "nhl" ? `${row.wins}W · ${row.losses}L · ${row.overtimeLosses}OT` : `${row.wins}W · ${row.losses}L`;
+  return <div className="min-h-7 text-center text-[10px] font-bold leading-tight text-[#f3c64f]">#{row.position} {data.kind === "rankings" ? "nationally" : data.kind === "nhl" || data.kind === "mlb" ? "division" : "table"}<span className="block text-[#f8efe0]">{score}</span></div>;
+}
+
 const lockerVenuePhotos: Record<string, string> = {
   "Commonwealth Stadium": "Kroger Field during a Kentucky Football game.png",
   "Sanford Stadium": "Sanford Stadium, August 2025.jpg",
@@ -356,6 +413,9 @@ const lockerVenuePhotos: Record<string, string> = {
   "Akins Ford Arena": "Akins Ford Arena building (1).jpg",
   "Truist Park": "Truist Park 2025.jpg",
   "Wrigley Field": "Wrigley Field, Chicago, Illinois (42488187655).jpg",
+};
+const lockerLocalVenuePhotos: Record<string, string> = {
+  "Lexington Ice Center": "/venues/lexington-ice-center.svg",
 };
 
 function lockerUniformAsset(team: LockerTeam) {
@@ -6855,24 +6915,8 @@ export default function Home() {
                               })()}
                             </div>
 
-                            <div className="relative mx-auto flex h-14 w-14 shrink-0 items-center justify-center p-2 drop-shadow-[0_8px_12px_rgba(0,0,0,.75)] sm:h-16 sm:w-16">
-                              {logoUrl ? (
-                                <img
-                                  src={logoUrl}
-                                  alt={team.name}
-                                  className="h-full w-full object-contain drop-shadow-xl"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center rounded-md border border-[#c18a45]/30 bg-[#1d120c] text-3xl font-black text-[#f8efe0] sm:text-5xl">
-                                  {(team.short_name ?? team.name).slice(0, 1)}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="relative mt-1 flex h-8 shrink-0 items-center justify-center text-center text-sm font-black leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-base">
-                              <span className="line-clamp-2">
-                              {team.name}
-                              </span>
+                            <div className="relative mx-2 mt-2 min-h-7 shrink-0">
+                              <LockerTeamStanding team={team} />
                             </div>
                             {(() => {
                               const venue = lockerVenue(team);
@@ -6886,24 +6930,25 @@ export default function Home() {
                                     : "linear-gradient(180deg,#14263c 0%,#34485a 44%,#29824c 45%,#195a37 100%)";
                               return (
                                 <div className="relative mx-3 mt-1 shrink-0">
-                                  <div className="mb-1 text-center text-[10px] font-black leading-tight text-[#f3c64f]">
-                                    <span className="text-[#cdb89e]">Home venue · </span>{venue.name}
+                                  <div className="mb-1 text-center leading-tight">
+                                    <div className="text-xs font-black text-[#f3c64f]">{venue.name}</div>
+                                    <div className="text-[9px] font-bold uppercase tracking-wider text-[#cdb89e]">Home Venue</div>
                                   </div>
                                   <div className="relative h-[72px] overflow-hidden rounded border border-[#b8874f] shadow-[0_5px_12px_rgba(0,0,0,.6)]"
                                     role="img" aria-label={`${venue.name} venue view`}
                                     style={venue.previewX !== undefined
                                       ? { backgroundImage: "url('/locker-room-preview.png')", backgroundPosition: `-${venue.previewX}px -654px`, backgroundSize: "1222px 1287px", backgroundRepeat: "no-repeat" }
                                       : { background: sceneBackground }}>
-                                  {lockerVenuePhotos[venue.name] && (
+                                  {(lockerLocalVenuePhotos[venue.name] || lockerVenuePhotos[venue.name]) && (
                                     <img
-                                      src={`https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(lockerVenuePhotos[venue.name])}?width=480`}
+                                      src={lockerLocalVenuePhotos[venue.name] ?? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(lockerVenuePhotos[venue.name])}?width=480`}
                                       alt=""
                                       loading="lazy"
                                       className="absolute inset-0 h-full w-full object-cover"
                                       onError={(event) => { event.currentTarget.style.display = "none"; }}
                                     />
                                   )}
-                                  {venue.previewX === undefined && !lockerVenuePhotos[venue.name] && <>
+                                  {venue.previewX === undefined && !lockerLocalVenuePhotos[venue.name] && !lockerVenuePhotos[venue.name] && <>
                                     <div className="absolute inset-x-2 top-3 h-3 rounded-[50%] border-t-2 opacity-60" style={{ borderColor: colors.secondary }} />
                                     <div className="absolute inset-x-5 top-7 h-9 rounded-[50%] border border-white/50 opacity-70" />
                                     <div className="absolute left-1/2 top-7 h-9 w-px -translate-x-1/2 bg-white/40" />

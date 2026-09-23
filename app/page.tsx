@@ -6890,8 +6890,7 @@ export default function Home() {
                                       <div className="absolute right-0 top-5 h-14 w-12 rotate-[9deg] rounded-r-xl border" style={{ background: `linear-gradient(235deg,${colors.primary},${colors.primary} 48%,${colors.secondary} 52%,${colors.primary} 66%)`, borderColor: `${colors.secondary}aa`, clipPath: "polygon(0 23%,70% 0,93% 20%,100% 83%,16% 100%)" }} />
                                       <div className="absolute left-[28px] right-[28px] top-0 bottom-0 overflow-hidden rounded-b-[22px] border" style={{ background: `linear-gradient(100deg,${colors.primary} 0%,${colors.primary} 35%,rgba(255,255,255,.20) 43%,${colors.primary} 52%,rgba(0,0,0,.22) 69%,${colors.primary} 100%)`, borderColor: `${colors.secondary}bb`, clipPath: "polygon(18% 0,34% 8%,50% 12%,66% 8%,82% 0,100% 11%,92% 100%,8% 100%,0 11%)" }}>
                                         <div className="absolute inset-x-0 top-0 h-4 opacity-50" style={{ backgroundColor: colors.secondary }} />
-                                        <div className="mt-6 truncate px-1 text-center text-[7px] font-black uppercase tracking-wide" style={{ color: colors.secondary }}>{label}</div>
-                                        {logoUrl && <img src={logoUrl} alt="" className="mx-auto mt-2 h-9 w-9 object-contain drop-shadow-md" />}
+                                        <div className="absolute inset-x-4 top-7 h-px bg-white/10" />
                                         <div className="absolute bottom-2 left-3 right-3 h-px bg-white/15" />
                                       </div>
                                     </div>
@@ -9059,7 +9058,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {challengeGames.map(
                       (game) => {
                         const locked =

@@ -7,6 +7,8 @@ const validEvents = new Set([
   "fa-cup",
   "carabao-cup",
   "champions-league",
+  "europa-league",
+  "conference-league",
   "efl-trophy",
   "stanley-cup",
 ]);
@@ -16,24 +18,6 @@ const mamaHockeyEventPattern =
 
 function isAllowedEvent(eventId: string) {
   return validEvents.has(eventId) || mamaHockeyEventPattern.test(eventId);
-}
-
-async function verifyMamaHockeyPlayer(
-  supabase: ReturnType<typeof getAdminClient>,
-  playerId: string,
-  eventId: string,
-) {
-  if (!mamaHockeyEventPattern.test(eventId)) return true;
-
-  const { data, error } = await supabase
-    .from("players")
-    .select("display_name")
-    .eq("id", playerId)
-    .maybeSingle();
-
-  if (error || !data?.display_name) return false;
-  const name = data.display_name.trim().toLowerCase();
-  return name === "mama" || name === "emily" || name === "emily stafford";
 }
 
 type EventPick = {
@@ -117,9 +101,6 @@ export async function GET(request: NextRequest) {
     const supabase = getAdminClient();
     if (!(await verifySession(supabase, playerId, sessionToken))) {
       return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
-    }
-    if (!(await verifyMamaHockeyPlayer(supabase, playerId, eventId))) {
-      return NextResponse.json({ error: "This personal challenge belongs to Emily." }, { status: 403 });
     }
 
     const picks = await readPicks(supabase, eventId);
@@ -210,9 +191,6 @@ export async function POST(request: NextRequest) {
     const supabase = getAdminClient();
     if (!(await verifySession(supabase, playerId, sessionToken))) {
       return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
-    }
-    if (!(await verifyMamaHockeyPlayer(supabase, playerId, eventId))) {
-      return NextResponse.json({ error: "This personal challenge belongs to Emily." }, { status: 403 });
     }
 
     const { data: game, error: gameError } = await supabase

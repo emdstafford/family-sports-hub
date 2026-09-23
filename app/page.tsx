@@ -5378,7 +5378,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setGamesPageView("results")}
-              className={`rounded-xl px-1 py-2.5 text-[10px] font-black sm:text-xs ${gamesPageView === "results" ? "bg-[#06284a] text-white" : "text-[#10254a]"}`}
+              className={`rounded-xl px-1 py-2.5 text-xs font-black ${gamesPageView === "results" ? "bg-[#06284a] text-white" : "text-[#10254a]"}`}
             >
               🏁 Results
             </button>

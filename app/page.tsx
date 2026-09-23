@@ -8412,7 +8412,7 @@ export default function Home() {
                           const outcome = eventPickOutcomes[mamasHockeyEventId]?.find((item) => item.gameId === game.id);
 
                           return (
-                            <div key={game.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                            <div key={game.id} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
                               <button
                                 type="button"
                                 onClick={() => void openGameRoom(game)}
@@ -8445,7 +8445,7 @@ export default function Home() {
                                     disabled={saving || locked}
                                     onClick={() => void saveEventPick(mamasHockeyEventId, game, choice)}
                                     aria-pressed={selected === choice}
-                                    className={`min-h-11 rounded-lg px-2 py-2 text-[10px] font-black transition active:scale-[0.98] ${
+                                    className={`min-h-9 rounded-lg px-2 py-1.5 text-[10px] font-black transition active:scale-[0.98] ${
                                       selected === choice
                                         ? "bg-[#06284a] text-white ring-2 ring-[#f3c64f]"
                                         : locked
@@ -8539,7 +8539,7 @@ export default function Home() {
                               const selected = eventPicks[event.id]?.[game.id];
                               const saving = eventPickSavingKey === `${event.id}:${game.id}`;
                               return (
-                                <div key={game.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                                <div key={game.id} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
                                   {event.id === "mlb-playoffs-world-series" && (
                                     <div className="mb-1 text-[10px] font-black uppercase tracking-wide text-[#765800]">
                                       {game.sourceNotes?.split(" · ")[1] ?? "MLB Postseason"}
@@ -8568,7 +8568,7 @@ export default function Home() {
                                         disabled={saving}
                                         onClick={() => void saveEventPick(event.id, game, choice)}
                                         aria-pressed={selected === choice}
-                                        className={`min-h-11 rounded-lg px-2 py-2 text-[10px] font-black transition active:scale-[0.98] ${
+                                        className={`min-h-9 rounded-lg px-2 py-1.5 text-[10px] font-black transition active:scale-[0.98] ${
                                           selected === choice
                                             ? "bg-[#06284a] text-white ring-2 ring-[#f3c64f]"
                                             : "border border-slate-200 bg-white text-[#10254a]"
@@ -9107,7 +9107,7 @@ export default function Home() {
                         return (
                           <div
                             key={game.id}
-                            className="rounded-2xl border border-[#e3dccd] bg-white p-4 shadow-sm"
+                            className="rounded-xl border border-[#e3dccd] bg-white p-3 shadow-sm"
                           >
                             <div className="flex items-start justify-between">
                               <div>

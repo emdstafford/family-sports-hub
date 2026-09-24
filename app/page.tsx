@@ -8577,7 +8577,7 @@ export default function Home() {
                         </div>
 
                         {eventGames.length > 0 ? (
-                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div className="mt-3 -mx-1.5 grid grid-cols-2 gap-1.5">
                             {eventGames.map((game) => {
                               const selected = eventPicks[event.id]?.[game.id];
                               const saving = eventPickSavingKey === `${event.id}:${game.id}`;

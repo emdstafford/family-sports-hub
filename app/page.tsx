@@ -1960,7 +1960,7 @@ export default function Home() {
   async function saveEventPick(
     eventId: string,
     game: BrowserGame,
-    pickChoice: "home" | "away",
+    pickChoice: PickChoice,
   ) {
     if (!signedInPlayer) return;
 
@@ -7782,7 +7782,7 @@ export default function Home() {
                                 <div className="text-xs font-black text-[#10254a]">{game.away} at {game.home}</div>
                                 <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
                                   {formatGameDate(game.startsAt)} · {outcome ? `${outcome.awayScore}–${outcome.homeScore}` : formatGameTime(game.startsAt, game.startTimeTbd)}
-                                  {pick ? ` · Picked ${pick === "away" ? game.away : game.home}` : " · No pick yet"}
+                                  {pick ? ` · Picked ${pick === "draw" ? "Draw" : pick === "away" ? game.away : game.home}` : " · No pick yet"}
                                 </div>
                               </div>
                               <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${outcome?.result === "correct" ? "bg-emerald-100 text-emerald-800" : outcome?.result === "incorrect" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600"}`}>
@@ -8610,9 +8610,10 @@ export default function Home() {
                                     </div>
                                     <div className="mt-1 text-[9px] font-semibold text-slate-400">{formatGameDate(game.startsAt)}</div>
                                   </button>
-                                  <div className="mt-2 grid grid-cols-2 gap-1.5">
+                                  <div className={`mt-2 grid gap-1.5 ${game.sport === "Soccer" ? "grid-cols-3" : "grid-cols-2"}`}>
                                     {([
                                       ["away", game.away],
+                                      ...(game.sport === "Soccer" ? [["draw", "Draw"] as const] : []),
                                       ["home", game.home],
                                     ] as const).map(([choice, team]) => (
                                       <button

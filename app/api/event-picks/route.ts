@@ -25,7 +25,7 @@ function isAllowedEvent(eventId: string) {
 type EventPick = {
   playerId: string;
   gameId: string;
-  pickChoice: "home" | "away";
+  pickChoice: "home" | "away" | "draw";
   submittedAt: string;
 };
 
@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
     const playerId = typeof body.playerId === "string" ? body.playerId : "";
     const eventId = typeof body.eventId === "string" ? body.eventId : "";
     const gameId = typeof body.gameId === "string" ? body.gameId : "";
-    const pickChoice = body.pickChoice === "home" || body.pickChoice === "away"
+    const pickChoice = body.pickChoice === "home" || body.pickChoice === "away" || body.pickChoice === "draw"
       ? body.pickChoice
       : null;
     const sessionToken = typeof body.sessionToken === "string"

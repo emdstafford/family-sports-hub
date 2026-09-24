@@ -7,6 +7,8 @@ const validEvents = new Set([
   "fa-cup",
   "carabao-cup",
   "champions-league",
+  "womens-champions-league",
+  "subway-players-cup",
   "europa-league",
   "conference-league",
   "efl-trophy",

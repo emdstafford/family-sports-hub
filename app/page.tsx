@@ -453,6 +453,17 @@ const lockerLocalVenuePhotos: Record<string, string> = {
   "Lexington Ice Center": "/venues/lexington-ice-center.svg",
 };
 
+const KENTUCKY_CHEER_TEAM_PHOTO =
+  "https://ukathletics.com/imgproxy/CPFU8JWUtV1vXS5TfSPtz2R7CwhLm5ZhnJ9DjbhX7v4/fit/3840/2160/ce/0/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3VrYXRobGV0aWNzLWNvbS8yMDI0LzAxLzg2NTE5ODgwLTQxOTQxODYwMl8xMDE2MTM3NzIyOTE3Mzk3MF82NDI1OTExODAxMjI0MjgxNDIxX24uanBn.png";
+
+function lockerTeamPhoto(team: LockerTeam) {
+  const name = team.name.toLowerCase();
+  if (name.includes("kentucky") && team.sport === "Cheerleading") {
+    return KENTUCKY_CHEER_TEAM_PHOTO;
+  }
+  return null;
+}
+
 function lockerUniformAsset(team: LockerTeam) {
   const name = team.name.toLowerCase();
 
@@ -6964,27 +6975,30 @@ export default function Home() {
                                   : venue.scene === "diamond"
                                     ? "linear-gradient(180deg,#14243b 0%,#34455a 44%,#396d42 45%,#267141 100%)"
                                     : "linear-gradient(180deg,#14263c 0%,#34485a 44%,#29824c 45%,#195a37 100%)";
+                              const teamPhoto = lockerTeamPhoto(team);
                               return (
                                 <div className="relative mx-3 mt-5 shrink-0">
                                   <div className="mb-1 text-center leading-[1.05]">
-                                    <div className="text-xs font-black text-[#f3c64f]">{venue.name}</div>
-                                    <div className="text-[9px] font-bold uppercase tracking-wider text-[#cdb89e]">Home Venue</div>
+                                    <div className="text-xs font-black text-[#f3c64f]">{teamPhoto ? "Kentucky Cheer" : venue.name}</div>
+                                    <div className="text-[9px] font-bold uppercase tracking-wider text-[#cdb89e]">{teamPhoto ? "Team Photo" : "Home Venue"}</div>
                                   </div>
                                   <div className="relative h-[68px] overflow-hidden rounded border border-[#b8874f] shadow-[0_5px_12px_rgba(0,0,0,.6)]"
-                                    role="img" aria-label={`${venue.name} venue view`}
-                                    style={venue.previewX !== undefined
-                                      ? { backgroundImage: "url('/locker-room-preview.png')", backgroundPosition: `-${venue.previewX}px -654px`, backgroundSize: "1222px 1287px", backgroundRepeat: "no-repeat" }
-                                      : { background: sceneBackground }}>
-                                  {(lockerLocalVenuePhotos[venue.name] || lockerVenuePhotos[venue.name]) && (
+                                    role="img" aria-label={teamPhoto ? `${team.name} team photo` : `${venue.name} venue view`}
+                                    style={teamPhoto
+                                      ? { background: sceneBackground }
+                                      : venue.previewX !== undefined
+                                        ? { backgroundImage: "url('/locker-room-preview.png')", backgroundPosition: `-${venue.previewX}px -654px`, backgroundSize: "1222px 1287px", backgroundRepeat: "no-repeat" }
+                                        : { background: sceneBackground }}>
+                                  {(teamPhoto || lockerLocalVenuePhotos[venue.name] || lockerVenuePhotos[venue.name]) && (
                                     <img
-                                      src={lockerLocalVenuePhotos[venue.name] ?? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(lockerVenuePhotos[venue.name])}?width=480`}
-                                      alt=""
+                                      src={teamPhoto ?? lockerLocalVenuePhotos[venue.name] ?? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(lockerVenuePhotos[venue.name])}?width=480`}
+                                      alt={teamPhoto ? "Kentucky cheerleaders competing at UCA" : ""}
                                       loading="lazy"
                                       className="absolute inset-0 h-full w-full object-cover"
                                       onError={(event) => { event.currentTarget.style.display = "none"; }}
                                     />
                                   )}
-                                  {venue.previewX === undefined && !lockerLocalVenuePhotos[venue.name] && !lockerVenuePhotos[venue.name] && <>
+                                  {!teamPhoto && venue.previewX === undefined && !lockerLocalVenuePhotos[venue.name] && !lockerVenuePhotos[venue.name] && <>
                                     <div className="absolute inset-x-2 top-3 h-3 rounded-[50%] border-t-2 opacity-60" style={{ borderColor: colors.secondary }} />
                                     <div className="absolute inset-x-5 top-7 h-9 rounded-[50%] border border-white/50 opacity-70" />
                                     <div className="absolute left-1/2 top-7 h-9 w-px -translate-x-1/2 bg-white/40" />

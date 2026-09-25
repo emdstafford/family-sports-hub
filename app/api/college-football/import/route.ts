@@ -117,7 +117,8 @@ export async function POST(request: Request) {
     );
 
     cfbdUrl.searchParams.set("year", String(year));
-    cfbdUrl.searchParams.set("seasonType", "regular");
+    // Do not force seasonType=regular here. FamBam needs the same importer
+    // to keep postseason/bowl Challenge games current later in the year.
 
     if (week !== undefined) {
       cfbdUrl.searchParams.set("week", String(week));

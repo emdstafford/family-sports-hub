@@ -1626,6 +1626,8 @@ export default function Home() {
 
   const [challengeRevealedPicks, setChallengeRevealedPicks] =
     useState<Record<string, GameRoomPick[]>>({});
+  const [expandedRevealedPickGameId, setExpandedRevealedPickGameId] =
+    useState<string | null>(null);
 
   const [gameRoomPicksRevealed, setGameRoomPicksRevealed] =
     useState(false);
@@ -9141,23 +9143,33 @@ export default function Home() {
 
 
                                 {challengeRevealedPicks[game.id] && (
-                                  <div className="mt-3 rounded-2xl border border-[#e3dccd] bg-[#f8f6ef] p-3">
-                                    <div className="flex items-center justify-between gap-3">
-                                      <div>
-                                        <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">
-                                          👀 FamBam Picks Revealed
-                                        </div>
-                                        <div className="mt-0.5 text-xs font-semibold text-slate-500">
-                                          Kickoff happened — everybody's picks are out!
-                                        </div>
-                                      </div>
+                                  <div className="mt-3">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setExpandedRevealedPickGameId((current) =>
+                                          current === game.id ? null : game.id,
+                                        )
+                                      }
+                                      aria-expanded={expandedRevealedPickGameId === game.id}
+                                      className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-[#e3dccd] bg-[#f8f6ef] px-3 py-2 text-left active:bg-[#f2eee4]"
+                                    >
+                                      <span>
+                                        <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">
+                                          👀 Picks Revealed
+                                        </span>
+                                        <span className="block text-[10px] font-semibold text-slate-500">
+                                          Tap to ${expandedRevealedPickGameId === game.id ? "hide" : "see"} everyone’s picks
+                                        </span>
+                                      </span>
+                                      <span className="shrink-0 text-sm font-black text-[#06284a]">
+                                        ${expandedRevealedPickGameId === game.id ? "−" : "+"}
+                                      </span>
+                                    </button>
 
-                                      <div className="rounded-full bg-[#e8f0fb] px-2 py-1 text-[9px] font-black text-[#06284a]">
-                                        🔒 LOCKED
-                                      </div>
-                                    </div>
-
-                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                    {expandedRevealedPickGameId === game.id && (
+                                      <div className="mt-2 rounded-2xl border border-[#e3dccd] bg-[#f8f6ef] p-3">
+                                        <div className="mt-3 grid grid-cols-2 gap-2">
                                       {challengeRevealedPicks[
                                         game.id
                                       ].map((pick) => {
@@ -9243,6 +9255,8 @@ export default function Home() {
                                         );
                                       })}
                                     </div>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </>

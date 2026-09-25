@@ -9160,17 +9160,24 @@ export default function Home() {
                                           👀 Picks Revealed
                                         </span>
                                         <span className="block text-[10px] font-semibold text-slate-500">
-                                          Tap to ${expandedRevealedPickGameId === game.id ? "hide" : "see"} everyone’s picks
+                                          ${expandedRevealedPickGameId === game.id ? "Close picks" : "Open picks card"}
                                         </span>
                                       </span>
-                                      <span className="shrink-0 text-sm font-black text-[#06284a]">
-                                        ${expandedRevealedPickGameId === game.id ? "−" : "+"}
+                                      <span className="shrink-0 rounded-lg bg-[#06284a] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-white">
+                                        ${expandedRevealedPickGameId === game.id ? "Close" : "View"}
                                       </span>
                                     </button>
 
                                     {expandedRevealedPickGameId === game.id && (
-                                      <div className="mt-2 rounded-2xl border border-[#e3dccd] bg-[#f8f6ef] p-3">
-                                        <div className="mt-3 grid grid-cols-2 gap-2">
+                                      <div className="mt-2 rounded-2xl border-2 border-[#f3c64f] bg-white p-3 shadow-md">
+                                        <div className="flex items-center justify-between gap-2 border-b border-[#e3dccd] pb-2">
+                                          <div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">FamBam Pick Card</div>
+                                            <div className="text-xs font-black text-[#06284a]">{game.away} vs {game.home}</div>
+                                          </div>
+                                          <div className="rounded-full bg-[#e8f0fb] px-2 py-1 text-[9px] font-black text-[#06284a]">🔒 LOCKED</div>
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-1 gap-2">
                                       {challengeRevealedPicks[
                                         game.id
                                       ].map((pick) => {

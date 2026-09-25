@@ -146,25 +146,40 @@ async function runSync(request: NextRequest) {
       `/api/mlb/import?postseason=1&startDate=${start}&endDate=${end}`));
   }
 
-  /*
-   * CollegeFootballData is intentionally NOT called by
-   * the hourly sports sync.
-   *
-   * FamBam keeps the CFB schedule already stored in
-   * Supabase, while CFBD is reserved for a separate
-   * low-frequency schedule refresh to protect its
-   * monthly API quota.
-   */
-
-  /*
-   * Grade every currently open Challenge after the
-   * provider results have been refreshed.
-   */
   const supabase = createClient(
     supabaseUrl,
     supabasePublishableKey,
   );
 
+  /*
+   * Keep college-football RESULTS current without turning the hourly
+   * sync into a full-season schedule refresh. Once games from the last
+   * few days exist in FamBam, refresh only the CFBD weeks represented by
+   * those games so final scores/statuses can grade Challenge picks.
+   */
+  const recentCutoff = new Date(Date.now() - 3 * 86_400_000).toISOString();
+  const recentCfbdGames = await supabase
+    .from("games")
+    .select("external_id, starts_at")
+    .eq("external_provider", "cfbd")
+    .gte("starts_at", recentCutoff)
+    .lte("starts_at", new Date().toISOString());
+
+  if (!recentCfbdGames.error && (recentCfbdGames.data ?? []).length > 0) {
+    // A targeted current-year refresh updates completed/status/score data.
+    // This is intentionally one call per hourly sync, not a season-wide loop.
+    results.push(
+      await callInternalRoute(
+        request,
+        `/api/college-football/import?year=${new Date().getUTCFullYear()}`,
+      ),
+    );
+  }
+
+  /*
+   * Grade every currently open Challenge after the
+   * provider results have been refreshed.
+   */
   const {
     data: gradingData,
     error: gradingError,

@@ -1626,8 +1626,6 @@ export default function Home() {
 
   const [challengeRevealedPicks, setChallengeRevealedPicks] =
     useState<Record<string, GameRoomPick[]>>({});
-  const [expandedRevealedPickGameId, setExpandedRevealedPickGameId] =
-    useState<string | null>(null);
 
   const [gameRoomPicksRevealed, setGameRoomPicksRevealed] =
     useState(false);
@@ -9144,128 +9142,24 @@ export default function Home() {
 
 
                                 {challengeRevealedPicks[game.id] && (
-                                  <div className="mt-3">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setExpandedRevealedPickGameId((current) =>
-                                          current === game.id ? null : game.id,
-                                        )
-                                      }
-                                      aria-expanded={expandedRevealedPickGameId === game.id}
-                                      className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-[#e3dccd] bg-[#f8f6ef] px-3 py-2 text-left active:bg-[#f2eee4]"
-                                    >
-                                      <span>
-                                        <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">
-                                          👀 Picks Revealed
-                                        </span>
-                                        <span className="block text-[10px] font-semibold text-slate-500">
-                                          ${expandedRevealedPickGameId === game.id ? "Close picks" : "Open picks card"}
-                                        </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => void openGameRoom(game)}
+                                    className="mt-3 flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-[#e3dccd] bg-[#f8f6ef] px-3 py-2 text-left active:bg-[#f2eee4]"
+                                    aria-label={`Open ${game.away} vs ${game.home} and see FamBam picks`}
+                                  >
+                                    <span>
+                                      <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">
+                                        👀 Picks Revealed
                                       </span>
-                                      <span className="shrink-0 rounded-lg bg-[#06284a] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-white">
-                                        ${expandedRevealedPickGameId === game.id ? "Close" : "View"}
+                                      <span className="block text-[10px] font-semibold text-slate-500">
+                                        Tap to open game card
                                       </span>
-                                    </button>
-
-                                    {expandedRevealedPickGameId === game.id && (
-                                      <div className="mt-2 rounded-2xl border-2 border-[#f3c64f] bg-white p-3 shadow-md">
-                                        <div className="flex items-center justify-between gap-2 border-b border-[#e3dccd] pb-2">
-                                          <div>
-                                            <div className="text-[10px] font-black uppercase tracking-[0.14em] text-[#b28a2e]">FamBam Pick Card</div>
-                                            <div className="text-xs font-black text-[#06284a]">{game.away} vs {game.home}</div>
-                                          </div>
-                                          <div className="rounded-full bg-[#e8f0fb] px-2 py-1 text-[9px] font-black text-[#06284a]">🔒 LOCKED</div>
-                                        </div>
-                                        <div className="mt-3 grid grid-cols-1 gap-2">
-                                      {challengeRevealedPicks[
-                                        game.id
-                                      ].map((pick) => {
-                                        const pickLabel =
-                                          pick.pick_choice === "away"
-                                            ? game.sport ===
-                                              "College Football"
-                                              ? rankedTeamLabel(
-                                                  game.away,
-                                                  collegeFootballRankings,
-                                                )
-                                              : game.away
-                                            : pick.pick_choice === "home"
-                                              ? game.sport ===
-                                                "College Football"
-                                                ? rankedTeamLabel(
-                                                    game.home,
-                                                    collegeFootballRankings,
-                                                  )
-                                                : game.home
-                                              : pick.pick_choice === "draw"
-                                                ? "Draw"
-                                                : "No pick";
-
-                                        const mine =
-                                          pick.player_id ===
-                                          signedInPlayer.id;
-
-                                        const pickCorrect =
-                                          isFinal &&
-                                          winningChoice !== null &&
-                                          pick.pick_choice ===
-                                            winningChoice;
-
-                                        return (
-                                          <div
-                                            key={pick.player_id}
-                                            className={`rounded-xl p-3 ${
-                                              mine
-                                                ? "border-2 border-[#f3c64f] bg-white"
-                                                : "border border-slate-200 bg-white"
-                                            }`}
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#06284a] text-[9px] font-black text-white">
-                                                {pick.initials ||
-                                                  pick.display_name
-                                                    .slice(0, 2)
-                                                    .toUpperCase()}
-                                              </div>
-
-                                              <div className="min-w-0">
-                                                <div className="truncate text-[10px] font-black text-slate-500">
-                                                  {pick.display_name}
-                                                  {mine
-                                                    ? " · YOU"
-                                                    : ""}
-                                                </div>
-
-                                                <div className="mt-0.5 flex items-center gap-2">
-                                                  <div className="min-w-0 truncate text-xs font-black text-[#10254a]">
-                                                    {pickLabel}
-                                                  </div>
-
-                                                  {isFinal &&
-                                                    pick.pick_choice && (
-                                                      <div
-                                                        className={`shrink-0 text-[10px] font-black ${
-                                                          pickCorrect
-                                                            ? "text-emerald-600"
-                                                            : "text-rose-500"
-                                                        }`}
-                                                      >
-                                                        {pickCorrect
-                                                          ? "✓ +1"
-                                                          : "✗ 0"}
-                                                      </div>
-                                                    )}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                      </div>
-                                    )}
-                                  </div>
+                                    </span>
+                                    <span className="shrink-0 rounded-lg bg-[#06284a] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-white">
+                                      View
+                                    </span>
+                                  </button>
                                 )}
                               </>
                             ) : (

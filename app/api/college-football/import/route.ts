@@ -28,7 +28,10 @@ function isFamilyTeam(name: string) {
 function shouldKeepGame(game: CfbdGame) {
   // Permanent FamBam college-football rule:
   // 1. ALWAYS keep every Georgia and Kentucky game.
-  // 2. Otherwise keep only FBS-vs-FBS games.
+  // 2. Keep FBS-vs-FBS games.
+  // 3. ALSO keep games already selected for a FamBam Challenge.
+  //    The importer must continue refreshing those results even when
+  //    they are Division II/FCS matchups such as Benedict-Tuskegee.
   if (isFamilyTeam(game.homeTeam) || isFamilyTeam(game.awayTeam)) {
     return true;
   }
@@ -151,9 +154,46 @@ export async function POST(request: Request) {
     const receivedGames =
       (await cfbdResponse.json()) as CfbdGame[];
 
-    const games = receivedGames.filter(shouldKeepGame);
+    // Challenge games are a special case: once a game is selected for a
+    // FamBam Challenge, keep refreshing it even if it is not FBS-vs-FBS.
+    // Otherwise CFBD can return the result but our normal import filter
+    // drops it before the score/status is written.
+    const receivedExternalIds = receivedGames.map((game) => String(game.id));
+    const { data: existingCfbdRows } = receivedExternalIds.length
+      ? await supabase
+          .from("games")
+          .select("id, external_id")
+          .eq("external_provider", "cfbd")
+          .in("external_id", receivedExternalIds)
+      : { data: [] as Array<{ id: string; external_id: string | null }> };
+
+    const existingGameIds = (existingCfbdRows ?? []).map((row) => row.id);
+    const { data: challengeRows } = existingGameIds.length
+      ? await supabase
+          .from("challenge_games")
+          .select("game_id")
+          .in("game_id", existingGameIds)
+      : { data: [] as Array<{ game_id: string }> };
+
+    const challengeGameIds = new Set(
+      (challengeRows ?? []).map((row) => row.game_id),
+    );
+    const challengeExternalIds = new Set(
+      (existingCfbdRows ?? [])
+        .filter((row) => challengeGameIds.has(row.id))
+        .map((row) => row.external_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+
+    const games = receivedGames.filter(
+      (game) =>
+        shouldKeepGame(game) ||
+        challengeExternalIds.has(String(game.id)),
+    );
     const excludedGames = receivedGames.filter(
-      (game) => !shouldKeepGame(game),
+      (game) =>
+        !shouldKeepGame(game) &&
+        !challengeExternalIds.has(String(game.id)),
     );
 
     /*

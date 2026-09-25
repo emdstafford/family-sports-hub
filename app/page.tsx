@@ -4354,20 +4354,31 @@ export default function Home() {
       challengeGameIds.includes(game.id),
     );
 
-  const completedChallengeGameCount =
-    challengeGames.filter((game) => {
-      const status = game.status.toLowerCase();
+  const challengeGameIsFinal = (game: BrowserGame) => {
+    const status = game.status.toLowerCase();
+    const hasFinalScore =
+      game.homeScore !== null &&
+      game.awayScore !== null;
 
-      return [
-        "final",
-        "finished",
-        "complete",
-        "completed",
-        "closed",
-      ].some((finalStatus) =>
-        status.includes(finalStatus),
-      );
-    }).length;
+    // Providers do not all use the exact same final-status string.
+    // Treat a scored game as complete once its status clearly says the
+    // game ended, including values such as STATUS_FINAL.
+    return hasFinalScore && [
+      "final",
+      "finished",
+      "complete",
+      "completed",
+      "closed",
+      "full time",
+      "full-time",
+      "ft",
+    ].some((finalStatus) =>
+      status.includes(finalStatus),
+    );
+  };
+
+  const completedChallengeGameCount =
+    challengeGames.filter(challengeGameIsFinal).length;
 
   // The database leaderboard can retain grading from a game that was
   // replaced while the weekly card was still being assembled. Reconcile
@@ -9027,17 +9038,7 @@ export default function Home() {
                           );
 
                         const isFinal =
-                          [
-                            "final",
-                            "finished",
-                            "complete",
-                            "completed",
-                            "closed",
-                          ].includes(
-                            game.status.toLowerCase(),
-                          ) &&
-                          game.homeScore !== null &&
-                          game.awayScore !== null;
+                          challengeGameIsFinal(game);
 
                         const winningChoice =
                           isFinal

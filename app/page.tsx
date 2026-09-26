@@ -2094,7 +2094,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (!["Events", "Home", "Challenge"].includes(activeSection)) return;
+    if (!["Events", "Challenge"].includes(activeSection)) return;
 
     let cancelled = false;
 
@@ -2193,8 +2193,21 @@ export default function Home() {
       }
     };
 
-    refreshPicks();
-    if (activeSection === "Trophy Room") return;
+    const initialRefresh =
+      activeSection === "Home"
+        ? window.setTimeout(refreshPicks, 4_000)
+        : null;
+
+    if (activeSection !== "Home") {
+      refreshPicks();
+    }
+
+    if (activeSection === "Trophy Room") {
+      return () => {
+        if (initialRefresh !== null) window.clearTimeout(initialRefresh);
+      };
+    }
+
     const refreshVisiblePicks = () => {
       if (activeSection === "Events" && challenge?.id) {
         void loadEventPicks(`mamas-hockey-${challenge.id}`);
@@ -2205,6 +2218,7 @@ export default function Home() {
     const interval = window.setInterval(refreshVisiblePicks, activeSection === "Events" ? 5 * 60_000 : 15 * 60_000);
     window.addEventListener("focus", refreshVisiblePicks);
     return () => {
+      if (initialRefresh !== null) window.clearTimeout(initialRefresh);
       window.clearInterval(interval);
       window.removeEventListener("focus", refreshVisiblePicks);
     };
@@ -2765,12 +2779,6 @@ export default function Home() {
       setGameRoomSending(false);
     }
   }
-
-  useEffect(() => {
-    if (signedInPlayer) {
-      void openProfile(false);
-    }
-  }, [signedInPlayer?.id]);
 
   useEffect(() => {
     if (
@@ -3730,7 +3738,10 @@ export default function Home() {
       }
     }
 
-    void refreshHomeLiveScores();
+    const initialLiveRefresh = window.setTimeout(
+      refreshHomeLiveScores,
+      3_000,
+    );
 
     const interval = window.setInterval(
       refreshHomeLiveScores,
@@ -3743,6 +3754,7 @@ export default function Home() {
       window.removeEventListener("focus", refreshHomeLiveScores);
       document.removeEventListener("visibilitychange", refreshHomeLiveScores);
       cancelled = true;
+      window.clearTimeout(initialLiveRefresh);
       window.clearInterval(interval);
     };
   }, [activeSection]);
@@ -5063,7 +5075,11 @@ export default function Home() {
     }
   }
 
-  useEffect(() => { void loadPassport(); }, [signedInPlayer?.id]);
+  useEffect(() => {
+    if (activeSection === "Trophy Room" && signedInPlayer) {
+      void loadPassport();
+    }
+  }, [activeSection, signedInPlayer?.id]);
 
   async function passportPost(payload: any) {
     if (!signedInPlayer) throw new Error("Sign in first.");

@@ -262,6 +262,10 @@ export async function POST(request: NextRequest) {
       !game.start_time_tbd &&
       new Date(game.starts_at).getTime() <= Date.now();
 
+    if (game.start_time_tbd || !game.starts_at) {
+      return NextResponse.json({ error: "Picks open when the start time is confirmed." }, { status: 409 });
+    }
+
     if (started || kickoffPassed) {
       return NextResponse.json({ error: "This pick locked at kickoff." }, { status: 409 });
     }

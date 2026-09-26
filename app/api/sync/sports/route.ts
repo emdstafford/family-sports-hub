@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const maxDuration = 300;
+
 type SyncResult = {
   name: string;
   ok: boolean;
@@ -133,6 +135,12 @@ async function runSync(request: NextRequest) {
       "/api/local-hockey/import",
     ),
   );
+
+  // Recover missed final scores as well as today's regular-season games.
+  for (let daysAgo = 0; daysAgo <= 3; daysAgo += 1) {
+    const date = new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+    results.push(await callInternalRoute(request, `/api/mlb/import?date=${date}`));
+  }
 
   // Refresh known MLB playoff matchups and results as each round is set.
   // Bracket placeholders without named teams are ignored by the importer.

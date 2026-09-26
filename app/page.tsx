@@ -1642,6 +1642,11 @@ export default function Home() {
   const [gameRoomLiveEvents, setGameRoomLiveEvents] =
     useState<GameRoomLiveEvent[]>([]);
 
+  const latestScoreGames = useRef(realGames);
+  latestScoreGames.current = realGames;
+  const scoreRefreshAttempts = useRef(new Map<string, number>());
+  const scoreRefreshInFlight = useRef(false);
+
   const gameRoomScoreSnapshotRef = useRef<{
     gameId: string;
     homeScore: number | null;
@@ -3555,11 +3560,12 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (activeSection !== "Home") return;
+    if (!["Home", "Events", "Locker Room"].includes(activeSection)) return;
 
     let cancelled = false;
 
     async function refreshHomeLiveScores() {
+      if (document.visibilityState !== "visible" || scoreRefreshInFlight.current) return;
       const now = Date.now();
 
       const finalStatuses = [
@@ -3570,7 +3576,7 @@ export default function Home() {
         "closed",
       ];
 
-      const gamesToRefresh = realGames.filter((game) => {
+      const gamesToRefresh = latestScoreGames.current.filter((game) => {
         if (
           game.sport !== "Soccer" &&
           game.sport !== "College Football" &&
@@ -3581,7 +3587,7 @@ export default function Home() {
           return false;
         }
 
-        if (!game.startsAt) return false;
+        if (!game.startsAt || game.startTimeTbd) return false;
 
         const status = String(
           game.status ?? "",
@@ -3601,14 +3607,19 @@ export default function Home() {
 
         return (
           now >= startsAtMs - 10 * 60_000 &&
-          now <= startsAtMs + 6 * 60 * 60_000
+          now <= startsAtMs + 7 * 24 * 60 * 60_000 &&
+          now - (scoreRefreshAttempts.current.get(game.id) ?? 0) >=
+            (now > startsAtMs + 6 * 60 * 60_000 ? 15 * 60_000 : 60_000)
         );
       });
 
       if (gamesToRefresh.length === 0) return;
 
-      await Promise.all(
-        gamesToRefresh.map(async (game) => {
+      scoreRefreshInFlight.current = true;
+      try {
+        await Promise.all(
+        gamesToRefresh.slice(0, 6).map(async (game) => {
+          scoreRefreshAttempts.current.set(game.id, now);
           try {
             // Refresh this exact game from the provider first.
             const liveResponse = await fetch(
@@ -3706,6 +3717,9 @@ export default function Home() {
           }
         }),
       );
+      } finally {
+        scoreRefreshInFlight.current = false;
+      }
     }
 
     void refreshHomeLiveScores();
@@ -3715,11 +3729,15 @@ export default function Home() {
       60_000,
     );
 
+    window.addEventListener("focus", refreshHomeLiveScores);
+    document.addEventListener("visibilitychange", refreshHomeLiveScores);
     return () => {
+      window.removeEventListener("focus", refreshHomeLiveScores);
+      document.removeEventListener("visibilitychange", refreshHomeLiveScores);
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [activeSection, realGames]);
+  }, [activeSection]);
 
   useEffect(() => {
     async function loadHome() {
@@ -8644,13 +8662,15 @@ export default function Home() {
                                       <button
                                         key={choice}
                                         type="button"
-                                        disabled={saving}
+                                        disabled={saving || gameIsLocked(game, currentTime)}
                                         onClick={() => void saveEventPick(event.id, game, choice)}
                                         aria-pressed={selected === choice}
                                         className={`min-h-9 rounded-lg px-2 py-1.5 text-[10px] font-black transition active:scale-[0.98] ${
                                           selected === choice
                                             ? "bg-[#06284a] text-white ring-2 ring-[#f3c64f]"
-                                            : "border border-slate-200 bg-white text-[#10254a]"
+                                            : gameIsLocked(game, currentTime)
+                                              ? "border border-slate-200 bg-slate-100 text-slate-400"
+                                              : "border border-slate-200 bg-white text-[#10254a]"
                                         }`}
                                       >
                                         {selected === choice ? "✓ " : ""}{team}

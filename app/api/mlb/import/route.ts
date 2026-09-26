@@ -169,6 +169,14 @@ export async function POST(request: Request) {
         ? ["F", "D", "L", "W"].includes(game.gameType)
         : game.gameType === "R");
 
+    // Bracket placeholders have valid IDs too; accept only real MLB clubs.
+    const mlbTeamIds = new Set<number>();
+    if (postseason) {
+      const teamsResponse = await fetch(`https://statsapi.mlb.com/api/v1/teams?sportId=1&season=${startDate.slice(0, 4)}`, { cache: "no-store" });
+      if (!teamsResponse.ok) throw new Error("Could not verify MLB postseason teams.");
+      const teamsBody = await teamsResponse.json() as { teams?: MlbTeam[] };
+      for (const team of teamsBody.teams ?? []) mlbTeamIds.add(team.id);
+    }
     const teamCache = new Map<number, string>();
 
     async function getOrCreateTeam(team: MlbTeam) {
@@ -224,8 +232,9 @@ export async function POST(request: Request) {
         // Only named matchups should become pickable games.
         if (!game.teams.away.team?.id || !game.teams.home.team?.id ||
           !game.teams.away.team.name || !game.teams.home.team.name ||
-          (postseason && (game.status.startTimeTBD || !game.gameDate ||
-            game.gameDate.includes("T00:00:00Z") || game.ifNecessary === "Y" || game.ifNecessary === true))) {
+          (postseason && (!mlbTeamIds.has(game.teams.away.team.id) ||
+            !mlbTeamIds.has(game.teams.home.team.id) || !game.gameDate ||
+            game.ifNecessary === "Y" || game.ifNecessary === true))) {
           gamesSkipped += 1;
           continue;
         }

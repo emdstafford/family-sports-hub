@@ -15,6 +15,7 @@ type GameRow = {
   away_score: number | null;
   status: string;
   starts_at: string | null;
+  start_time_tbd: boolean;
   external_provider: string | null;
   external_id: string | null;
   home_team: TeamRow | TeamRow[] | null;
@@ -352,6 +353,7 @@ export async function GET(request: NextRequest) {
           away_score,
           status,
           starts_at,
+          start_time_tbd,
           external_provider,
           external_id,
           home_team:teams!games_home_team_id_fkey(name),
@@ -402,6 +404,8 @@ export async function GET(request: NextRequest) {
       previousStatus;
     let startsAt =
       typedGame.starts_at;
+    let startTimeTbd =
+      typedGame.start_time_tbd;
 
     let livePeriod: number | null = null;
     let liveClock: string | null = null;
@@ -1254,6 +1258,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // A live provider returning a concrete start timestamp means FamBam
+    // should stop displaying TBD even if the original schedule feed left
+    // startTimeTBD=true.
+    if (startsAt) {
+      startTimeTbd = false;
+    }
+
     const scoreChanged =
       homeScore !==
         previousHomeScore ||
@@ -1271,6 +1282,7 @@ export async function GET(request: NextRequest) {
           away_score: awayScore,
           status,
           starts_at: startsAt,
+          start_time_tbd: startTimeTbd,
           external_id: refreshedExternalId,
         })
         .eq("id", gameId);
@@ -1318,6 +1330,7 @@ export async function GET(request: NextRequest) {
         awayScore,
         status,
         startsAt,
+        startTimeTbd,
       },
       changes: {
         scoreChanged,

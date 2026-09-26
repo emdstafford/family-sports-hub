@@ -2612,7 +2612,7 @@ export default function Home() {
 
     const interval = window.setInterval(
       refreshGameRoomGame,
-      60_000,
+      20_000,
     );
 
     return () => {
@@ -8018,6 +8018,43 @@ export default function Home() {
                 </div>
               </div>
 
+              {getStatusLabel(gameRoomGame) === "FINAL" &&
+                gameRoomPicksRevealed &&
+                (() => {
+                  const homeScore = gameRoomGame.homeScore ?? 0;
+                  const awayScore = gameRoomGame.awayScore ?? 0;
+                  const winningPick: PickChoice =
+                    homeScore === awayScore
+                      ? "draw"
+                      : homeScore > awayScore
+                        ? "home"
+                        : "away";
+                  const winners = gameRoomPicks.filter(
+                    (pick) => pick.pick_choice === winningPick,
+                  );
+
+                  return (
+                    <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8dba8] bg-gradient-to-br from-[#fff8dc] to-white shadow-sm">
+                      <div className="border-b border-[#e8dba8] px-3 py-2.5">
+                        <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
+                          🏁 FamBam Final Whistle
+                        </div>
+                      </div>
+
+                      <div className="p-3 text-center">
+                        <div className="text-sm font-black text-[#06284a]">
+                          {winners.length > 0
+                            ? `${winners.map((pick) => pick.display_name).join(", ")} ${winners.length === 1 ? "picked it right!" : "picked it right!"}`
+                            : "That result fooled the whole family!"}
+                        </div>
+                        <div className="mt-1 text-xs font-semibold text-slate-500">
+                          {gameRoomGame.away} {awayScore} · {gameRoomGame.home} {homeScore}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
               {gameRoomLoading && (
                 <div className="py-10 text-center text-sm font-bold text-slate-500">
                   Loading game details…
@@ -8194,42 +8231,7 @@ export default function Home() {
                 </div>
               )}
 
-              {getStatusLabel(gameRoomGame) === "FINAL" &&
-                gameRoomPicksRevealed &&
-                (() => {
-                  const homeScore = gameRoomGame.homeScore ?? 0;
-                  const awayScore = gameRoomGame.awayScore ?? 0;
-                  const winningPick: PickChoice =
-                    homeScore === awayScore
-                      ? "draw"
-                      : homeScore > awayScore
-                        ? "home"
-                        : "away";
-                  const winners = gameRoomPicks.filter(
-                    (pick) => pick.pick_choice === winningPick,
-                  );
-
-                  return (
-                    <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8dba8] bg-gradient-to-br from-[#fff8dc] to-white shadow-sm">
-                      <div className="border-b border-[#e8dba8] px-3 py-2.5">
-                        <div className="text-[11px] font-black uppercase tracking-wide text-[#06284a]">
-                          🏁 FamBam Final Whistle
-                        </div>
-                      </div>
-
-                      <div className="p-3 text-center">
-                        <div className="text-sm font-black text-[#06284a]">
-                          {winners.length > 0
-                            ? `${winners.map((pick) => pick.display_name).join(", ")} ${winners.length === 1 ? "picked it right!" : "picked it right!"}`
-                            : "That result fooled the whole family!"}
-                        </div>
-                        <div className="mt-1 text-xs font-semibold text-slate-500">
-                          {gameRoomGame.away} {awayScore} · {gameRoomGame.home} {homeScore}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
+              
 
               <div className="mb-4 overflow-hidden rounded-2xl bg-white shadow-sm">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5">

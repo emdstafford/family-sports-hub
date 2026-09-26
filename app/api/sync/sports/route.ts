@@ -75,6 +75,18 @@ async function runSync(request: NextRequest) {
   const results: SyncResult[] = [];
 
   /*
+   * College-football kickoff times move from TBD windows to exact times
+   * throughout the week. Refresh the current season every sync so FamBam
+   * clears stale TBD flags instead of waiting until after games begin.
+   */
+  results.push(
+    await callInternalRoute(
+      request,
+      `/api/college-football/import?year=${new Date().getUTCFullYear()}`,
+    ),
+  );
+
+  /*
    * NHL's schedule response includes the current week.
    * Refresh it on each sync for upcoming games, live scores,
    * final results, and Stanley Cup playoff fixtures.
@@ -177,12 +189,7 @@ async function runSync(request: NextRequest) {
   if (!recentCfbdGames.error && (recentCfbdGames.data ?? []).length > 0) {
     // A targeted current-year refresh updates completed/status/score data.
     // This is intentionally one call per hourly sync, not a season-wide loop.
-    results.push(
-      await callInternalRoute(
-        request,
-        `/api/college-football/import?year=${new Date().getUTCFullYear()}`,
-      ),
-    );
+    // Current-season college football was already refreshed above.
   }
 
   // Refresh unfinished Challenge games individually too: the bulk schedule

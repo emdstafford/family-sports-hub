@@ -3600,7 +3600,7 @@ export default function Home() {
           return false;
         }
 
-        if (!game.startsAt || game.startTimeTbd) return false;
+        if (!game.startsAt) return false;
 
         const status = String(
           game.status ?? "",
@@ -3619,7 +3619,7 @@ export default function Home() {
         ).getTime();
 
         return (
-          now >= startsAtMs - 10 * 60_000 &&
+          now >= startsAtMs - 24 * 60 * 60_000 &&
           now <= startsAtMs + 7 * 24 * 60 * 60_000 &&
           now - (scoreRefreshAttempts.current.get(game.id) ?? 0) >=
             (now > startsAtMs + 6 * 60 * 60_000 ? 15 * 60_000 : 60_000)

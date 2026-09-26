@@ -162,10 +162,10 @@ export async function POST(request: Request) {
     const { data: existingCfbdRows } = receivedExternalIds.length
       ? await supabase
           .from("games")
-          .select("id, external_id")
+          .select("id, external_id, status")
           .eq("external_provider", "cfbd")
           .in("external_id", receivedExternalIds)
-      : { data: [] as Array<{ id: string; external_id: string | null }> };
+      : { data: [] as Array<{ id: string; external_id: string | null; status: string }> };
 
     const existingGameIds = (existingCfbdRows ?? []).map((row) => row.id);
     const { data: challengeRows } = existingGameIds.length
@@ -184,6 +184,10 @@ export async function POST(request: Request) {
         .map((row) => row.external_id)
         .filter((id): id is string => Boolean(id)),
     );
+
+    const finalExternalIds = new Set((existingCfbdRows ?? [])
+      .filter((row) => ["final", "finished", "completed", "closed"].includes(row.status.toLowerCase()))
+      .map((row) => row.external_id));
 
     const games = receivedGames.filter(
       (game) =>
@@ -268,6 +272,9 @@ export async function POST(request: Request) {
     }
 
     for (const game of games) {
+      // Never replace a verified final with a lagging schedule record.
+      if (!game.completed && finalExternalIds.has(String(game.id))) continue;
+
       if (
         game.homeId === null ||
         game.awayId === null ||

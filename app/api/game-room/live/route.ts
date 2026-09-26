@@ -661,17 +661,44 @@ export async function GET(request: NextRequest) {
             "200",
           );
 
-          const espnResponse =
-            await fetch(espnUrl, {
-              cache: "no-store",
-              headers: {
-                Accept: "application/json",
-              },
-            });
+          // CFBD event IDs also identify ESPN events. Lower-division games
+          // can be absent from the daily scoreboard but present in the summary.
+          let directEvent: EspnEvent | undefined;
+          try {
+            const summaryResponse = await fetch(
+              `https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=${encodeURIComponent(typedGame.external_id!)}`,
+              { cache: "no-store", signal: AbortSignal.timeout(10_000) },
+            );
+            if (summaryResponse.ok) {
+              const summary = await summaryResponse.json() as {
+                header?: { id?: string; competitions?: Array<{
+                  date?: string; status?: EspnEvent["status"];
+                  competitors?: EspnCompetitor[];
+                }> };
+              };
+              const competition = summary.header?.competitions?.[0];
+              const home = competition?.competitors?.find((team) => team.homeAway === "home");
+              const away = competition?.competitors?.find((team) => team.homeAway === "away");
+              if (summary.header?.id === typedGame.external_id && competition?.status &&
+                  home?.team?.displayName && away?.team?.displayName &&
+                  teamNamesMatch(homeTeamName, home.team.displayName) &&
+                  teamNamesMatch(awayTeamName, away.team.displayName)) {
+                directEvent = { id: summary.header.id, date: competition.date,
+                  status: competition.status, competitions: [competition] };
+              }
+            }
+          } catch (error) {
+            console.error("ESPN exact-game lookup failed:", error);
+          }
 
-          if (espnResponse.ok) {
-            const scoreboard =
-              (await espnResponse.json()) as EspnScoreboard;
+          const espnResponse = directEvent ? null : await fetch(espnUrl, {
+            cache: "no-store", headers: { Accept: "application/json" },
+          });
+
+          if (directEvent || espnResponse?.ok) {
+            const scoreboard: EspnScoreboard = directEvent
+              ? { events: [directEvent] }
+              : await espnResponse!.json() as EspnScoreboard;
 
             const matchingEvent =
               (scoreboard.events ?? []).find(
@@ -794,7 +821,7 @@ export async function GET(request: NextRequest) {
           } else {
             console.error(
               "ESPN college football refresh error:",
-              espnResponse.status,
+              espnResponse?.status,
             );
           }
         } catch (error) {
@@ -857,7 +884,7 @@ export async function GET(request: NextRequest) {
             (item) =>
               String(item.id) ===
               typedGame.external_id,
-          ) ?? providerGames[0];
+          );
 
         if (!providerGame) {
           return NextResponse.json(

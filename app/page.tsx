@@ -1642,6 +1642,8 @@ export default function Home() {
   const [gameRoomLiveEvents, setGameRoomLiveEvents] =
     useState<GameRoomLiveEvent[]>([]);
 
+  const latestChallengeGameIds = useRef(challengeGameIds);
+  latestChallengeGameIds.current = challengeGameIds;
   const latestScoreGames = useRef(realGames);
   latestScoreGames.current = realGames;
   const scoreRefreshAttempts = useRef(new Map<string, number>());
@@ -2092,7 +2094,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (activeSection !== "Events" && activeSection !== "Home") return;
+    if (!["Events", "Home", "Challenge"].includes(activeSection)) return;
 
     let cancelled = false;
 
@@ -2163,7 +2165,7 @@ export default function Home() {
 
     void refreshEventGames();
 
-    const interval = window.setInterval(refreshEventGames, 15 * 60_000);
+    const interval = window.setInterval(refreshEventGames, activeSection === "Challenge" ? 60_000 : 15 * 60_000);
     window.addEventListener("focus", refreshEventGames);
 
     return () => {
@@ -3560,7 +3562,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!["Home", "Events", "Locker Room"].includes(activeSection)) return;
+    if (!["Home", "Challenge", "Events", "Locker Room"].includes(activeSection)) return;
 
     let cancelled = false;
 
@@ -3577,6 +3579,7 @@ export default function Home() {
       ];
 
       const gamesToRefresh = latestScoreGames.current.filter((game) => {
+        if (activeSection === "Challenge" && !latestChallengeGameIds.current.includes(game.id)) return false;
         if (
           game.sport !== "Soccer" &&
           game.sport !== "College Football" &&
@@ -3611,7 +3614,10 @@ export default function Home() {
           now - (scoreRefreshAttempts.current.get(game.id) ?? 0) >=
             (now > startsAtMs + 6 * 60 * 60_000 ? 15 * 60_000 : 60_000)
         );
-      });
+      }).sort((a, b) =>
+        (scoreRefreshAttempts.current.get(a.id) ?? 0) -
+        (scoreRefreshAttempts.current.get(b.id) ?? 0)
+      );
 
       if (gamesToRefresh.length === 0) return;
 

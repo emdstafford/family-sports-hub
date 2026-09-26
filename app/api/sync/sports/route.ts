@@ -13,11 +13,12 @@ type SyncResult = {
 async function callInternalRoute(
   request: NextRequest,
   path: string,
+  method: "POST" | "GET" = "POST",
 ): Promise<SyncResult> {
   const url = new URL(path, request.url);
 
   const response = await fetch(url, {
-    method: "POST",
+    method,
     headers: {
       "Content-Type": "application/json",
     },
@@ -182,6 +183,31 @@ async function runSync(request: NextRequest) {
         `/api/college-football/import?year=${new Date().getUTCFullYear()}`,
       ),
     );
+  }
+
+  // Refresh unfinished Challenge games individually too: the bulk schedule
+  // provider may omit lower-division results that ESPN's event summary has.
+  const challengeLinks = await supabase.from("challenge_games").select("game_id");
+  const selectedIds = [...new Set((challengeLinks.data ?? []).map((row) => row.game_id))];
+  if (challengeLinks.error) {
+    results.push({ name: "Read Challenge games", ok: false, status: 500, data: { error: challengeLinks.error.message } });
+  } else if (selectedIds.length) {
+    const pending = await supabase.from("games").select("id, status")
+      .in("id", selectedIds)
+      .gte("starts_at", new Date(Date.now() - 7 * 86_400_000).toISOString())
+      .lte("starts_at", new Date().toISOString());
+    if (pending.error) {
+      results.push({ name: "Read Challenge results", ok: false, status: 500, data: { error: pending.error.message } });
+    } else {
+      const games = (pending.data ?? []).filter((game) =>
+        !["final", "finished", "complete", "closed", "cancelled", "canceled"].some((status) => game.status.toLowerCase().includes(status)));
+      for (let offset = 0; offset < games.length; offset += 3) {
+        const batch = await Promise.allSettled(games.slice(offset, offset + 3).map((game) =>
+          callInternalRoute(request, `/api/game-room/live?gameId=${encodeURIComponent(game.id)}`, "GET")));
+        for (const result of batch) results.push(result.status === "fulfilled" ? result.value :
+          { name: "Refresh Challenge result", ok: false, status: 502, data: { error: String(result.reason) } });
+      }
+    }
   }
 
   /*

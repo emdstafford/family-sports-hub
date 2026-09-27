@@ -43,7 +43,6 @@ function readSession() {
 }
 
 export default function GiftManager() {
-  const currentYear = new Date().getFullYear();
   const [players, setPlayers] = useState<Player[]>([]);
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [occasionBudgets, setOccasionBudgets] = useState<OccasionBudget[]>([]);
@@ -57,14 +56,14 @@ export default function GiftManager() {
   const [saving, setSaving] = useState(false);
   const [selectedOccasion, setSelectedOccasion] = useState("christmas");
   const [selectedOccasionName, setSelectedOccasionName] = useState("");
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedYear, setSelectedYear] = useState(2026);
   const [occasionBudgetForm, setOccasionBudgetForm] = useState({ budget: "", stockingBudget: "" });
   const [personBudgetForm, setPersonBudgetForm] = useState({
     recipientPlayerId: "", recipientName: "", budget: "", stockingBudget: "",
   });
   const [form, setForm] = useState({
     recipientPlayerId: "", recipientName: "", title: "", occasion: "christmas",
-    occasionName: "", occasionYear: currentYear, status: "purchased", price: "", store: "",
+    occasionName: "", occasionYear: 2026, status: "purchased", price: "", store: "",
     hidingSpot: "", notes: "", isStocking: false,
   });
 
@@ -83,7 +82,12 @@ export default function GiftManager() {
     setBudgetSetupReady(data.budgetSetupReady !== false);
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const year = new Date().getFullYear();
+    setSelectedYear(year);
+    setForm((current) => ({ ...current, occasionYear: year }));
+    void load();
+  }, []);
 
   const selectedGifts = useMemo(() => gifts.filter((g) =>
     g.occasion === selectedOccasion &&
@@ -162,7 +166,7 @@ export default function GiftManager() {
     }).reduce((sum, g) => sum + Number(g.price || 0), 0);
   }
 
-  const yearOptions = Array.from({ length: 8 }, (_, i) => currentYear + 2 - i);
+  const yearOptions = Array.from({ length: 8 }, (_, i) => selectedYear + 2 - i);
 
   return <section className="rounded-3xl border border-violet-200 bg-white p-4 shadow-sm">
     <div className="flex items-center justify-between gap-3">

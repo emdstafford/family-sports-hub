@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import StandingsHub from "@/components/standings-hub";
+import HubLauncher from "@/components/hub-launcher";
 
 type Player = {
   id: string;
@@ -9487,6 +9488,7 @@ export default function Home() {
           </div>
         </div>
       )}
+      <HubLauncher />
     </main>
   );
 }

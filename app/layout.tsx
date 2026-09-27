@@ -10,15 +10,15 @@ const defaultUrl = process.env.VERCEL_URL
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: {
-    default: "FamBam Sports",
-    template: "%s | FamBam Sports",
+    default: "FamBam Hub",
+    template: "%s | FamBam Hub",
   },
   description:
-    "Family sports picks, challenges, standings, and game-day fun for the FamBam.",
-  applicationName: "FamBam Sports",
+    "Our family hub for sports, gifts, birthdays, memories, and FamBam fun.",
+  applicationName: "FamBam Hub",
   appleWebApp: {
     capable: true,
-    title: "FamBam Sports",
+    title: "FamBam Hub",
     statusBarStyle: "default",
   },
   formatDetection: {

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import StandingsHub from "@/components/standings-hub";
+import HubLauncher from "@/components/hub-launcher";
 
 type Player = {
   id: string;
@@ -2280,9 +2281,13 @@ export default function Home() {
         // Show FamBam's saved game data immediately. Only call the
         // external live provider when the game is actually near/live;
         // future and final game cards should never wait on ESPN/etc.
-        const currentGame = latestScoreGames.current.find(
-          (game) => game.id === gameRoomGameId,
-        ) ?? gameRoomGame;
+        const currentGame =
+          latestScoreGames.current.find(
+            (game) => game.id === gameRoomGameId,
+          ) ?? gameRoomGame;
+
+        if (!currentGame) return;
+
         const currentStatus = String(currentGame.status ?? "").toLowerCase();
         const currentStartsAtMs = currentGame.startsAt
           ? new Date(currentGame.startsAt).getTime()
@@ -9487,6 +9492,7 @@ export default function Home() {
           </div>
         </div>
       )}
+      <HubLauncher />
     </main>
   );
 }

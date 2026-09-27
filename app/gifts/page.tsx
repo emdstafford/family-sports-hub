@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import GiftManager from "@/components/gift-manager";
 
 const birthdays = [
   { name: "Lydia", month: 12, day: 4, date: "December 4" },

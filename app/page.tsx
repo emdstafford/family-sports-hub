@@ -2281,9 +2281,13 @@ export default function Home() {
         // Show FamBam's saved game data immediately. Only call the
         // external live provider when the game is actually near/live;
         // future and final game cards should never wait on ESPN/etc.
-        const currentGame = latestScoreGames.current.find(
-          (game) => game.id === gameRoomGameId,
-        ) ?? gameRoomGame;
+        const currentGame =
+          latestScoreGames.current.find(
+            (game) => game.id === gameRoomGameId,
+          ) ?? gameRoomGame;
+
+        if (!currentGame) return;
+
         const currentStatus = String(currentGame.status ?? "").toLowerCase();
         const currentStartsAtMs = currentGame.startsAt
           ? new Date(currentGame.startsAt).getTime()

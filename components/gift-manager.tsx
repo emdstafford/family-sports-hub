@@ -336,10 +336,10 @@ export default function GiftManager() {
       </div>;
     })()}
 
-    <div className="mt-4">
+    {selectedOccasion !== "christmas" && <div className="mt-4">
       <div className="mb-2 flex items-end justify-between"><div><div className="font-black">{labelForOccasion(selectedOccasion, selectedOccasionName)} {selectedYear}</div><div className="text-xs font-semibold text-slate-500">{selectedGifts.length} gift{selectedGifts.length===1?"":"s"} tracked</div></div></div>
       {selectedGifts.length===0 ? <div className="rounded-xl border border-dashed p-5 text-center text-sm font-semibold text-slate-500">No gifts saved for this occasion yet.</div>
       : <div className="space-y-2">{selectedGifts.map(g=><div key={g.id} className="rounded-xl border p-3"><div className="flex justify-between gap-3"><div><div className="font-black">{g.is_stocking?"🧦 ":""}{g.title}</div><div className="text-xs text-slate-500">{giftRecipient(g)} · {g.status.replace("_"," ")}</div>{g.hiding_spot&&<div className="mt-1 text-xs font-bold text-amber-700">📍 {g.hiding_spot}</div>}</div><div className="font-black">{g.price==null?"":money(Number(g.price))}</div></div></div>)}</div>}
-    </div>
+    </div>}
   </section>;
 }

@@ -57,3 +57,42 @@ alter table public.stocking_assignments enable row level security;
 
 -- Access is intentionally through authenticated FamBam server API routes using
 -- verify_player_session + the server service key. No anon table policies.
+
+
+-- Flexible recipients and occasions (run once on databases created before this update)
+alter table public.gift_items
+  alter column recipient_player_id drop not null;
+
+alter table public.gift_items
+  add column if not exists recipient_name text null,
+  add column if not exists occasion_name text null;
+
+alter table public.gift_items
+  drop constraint if exists gift_items_occasion_check;
+
+alter table public.gift_items
+  add constraint gift_items_occasion_check
+  check (occasion in (
+    'christmas','birthday','mothers_day','fathers_day','valentines_day',
+    'graduation','teacher_gift','wedding','baby_shower','just_because','other'
+  ));
+
+alter table public.gift_items
+  drop constraint if exists gift_items_recipient_required_check;
+
+alter table public.gift_items
+  add constraint gift_items_recipient_required_check
+  check (
+    recipient_player_id is not null
+    or nullif(btrim(recipient_name), '') is not null
+  );
+
+alter table public.gift_budgets
+  drop constraint if exists gift_budgets_occasion_check;
+
+alter table public.gift_budgets
+  add constraint gift_budgets_occasion_check
+  check (occasion in (
+    'christmas','birthday','mothers_day','fathers_day','valentines_day',
+    'graduation','teacher_gift','wedding','baby_shower','just_because','other'
+  ));

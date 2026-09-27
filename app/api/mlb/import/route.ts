@@ -137,7 +137,8 @@ export async function POST(request: Request) {
     if (postseason) {
       scheduleParams.set("startDate", startDate);
       scheduleParams.set("endDate", endDate);
-      scheduleParams.set("gameTypes", "F,D,L,W");\n      scheduleParams.set("hydrate", "team,linescore");
+      scheduleParams.set("gameTypes", "F,D,L,W");
+      scheduleParams.set("hydrate", "team,linescore");
     } else {
       scheduleParams.set("date", date);
     }

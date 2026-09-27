@@ -31,17 +31,10 @@ function occasionLabel(gift: Gift) {
 
 function readSession() {
   if (typeof window === "undefined") return { playerId: "", token: "" };
-  const keys = Object.keys(localStorage);
-  const tokenKey = keys.find((k) => /fambam.*session|session.*fambam/i.test(k));
-  if (tokenKey) {
-    try {
-      const value = JSON.parse(localStorage.getItem(tokenKey) || "{}");
-      return { playerId: value.playerId || value.player_id || "", token: value.sessionToken || value.token || "" };
-    } catch {}
-  }
+
   return {
-    playerId: localStorage.getItem("fambamPlayerId") || localStorage.getItem("fambam_player_id") || "",
-    token: localStorage.getItem("fambamSessionToken") || localStorage.getItem("fambam_session_token") || "",
+    playerId: window.localStorage.getItem("fambam_player_id") ?? "",
+    token: window.localStorage.getItem("fambam_session_token") ?? "",
   };
 }
 

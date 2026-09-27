@@ -154,3 +154,45 @@ create unique index if not exists gift_budgets_unique_recipient_idx
     coalesce(lower(btrim(occasion_name)), ''),
     occasion_year
   );
+
+
+-- Named gift events: identify the specific birthday, trip, teacher, etc.
+alter table public.gift_items add column if not exists event_name text null;
+alter table public.gift_budgets add column if not exists event_name text null;
+alter table public.gift_occasion_budgets add column if not exists event_name text null;
+
+alter table public.gift_items drop constraint if exists gift_items_occasion_check;
+alter table public.gift_items add constraint gift_items_occasion_check check (occasion in (
+  'christmas','birthday','trip','mothers_day','fathers_day','valentines_day',
+  'graduation','teacher_gift','wedding','baby_shower','just_because','other'
+));
+
+alter table public.gift_budgets drop constraint if exists gift_budgets_occasion_check;
+alter table public.gift_budgets add constraint gift_budgets_occasion_check check (occasion in (
+  'christmas','birthday','trip','mothers_day','fathers_day','valentines_day',
+  'graduation','teacher_gift','wedding','baby_shower','just_because','other'
+));
+
+alter table public.gift_occasion_budgets drop constraint if exists gift_occasion_budgets_occasion_check;
+alter table public.gift_occasion_budgets add constraint gift_occasion_budgets_occasion_check check (occasion in (
+  'christmas','birthday','trip','mothers_day','fathers_day','valentines_day',
+  'graduation','teacher_gift','wedding','baby_shower','just_because','other'
+));
+
+drop index if exists public.gift_occasion_budgets_unique_idx;
+create unique index gift_occasion_budgets_unique_idx on public.gift_occasion_budgets (
+  shopper_player_id, occasion,
+  coalesce(lower(btrim(occasion_name)), ''),
+  coalesce(lower(btrim(event_name)), ''),
+  occasion_year
+);
+
+drop index if exists public.gift_budgets_unique_recipient_idx;
+create unique index gift_budgets_unique_recipient_idx on public.gift_budgets (
+  shopper_player_id,
+  coalesce(recipient_player_id::text, 'name:' || lower(btrim(recipient_name))),
+  occasion,
+  coalesce(lower(btrim(occasion_name)), ''),
+  coalesce(lower(btrim(event_name)), ''),
+  occasion_year
+);

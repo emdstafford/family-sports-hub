@@ -156,7 +156,7 @@ export default function GiftManager() {
       await post({
         action: "saveOccasionBudget", occasion: selectedOccasion, occasionName: selectedOccasionName,
         occasionYear: selectedYear, eventName: selectedEventName, budget: occasionBudgetForm.budget || 0,
-        stockingBudget: occasionBudgetForm.stockingBudget || 0,
+        stockingBudget: selectedBudget?.stocking_budget ?? 0,
       });
       setOccasionBudgetForm({ budget: "", stockingBudget: "" }); await load();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not save budget."); }
@@ -185,7 +185,7 @@ export default function GiftManager() {
 
   const yearOptions = Array.from({ length: 8 }, (_, i) => selectedYear + 2 - i);
 
-  return <section className="rounded-3xl border border-violet-200 bg-white p-4 shadow-sm">
+  return <section style={{ colorScheme: "light" }} className="rounded-3xl border border-amber-200 bg-white p-4 shadow-sm text-slate-900">
     <div className="flex items-center justify-between gap-3">
       <div><div className="text-xs font-bold uppercase tracking-wider text-violet-600">My private shopping</div><h2 className="text-xl font-black">🎁 My Gifts</h2></div>
       <button onClick={() => setOpen(!open)} className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-black text-white">+ Add Gift</button>
@@ -216,18 +216,22 @@ export default function GiftManager() {
         <div className="rounded-xl bg-white p-3"><div className="text-[10px] font-black text-slate-500">SPENT</div><div className="text-lg font-black">{money(spent)}</div></div>
         <div className="rounded-xl bg-white p-3"><div className="text-[10px] font-black text-slate-500">REMAINING</div><div className={`text-lg font-black ${remaining < 0 ? "text-red-600" : "text-emerald-700"}`}>{money(remaining)}</div></div>
       </div>
-      {(stockingBudget > 0 || stockingSpent > 0) && <div className="mt-2 rounded-xl bg-white p-3 text-sm font-bold">🧦 Stockings: {money(stockingSpent)} spent of {money(stockingBudget)} · {money(stockingBudget - stockingSpent)} remaining</div>}
 
       {!budgetSetupReady && <div className="mt-3 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">Budget setup needs the latest Supabase Gifts migration before these controls can save.</div>}
 
-      {budgetOpen && <div className="mt-3 space-y-3 rounded-xl border bg-white p-3">
+      {budgetOpen && <div className="mt-3 space-y-3 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
         <form onSubmit={saveOccasionBudget} className="space-y-2">
           <div className="font-black">Overall occasion budget</div>
-          <div className="grid grid-cols-2 gap-2">
-            <input type="number" min="0" step="0.01" placeholder={selectedBudget ? `Current: ${money(totalBudget)}` : "Overall budget"} value={occasionBudgetForm.budget} onChange={(e)=>setOccasionBudgetForm({...occasionBudgetForm,budget:e.target.value})} className="rounded-xl border p-3" />
-            <input type="number" min="0" step="0.01" placeholder={selectedBudget ? `Stocking: ${money(stockingBudget)}` : "Stocking budget"} value={occasionBudgetForm.stockingBudget} onChange={(e)=>setOccasionBudgetForm({...occasionBudgetForm,stockingBudget:e.target.value})} className="rounded-xl border p-3" />
-          </div>
-          <button disabled={saving || !budgetSetupReady} className="w-full rounded-xl bg-[#10254a] p-3 font-black text-white disabled:opacity-50">Save Occasion Budget</button>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder={selectedBudget ? `Current budget: ${money(totalBudget)}` : "Overall budget"}
+            value={occasionBudgetForm.budget}
+            onChange={(e)=>setOccasionBudgetForm({...occasionBudgetForm,budget:e.target.value})}
+            className="w-full rounded-xl border border-amber-200 bg-white p-3 text-slate-900 placeholder:text-slate-400"
+          />
+          <button disabled={saving || !budgetSetupReady} className="w-full rounded-xl border border-amber-300 bg-amber-100 p-3 font-black text-[#10254a] disabled:opacity-50">Save Occasion Budget</button>
         </form>
 
         <form onSubmit={savePersonBudget} className="space-y-2 border-t pt-3">
@@ -235,13 +239,10 @@ export default function GiftManager() {
           {!budgetOutsideRecipient ? <select required value={personBudgetForm.recipientPlayerId} onChange={(e)=>{
             if(e.target.value==="__other__"){setBudgetOutsideRecipient(true);setPersonBudgetForm({...personBudgetForm,recipientPlayerId:""});}
             else setPersonBudgetForm({...personBudgetForm,recipientPlayerId:e.target.value,recipientName:""});
-          }} className="w-full rounded-xl border p-3"><option value="">Who is this budget for?</option>{players.map(p=><option key={p.id} value={p.id}>{p.display_name}</option>)}<option value="__other__">➕ Someone else…</option></select>
-          : <div className="flex gap-2"><input required placeholder="Their name" value={personBudgetForm.recipientName} onChange={(e)=>setPersonBudgetForm({...personBudgetForm,recipientName:e.target.value})} className="min-w-0 flex-1 rounded-xl border p-3"/><button type="button" onClick={()=>setBudgetOutsideRecipient(false)} className="rounded-xl border px-3 font-bold">FamBam</button></div>}
-          <div className="grid grid-cols-2 gap-2">
-            <input required type="number" min="0" step="0.01" placeholder="Gift budget" value={personBudgetForm.budget} onChange={(e)=>setPersonBudgetForm({...personBudgetForm,budget:e.target.value})} className="rounded-xl border p-3"/>
-            <input type="number" min="0" step="0.01" placeholder="Stocking budget" value={personBudgetForm.stockingBudget} onChange={(e)=>setPersonBudgetForm({...personBudgetForm,stockingBudget:e.target.value})} className="rounded-xl border p-3"/>
-          </div>
-          <button disabled={saving || !budgetSetupReady} className="w-full rounded-xl bg-violet-700 p-3 font-black text-white disabled:opacity-50">Save Person Budget</button>
+          }} className="w-full rounded-xl border border-amber-200 bg-white p-3 text-slate-900"><option value="">Who is this budget for?</option>{players.map(p=><option key={p.id} value={p.id}>{p.display_name}</option>)}<option value="__other__">➕ Someone else…</option></select>
+          : <div className="flex gap-2"><input required placeholder="Their name" value={personBudgetForm.recipientName} onChange={(e)=>setPersonBudgetForm({...personBudgetForm,recipientName:e.target.value})} className="min-w-0 flex-1 rounded-xl border border-amber-200 bg-white p-3 text-slate-900 placeholder:text-slate-400"/><button type="button" onClick={()=>setBudgetOutsideRecipient(false)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 font-bold text-[#10254a]">FamBam</button></div>}
+          <input required type="number" min="0" step="0.01" placeholder="Gift budget" value={personBudgetForm.budget} onChange={(e)=>setPersonBudgetForm({...personBudgetForm,budget:e.target.value})} className="w-full rounded-xl border border-amber-200 bg-white p-3 text-slate-900 placeholder:text-slate-400"/>
+          <button disabled={saving || !budgetSetupReady} className="w-full rounded-xl border border-amber-300 bg-amber-100 p-3 font-black text-[#10254a] disabled:opacity-50">Save Person Budget</button>
         </form>
 
         {selectedRecipientBudgets.length > 0 && <div className="space-y-2 border-t pt-3">{selectedRecipientBudgets.map((b)=>{

@@ -2657,7 +2657,7 @@ export default function Home() {
           true,
         );
       },
-      30_000,
+      120_000,
     );
 
     return () => {

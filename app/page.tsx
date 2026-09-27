@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import StandingsHub from "@/components/standings-hub";
+import GiftManager from "@/components/gift-manager";
 
 type Player = {
   id: string;
@@ -7640,6 +7641,21 @@ export default function Home() {
         </section>
       )}
 
+      {activeSection === "Gifts" && (
+        <section className="mx-auto max-w-5xl px-3 py-4">
+          <div className="mb-4">
+            <div className="text-xs font-black uppercase tracking-[0.22em] text-[#b58a2a]">
+              FamBam Hub
+            </div>
+            <h1 className="mt-1 text-3xl font-black text-[#10254a]">🎁 Gifts & Birthdays</h1>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Your private shopping stays with your FamBam profile.
+            </p>
+          </div>
+          <GiftManager />
+        </section>
+      )}
+
       {/* APP NAV */}
       <nav className={`fixed inset-x-0 bottom-0 ${profileOpen ? "z-[145]" : "z-50"} border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]`}>
         <div
@@ -7686,7 +7702,7 @@ export default function Home() {
                 }
 
                 if (label === "Gifts") {
-                  window.location.href = "/gifts";
+                  setActiveSection("Gifts");
                 }
               }}
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${

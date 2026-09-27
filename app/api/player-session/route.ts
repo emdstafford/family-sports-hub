@@ -158,6 +158,23 @@ export async function POST(
         return NextResponse.json({ ok: true, budget: result.data });
       }
 
+      if (action === "updateGift") {
+        const giftId = String(body.giftId ?? "").trim();
+        const title = String(body.title ?? "").trim();
+        if (!giftId || !title) return NextResponse.json({ error: "Gift and name are required." }, { status: 400 });
+        const result = await db.from("gift_items").update({
+          title,
+          status: String(body.status ?? "idea"),
+          price: body.price === "" || body.price == null ? null : Number(body.price),
+          store: String(body.store ?? "").trim() || null,
+          notes: String(body.notes ?? "").trim() || null,
+          hiding_spot: String(body.hidingSpot ?? "").trim() || null,
+          is_stocking: Boolean(body.isStocking),
+          updated_at: new Date().toISOString(),
+        }).eq("id", giftId).eq("shopper_player_id", shopperPlayerId).select("*").single();
+        if (result.error) throw result.error;
+        return NextResponse.json({ ok: true, gift: result.data });
+      }
       const recipientPlayerId = String(body.recipientPlayerId ?? "").trim();
       const recipientName = String(body.recipientName ?? "").trim();
       const title = String(body.title ?? "").trim();

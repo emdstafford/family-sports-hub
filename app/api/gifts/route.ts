@@ -53,18 +53,22 @@ export async function POST(request: Request) {
     const shopperPlayerId = String(body.shopperPlayerId ?? "");
     if (!(await verify(shopperPlayerId, token))) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
 
-    const recipientPlayerId = String(body.recipientPlayerId ?? "");
+    const recipientPlayerId = String(body.recipientPlayerId ?? "").trim();
+    const recipientName = String(body.recipientName ?? "").trim();
     const title = String(body.title ?? "").trim();
     const occasion = String(body.occasion ?? "christmas");
+    const occasionName = String(body.occasionName ?? "").trim();
     const occasionYear = Number(body.occasionYear ?? new Date().getFullYear());
     const status = String(body.status ?? "idea");
-    if (!recipientPlayerId || !title) return NextResponse.json({ error: "Recipient and gift name are required." }, { status: 400 });
+    if ((!recipientPlayerId && !recipientName) || !title) return NextResponse.json({ error: "Recipient and gift name are required." }, { status: 400 });
 
     const row = {
       shopper_player_id: shopperPlayerId,
-      recipient_player_id: recipientPlayerId,
+      recipient_player_id: recipientPlayerId || null,
+      recipient_name: recipientPlayerId ? null : recipientName,
       title,
       occasion,
+      occasion_name: occasion === "other" ? occasionName || "Other" : null,
       occasion_year: occasionYear,
       status,
       source: "shopper",

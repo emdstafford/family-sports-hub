@@ -123,10 +123,12 @@ export async function POST(
         let query = db.from("gift_occasion_budgets").select("id")
           .eq("shopper_player_id", shopperPlayerId).eq("occasion", occasion).eq("occasion_year", occasionYear);
         query = occasionName ? query.eq("occasion_name", occasionName) : query.is("occasion_name", null);
+        const eventName = String(body.eventName ?? "").trim();
+        query = eventName ? query.eq("event_name", eventName) : query.is("event_name", null);
         const { data: existing, error: findError } = await query.maybeSingle();
         if (findError) throw findError;
         const row = { shopper_player_id: shopperPlayerId, occasion, occasion_name: occasionName,
-          occasion_year: occasionYear, budget, stocking_budget: stockingBudget, updated_at: new Date().toISOString() };
+          occasion_year: occasionYear, event_name: String(body.eventName ?? "").trim() || null, budget, stocking_budget: stockingBudget, updated_at: new Date().toISOString() };
         const result = existing?.id
           ? await db.from("gift_occasion_budgets").update(row).eq("id", existing.id).select("*").single()
           : await db.from("gift_occasion_budgets").insert(row).select("*").single();
@@ -140,13 +142,15 @@ export async function POST(
         let query = db.from("gift_budgets").select("id")
           .eq("shopper_player_id", shopperPlayerId).eq("occasion", occasion).eq("occasion_year", occasionYear);
         query = occasionName ? query.eq("occasion_name", occasionName) : query.is("occasion_name", null);
+        const eventName = String(body.eventName ?? "").trim();
+        query = eventName ? query.eq("event_name", eventName) : query.is("event_name", null);
         query = recipientPlayerId ? query.eq("recipient_player_id", recipientPlayerId)
           : query.is("recipient_player_id", null).eq("recipient_name", recipientName);
         const { data: existing, error: findError } = await query.maybeSingle();
         if (findError) throw findError;
         const row = { shopper_player_id: shopperPlayerId, recipient_player_id: recipientPlayerId || null,
           recipient_name: recipientPlayerId ? null : recipientName, occasion, occasion_name: occasionName,
-          occasion_year: occasionYear, budget: Number(body.budget ?? 0), stocking_budget: Number(body.stockingBudget ?? 0),
+          occasion_year: occasionYear, event_name: String(body.eventName ?? "").trim() || null, budget: Number(body.budget ?? 0), stocking_budget: Number(body.stockingBudget ?? 0),
           updated_at: new Date().toISOString() };
         const result = existing?.id ? await db.from("gift_budgets").update(row).eq("id", existing.id).select("*").single()
           : await db.from("gift_budgets").insert(row).select("*").single();
@@ -163,7 +167,7 @@ export async function POST(
       const { data, error } = await db.from("gift_items").insert({
         shopper_player_id: shopperPlayerId, recipient_player_id: recipientPlayerId || null,
         recipient_name: recipientPlayerId ? null : recipientName, title, occasion, occasion_name: occasionName,
-        occasion_year: occasionYear, status: String(body.status ?? "idea"), source: "shopper",
+        occasion_year: occasionYear, event_name: String(body.eventName ?? "").trim() || null, status: String(body.status ?? "idea"), source: "shopper",
         price: body.price === "" || body.price == null ? null : Number(body.price),
         store: String(body.store ?? "").trim() || null, notes: String(body.notes ?? "").trim() || null,
         hiding_spot: String(body.hidingSpot ?? "").trim() || null, is_stocking: Boolean(body.isStocking),

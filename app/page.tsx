@@ -1493,7 +1493,7 @@ export default function Home() {
   const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Challenge" | "Events" | "Locker Room" | "Trophy Room">("Home");
+    useState<"Home" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts">("Home");
 
   useEffect(() => {
     window.scrollTo({

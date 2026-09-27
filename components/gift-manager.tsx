@@ -70,7 +70,7 @@ export default function GiftManager() {
   async function load() {
     const session = readSession();
     if (!session.playerId || !session.token) return;
-    const response = await fetch(`/api/gifts?playerId=${encodeURIComponent(session.playerId)}`, {
+    const apiUrl = new URL("/api/gifts", window.location.origin);\n    apiUrl.searchParams.set("playerId", session.playerId);\n    const response = await fetch(apiUrl.toString(), {
       headers: { "x-fambam-session": session.token },
     });
     const data = await response.json();
@@ -113,7 +113,7 @@ export default function GiftManager() {
   async function post(payload: Record<string, unknown>) {
     const session = readSession();
     if (!session.playerId || !session.token) throw new Error("Open FamBam through your normal player sign-in first.");
-    const response = await fetch("/api/gifts", {
+    const apiUrl = new URL("/api/gifts", window.location.origin);\n    const response = await fetch(apiUrl.toString(), {
       method: "POST",
       headers: { "content-type": "application/json", "x-fambam-session": session.token },
       body: JSON.stringify({ ...payload, shopperPlayerId: session.playerId }),

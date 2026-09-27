@@ -52,6 +52,8 @@ export default function GiftManager() {
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [outsideRecipient, setOutsideRecipient] = useState(false);
   const [budgetOutsideRecipient, setBudgetOutsideRecipient] = useState(false);
+  const [selectedPersonId, setSelectedPersonId] = useState("");
+  const [editingGiftId, setEditingGiftId] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [selectedOccasion, setSelectedOccasion] = useState("christmas");
@@ -143,9 +145,9 @@ export default function GiftManager() {
   async function submitGift(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError("");
     try {
-      await post({ ...form, action: "saveGift" });
+      await post({ ...form, action: editingGiftId ? "updateGift" : "saveGift", giftId: editingGiftId || undefined });
       setForm({ ...form, recipientName: "", title: "", price: "", store: "", hidingSpot: "", notes: "", isStocking: false });
-      setOpen(false); await load();
+      setOpen(false); setEditingGiftId(""); await load();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not save gift."); }
     finally { setSaving(false); }
   }
@@ -181,6 +183,38 @@ export default function GiftManager() {
       const same = b.recipient_player_id ? g.recipient_player_id === b.recipient_player_id : g.recipient_name === b.recipient_name;
       return same && paidStatuses.has(g.status);
     }).reduce((sum, g) => sum + Number(g.price || 0), 0);
+  }
+
+  function openPerson(playerId: string) {
+    const player = players.find((p) => p.id === playerId);
+    if (!player) return;
+    setSelectedPersonId(playerId);
+    setOpen(false);
+    setEditingGiftId("");
+  }
+
+  function addForPerson(playerId: string) {
+    setEditingGiftId("");
+    setOutsideRecipient(false);
+    setForm({
+      recipientPlayerId: playerId, recipientName: "", title: "", occasion: selectedOccasion,
+      occasionName: selectedOccasionName, eventName: selectedEventName, occasionYear: selectedYear,
+      status: "purchased", price: "", store: "", hidingSpot: "", notes: "", isStocking: false,
+    });
+    setOpen(true);
+  }
+
+  function editGift(g: Gift) {
+    setEditingGiftId(g.id);
+    setOutsideRecipient(!g.recipient_player_id);
+    setForm({
+      recipientPlayerId: g.recipient_player_id || "", recipientName: g.recipient_name || "",
+      title: g.title, occasion: g.occasion, occasionName: g.occasion_name || "",
+      eventName: g.event_name || "", occasionYear: g.occasion_year, status: g.status,
+      price: g.price == null ? "" : String(g.price), store: (g as Gift & {store?:string|null}).store || "",
+      hidingSpot: g.hiding_spot || "", notes: (g as Gift & {notes?:string|null}).notes || "", isStocking: g.is_stocking,
+    });
+    setOpen(true);
   }
 
   const yearOptions = Array.from({ length: 8 }, (_, i) => selectedYear + 2 - i);
@@ -272,8 +306,35 @@ export default function GiftManager() {
       <input placeholder="📍 Hiding spot (private to you)" value={form.hidingSpot} onChange={(e)=>setForm({...form,hidingSpot:e.target.value})} className="w-full rounded-xl border border-amber-300 bg-amber-50 p-3"/>
       <textarea placeholder="Notes" value={form.notes} onChange={(e)=>setForm({...form,notes:e.target.value})} className="w-full rounded-xl border bg-white p-3"/>
       <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={form.isStocking} onChange={(e)=>setForm({...form,isStocking:e.target.checked})}/> 🧦 This is a stocking item</label>
-      <button disabled={saving} className="w-full rounded-xl bg-violet-700 p-3 font-black text-white disabled:opacity-50">{saving?"Saving...":"Save Gift"}</button>
+      <button disabled={saving} className="w-full rounded-xl bg-violet-700 p-3 font-black text-white disabled:opacity-50">{saving?"Saving...":editingGiftId?"Save Changes":"Save Gift"}</button>
     </form>}
+
+    {selectedOccasion === "christmas" && !selectedPersonId && <div className="mt-4 space-y-2">
+      <div className="font-black">Christmas people</div>
+      {players.map((p) => {
+        const pg = selectedGifts.filter((g) => g.recipient_player_id === p.id);
+        const pb = selectedRecipientBudgets.find((b) => b.recipient_player_id === p.id);
+        const ps = pg.filter((g) => paidStatuses.has(g.status)).reduce((sum,g)=>sum+Number(g.price||0),0);
+        return <button key={p.id} type="button" onClick={()=>openPerson(p.id)} className="flex w-full items-center justify-between rounded-2xl border border-amber-200 bg-white p-4 text-left">
+          <div><div className="font-black">{p.display_name}</div><div className="text-xs font-semibold text-slate-500">{pg.length} gift{pg.length===1?"":"s"} · {money(ps)} spent</div></div>
+          <div className="text-right"><div className="font-black">{money(Number(pb?.budget||0))}</div><div className="text-xs text-slate-500">budget ›</div></div>
+        </button>;
+      })}
+    </div>}
+
+    {selectedOccasion === "christmas" && selectedPersonId && (() => {
+      const p=players.find((x)=>x.id===selectedPersonId);
+      const pg=selectedGifts.filter((g)=>g.recipient_player_id===selectedPersonId);
+      const pb=selectedRecipientBudgets.find((b)=>b.recipient_player_id===selectedPersonId);
+      const ps=pg.filter((g)=>paidStatuses.has(g.status)).reduce((sum,g)=>sum+Number(g.price||0),0);
+      const budget=Number(pb?.budget||0);
+      return <div className="mt-4">
+        <div className="mb-3 flex items-center justify-between"><button type="button" onClick={()=>{setSelectedPersonId("");setOpen(false);}} className="rounded-xl border border-amber-200 bg-white px-3 py-2 font-bold">← Christmas</button><button type="button" onClick={()=>addForPerson(selectedPersonId)} className="rounded-xl bg-amber-100 px-3 py-2 font-black text-[#10254a]">+ Add Gift</button></div>
+        <h3 className="text-xl font-black">🎄 {p?.display_name}</h3>
+        <div className="mt-2 grid grid-cols-3 gap-2"><div className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] font-black text-slate-500">BUDGET</div><div className="font-black">{money(budget)}</div></div><div className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] font-black text-slate-500">SPENT</div><div className="font-black">{money(ps)}</div></div><div className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] font-black text-slate-500">LEFT</div><div className="font-black">{money(budget-ps)}</div></div></div>
+        <div className="mt-3 space-y-2">{pg.length===0?<div className="rounded-xl border border-dashed p-5 text-center text-sm font-semibold text-slate-500">No gifts yet. Tap + Add Gift.</div>:pg.map((g)=><button type="button" key={g.id} onClick={()=>editGift(g)} className="w-full rounded-xl border p-3 text-left"><div className="flex justify-between gap-3"><div><div className="font-black">{g.is_stocking?"🧦 ":""}{g.title}</div><div className="text-xs text-slate-500">{g.status.replace("_"," ")} · tap to edit</div></div><div className="font-black">{g.price==null?"":money(Number(g.price))}</div></div></button>)}</div>
+      </div>;
+    })()}
 
     <div className="mt-4">
       <div className="mb-2 flex items-end justify-between"><div><div className="font-black">{labelForOccasion(selectedOccasion, selectedOccasionName)} {selectedYear}</div><div className="text-xs font-semibold text-slate-500">{selectedGifts.length} gift{selectedGifts.length===1?"":"s"} tracked</div></div></div>

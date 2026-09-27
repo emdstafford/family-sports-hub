@@ -7644,7 +7644,7 @@ export default function Home() {
       {/* APP NAV */}
       <nav className={`fixed inset-x-0 bottom-0 ${profileOpen ? "z-[145]" : "z-50"} border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]`}>
         <div
-          className="mx-auto grid max-w-5xl grid-cols-5"
+          className="mx-auto grid max-w-5xl grid-cols-6"
           style={{
             paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
             paddingTop: "6px",
@@ -7656,6 +7656,7 @@ export default function Home() {
             ["⭐", "Events"],
             ["👕", "Locker Room"],
             ["🏆", "Trophy Room"],
+            ["🎁", "Gifts"],
           ].map(([icon, label], index) => (
             <button
               key={label}
@@ -7683,6 +7684,10 @@ export default function Home() {
                   setActiveSection("Trophy Room");
                   void loadLockerRoom();
                   void loadPassport();
+                }
+
+                if (label === "Gifts") {
+                  window.location.href = "/gifts";
                 }
               }}
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${

@@ -188,7 +188,15 @@ export default function GiftManager() {
   function openPerson(playerId: string) {
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
+    const existingBudget = selectedRecipientBudgets.find((b) => b.recipient_player_id === playerId);
     setSelectedPersonId(playerId);
+    setPersonBudgetForm({
+      recipientPlayerId: playerId,
+      recipientName: "",
+      budget: existingBudget ? String(Number(existingBudget.budget || 0)) : "",
+      stockingBudget: existingBudget ? String(Number(existingBudget.stocking_budget || 0)) : "",
+    });
+    setBudgetOpen(false);
     setOpen(false);
     setEditingGiftId("");
   }
@@ -237,53 +245,24 @@ export default function GiftManager() {
       {selectedOccasion === "other" && <input placeholder="Occasion name" value={selectedOccasionName} onChange={(e)=>setSelectedOccasionName(e.target.value)} className="mt-2 w-full rounded-xl border bg-white p-3" />}
       {["birthday","trip","teacher_gift","graduation","wedding","baby_shower"].includes(selectedOccasion) && <input placeholder={selectedOccasion==="birthday"?"Whose birthday?":selectedOccasion==="trip"?"Trip name":selectedOccasion==="teacher_gift"?"Teacher's name":"Who / what is this for?"} value={selectedEventName} onChange={(e)=>setSelectedEventName(e.target.value)} className="mt-2 w-full rounded-xl border bg-white p-3" />}
 
-      <div className="mt-3 flex items-center justify-between">
-        <div>
-          <div className="text-xs font-black uppercase tracking-wider text-slate-500">{labelForOccasion(selectedOccasion, selectedOccasionName)}{selectedEventName ? ` · ${selectedEventName}` : ""} {selectedYear}</div>
-          <div className="text-sm font-semibold text-slate-500">Budget and spending stay saved with this year forever.</div>
-        </div>
-        <button onClick={()=>setBudgetOpen(!budgetOpen)} className="rounded-xl border bg-white px-3 py-2 text-xs font-black">✏️ Budget</button>
+      <div className="mt-3">
+        <div className="text-xs font-black uppercase tracking-wider text-slate-500">{labelForOccasion(selectedOccasion, selectedOccasionName)}{selectedEventName ? ` · ${selectedEventName}` : ""} {selectedYear}</div>
+        <div className="text-sm font-semibold text-slate-500">Budget and spending stay saved with this year forever.</div>
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <div className="rounded-xl bg-white p-3"><div className="text-[10px] font-black text-slate-500">BUDGET</div><div className="text-lg font-black">{money(totalBudget)}</div></div>
+        <button type="button" onClick={()=>{setBudgetOpen(!budgetOpen);setOccasionBudgetForm({budget:selectedBudget ? String(totalBudget) : "",stockingBudget:""});}} className="rounded-xl bg-white p-3 text-left"><div className="text-[10px] font-black text-slate-500">TOTAL BUDGET ✏️</div><div className="text-lg font-black">{money(totalBudget)}</div></button>
         <div className="rounded-xl bg-white p-3"><div className="text-[10px] font-black text-slate-500">SPENT</div><div className="text-lg font-black">{money(spent)}</div></div>
         <div className="rounded-xl bg-white p-3"><div className="text-[10px] font-black text-slate-500">REMAINING</div><div className={`text-lg font-black ${remaining < 0 ? "text-red-600" : "text-emerald-700"}`}>{money(remaining)}</div></div>
       </div>
 
       {!budgetSetupReady && <div className="mt-3 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">Budget setup needs the latest Supabase Gifts migration before these controls can save.</div>}
 
-      {budgetOpen && <div className="mt-3 space-y-3 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
-        <form onSubmit={saveOccasionBudget} className="space-y-2">
-          <div className="font-black">Overall occasion budget</div>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder={selectedBudget ? `Current budget: ${money(totalBudget)}` : "Overall budget"}
-            value={occasionBudgetForm.budget}
-            onChange={(e)=>setOccasionBudgetForm({...occasionBudgetForm,budget:e.target.value})}
-            className="w-full rounded-xl border border-amber-200 bg-white p-3 text-slate-900 placeholder:text-slate-400"
-          />
-          <button disabled={saving || !budgetSetupReady} className="w-full rounded-xl border border-amber-300 bg-amber-100 p-3 font-black text-[#10254a] disabled:opacity-50">Save Occasion Budget</button>
-        </form>
-
-        <form onSubmit={savePersonBudget} className="space-y-2 border-t pt-3">
-          <div className="font-black">Budget by person</div>
-          {!budgetOutsideRecipient ? <select required value={personBudgetForm.recipientPlayerId} onChange={(e)=>{
-            if(e.target.value==="__other__"){setBudgetOutsideRecipient(true);setPersonBudgetForm({...personBudgetForm,recipientPlayerId:""});}
-            else setPersonBudgetForm({...personBudgetForm,recipientPlayerId:e.target.value,recipientName:""});
-          }} className="w-full rounded-xl border border-amber-200 bg-white p-3 text-slate-900"><option value="">Who is this budget for?</option>{players.map(p=><option key={p.id} value={p.id}>{p.display_name}</option>)}<option value="__other__">➕ Someone else…</option></select>
-          : <div className="flex gap-2"><input required placeholder="Their name" value={personBudgetForm.recipientName} onChange={(e)=>setPersonBudgetForm({...personBudgetForm,recipientName:e.target.value})} className="min-w-0 flex-1 rounded-xl border border-amber-200 bg-white p-3 text-slate-900 placeholder:text-slate-400"/><button type="button" onClick={()=>setBudgetOutsideRecipient(false)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 font-bold text-[#10254a]">FamBam</button></div>}
-          <input required type="number" min="0" step="0.01" placeholder="Gift budget" value={personBudgetForm.budget} onChange={(e)=>setPersonBudgetForm({...personBudgetForm,budget:e.target.value})} className="w-full rounded-xl border border-amber-200 bg-white p-3 text-slate-900 placeholder:text-slate-400"/>
-          <button disabled={saving || !budgetSetupReady} className="w-full rounded-xl border border-amber-300 bg-amber-100 p-3 font-black text-[#10254a] disabled:opacity-50">Save Person Budget</button>
-        </form>
-
-        {selectedRecipientBudgets.length > 0 && <div className="space-y-2 border-t pt-3">{selectedRecipientBudgets.map((b)=>{
-          const personSpent=recipientSpent(b); const personBudget=Number(b.budget||0);
-          return <div key={b.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3"><div><div className="font-black">{b.recipient?.display_name || b.recipient_name || "Someone"}</div><div className="text-xs font-semibold text-slate-500">{money(personSpent)} spent · {money(personBudget-personSpent)} remaining</div></div><div className="font-black">{money(personBudget)}</div></div>;
-        })}</div>}
-      </div>}
+      {budgetOpen && <form onSubmit={saveOccasionBudget} className="mt-3 space-y-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+        <div className="font-black">Christmas {selectedYear} total budget</div>
+        <input type="number" min="0" step="0.01" placeholder="Overall budget" value={occasionBudgetForm.budget} onChange={(e)=>setOccasionBudgetForm({...occasionBudgetForm,budget:e.target.value})} className="w-full rounded-xl border border-amber-200 bg-white p-3 text-slate-900 placeholder:text-slate-400" />
+        <button disabled={saving || !budgetSetupReady} className="w-full rounded-xl border border-amber-300 bg-amber-100 p-3 font-black text-[#10254a] disabled:opacity-50">{saving?"Saving...":"Save Total Budget"}</button>
+      </form>}
     </div>
 
     {error && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
@@ -331,7 +310,8 @@ export default function GiftManager() {
       return <div className="mt-4">
         <div className="mb-3 flex items-center justify-between"><button type="button" onClick={()=>{setSelectedPersonId("");setOpen(false);}} className="rounded-xl border border-amber-200 bg-white px-3 py-2 font-bold">← Christmas</button><button type="button" onClick={()=>addForPerson(selectedPersonId)} className="rounded-xl bg-amber-100 px-3 py-2 font-black text-[#10254a]">+ Add Gift</button></div>
         <h3 className="text-xl font-black">🎄 {p?.display_name}</h3>
-        <div className="mt-2 grid grid-cols-3 gap-2"><div className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] font-black text-slate-500">BUDGET</div><div className="font-black">{money(budget)}</div></div><div className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] font-black text-slate-500">SPENT</div><div className="font-black">{money(ps)}</div></div><div className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] font-black text-slate-500">LEFT</div><div className="font-black">{money(budget-ps)}</div></div></div>
+        <div className="mt-2 grid grid-cols-3 gap-2"><button type="button" onClick={()=>setBudgetOpen(!budgetOpen)} className="rounded-xl bg-slate-50 p-3 text-left"><div className="text-[10px] font-black text-slate-500">BUDGET ✏️</div><div className="font-black">{money(budget)}</div></button><div className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] font-black text-slate-500">SPENT</div><div className="font-black">{money(ps)}</div></div><div className="rounded-xl bg-slate-50 p-3"><div className="text-[10px] font-black text-slate-500">LEFT</div><div className="font-black">{money(budget-ps)}</div></div></div>
+        {budgetOpen && <form onSubmit={savePersonBudget} className="mt-3 space-y-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3"><div className="font-black">{p?.display_name}’s Christmas budget</div><input required type="number" min="0" step="0.01" placeholder="Budget" value={personBudgetForm.budget} onChange={(e)=>setPersonBudgetForm({...personBudgetForm,recipientPlayerId:selectedPersonId,budget:e.target.value})} className="w-full rounded-xl border border-amber-200 bg-white p-3 text-slate-900"/><button disabled={saving || !budgetSetupReady} className="w-full rounded-xl border border-amber-300 bg-amber-100 p-3 font-black text-[#10254a] disabled:opacity-50">{saving?"Saving...":"Save Budget"}</button></form>}
         <div className="mt-3 space-y-2">{pg.length===0?<div className="rounded-xl border border-dashed p-5 text-center text-sm font-semibold text-slate-500">No gifts yet. Tap + Add Gift.</div>:pg.map((g)=><button type="button" key={g.id} onClick={()=>editGift(g)} className="w-full rounded-xl border p-3 text-left"><div className="flex justify-between gap-3"><div><div className="font-black">{g.is_stocking?"🧦 ":""}{g.title}</div><div className="text-xs text-slate-500">{g.status.replace("_"," ")} · tap to edit</div></div><div className="font-black">{g.price==null?"":money(Number(g.price))}</div></div></button>)}</div>
       </div>;
     })()}

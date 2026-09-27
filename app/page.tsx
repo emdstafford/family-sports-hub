@@ -2163,65 +2163,32 @@ export default function Home() {
       }
     }
 
+    // Refresh once when the user actually opens Events or Challenge.
+    // The hourly server sync remains the background safety net.
     void refreshEventGames();
-
-    const interval = window.setInterval(refreshEventGames, activeSection === "Challenge" ? 5 * 60_000 : 30 * 60_000);
-    window.addEventListener("focus", refreshEventGames);
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refreshEventGames);
     };
   }, [activeSection]);
 
   useEffect(() => {
     if (
       !signedInPlayer ||
-      (activeSection !== "Home" && activeSection !== "Events" && activeSection !== "Trophy Room")
+      (activeSection !== "Events" && activeSection !== "Trophy Room")
     ) {
       return;
     }
 
-    const refreshPicks = () => {
-      ["fa-cup", "carabao-cup", "champions-league", "womens-champions-league", "subway-players-cup", "europa-league", "conference-league", "efl-trophy", "stanley-cup", "mlb-playoffs-world-series"].forEach(
-        (eventId) => void loadEventPicks(eventId),
-      );
+    // Event picks are user-driven: read them once when the screen opens.
+    // Saving a pick already refreshes that specific event immediately.
+    ["fa-cup", "carabao-cup", "champions-league", "womens-champions-league", "subway-players-cup", "europa-league", "conference-league", "efl-trophy", "stanley-cup", "mlb-playoffs-world-series"].forEach(
+      (eventId) => void loadEventPicks(eventId),
+    );
 
-      if (challenge?.id) {
-        void loadEventPicks(`mamas-hockey-${challenge.id}`);
-      }
-    };
-
-    const initialRefresh =
-      activeSection === "Home"
-        ? window.setTimeout(refreshPicks, 4_000)
-        : null;
-
-    if (activeSection !== "Home") {
-      refreshPicks();
+    if (challenge?.id) {
+      void loadEventPicks(`mamas-hockey-${challenge.id}`);
     }
-
-    if (activeSection === "Trophy Room") {
-      return () => {
-        if (initialRefresh !== null) window.clearTimeout(initialRefresh);
-      };
-    }
-
-    const refreshVisiblePicks = () => {
-      if (activeSection === "Events" && challenge?.id) {
-        void loadEventPicks(`mamas-hockey-${challenge.id}`);
-      } else {
-        refreshPicks();
-      }
-    };
-    const interval = window.setInterval(refreshVisiblePicks, activeSection === "Events" ? 15 * 60_000 : 30 * 60_000);
-    window.addEventListener("focus", refreshVisiblePicks);
-    return () => {
-      if (initialRefresh !== null) window.clearTimeout(initialRefresh);
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refreshVisiblePicks);
-    };
   }, [activeSection, signedInPlayer?.id, challenge?.id]);
 
   async function openGameRoom(game: BrowserGame) {
@@ -2637,38 +2604,9 @@ export default function Home() {
     };
   }, [gameRoomGame?.id]);
 
-  useEffect(() => {
-    if (
-      !gameRoomGame ||
-      !challenge ||
-      !challengeGameIds.includes(
-        gameRoomGame.id,
-      )
-    ) {
-      return;
-    }
 
-    const currentGame = gameRoomGame;
-
-    const interval = window.setInterval(
-      () => {
-        void loadGameRoomPicks(
-          currentGame,
-          true,
-        );
-      },
-      120_000,
-    );
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [
-    gameRoomGame?.id,
-    challenge?.id,
-    signedInPlayer?.id,
-    challengeGameIds.join(","),
-  ]);
+  // FamBam Picks refresh when the game is opened/revealed or a pick is saved.
+  // No background pick polling is needed for a five-person family app.
 
   async function signalGameRoomTyping() {
     if (!signedInPlayer || !gameRoomGame) return;
@@ -2797,16 +2735,6 @@ export default function Home() {
       void loadLockerRoom();
     }
   }, [activeSection, signedInPlayer?.id, trophyRoomPanel]);
-
-  useEffect(() => {
-    if (activeSection !== "Trophy Room" || trophyRoomPanel !== "records" || !signedInPlayer) return;
-
-    const interval = window.setInterval(() => {
-      void openProfile(false);
-    }, 60_000);
-
-    return () => window.clearInterval(interval);
-  }, [activeSection, trophyRoomPanel, signedInPlayer?.id]);
 
   async function loadLockerRoom() {
     if (!signedInPlayer) return;
@@ -3738,24 +3666,12 @@ export default function Home() {
       }
     }
 
-    const initialLiveRefresh = window.setTimeout(
-      refreshHomeLiveScores,
-      10_000,
-    );
+    // One targeted score check when the user opens a sports screen.
+    // Do not keep polling Supabase/provider APIs in the background.
+    void refreshHomeLiveScores();
 
-    const interval = window.setInterval(
-      refreshHomeLiveScores,
-      5 * 60_000,
-    );
-
-    window.addEventListener("focus", refreshHomeLiveScores);
-    document.addEventListener("visibilitychange", refreshHomeLiveScores);
     return () => {
-      window.removeEventListener("focus", refreshHomeLiveScores);
-      document.removeEventListener("visibilitychange", refreshHomeLiveScores);
       cancelled = true;
-      window.clearTimeout(initialLiveRefresh);
-      window.clearInterval(interval);
     };
   }, [activeSection]);
 

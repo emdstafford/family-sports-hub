@@ -76,7 +76,7 @@ export default function GiftManager() {
     const responseText = await response.text();
     let data: any = {};
     try { data = responseText ? JSON.parse(responseText) : {}; }
-    catch { return setError(`Could not load Gifts (HTTP ${response.status}). Please refresh and try again.`); }
+    catch {\n      const type = response.headers.get("content-type") || "unknown";\n      const preview = responseText.replace(/\\s+/g, " ").slice(0, 140);\n      return setError(`Gifts API returned ${type} (HTTP ${response.status}): ${preview || "empty response"}`);\n    }
     if (!response.ok) return setError(data.error || `Could not load gifts (HTTP ${response.status}).`);
     setPlayers(data.players || []);
     setGifts(data.gifts || []);
@@ -124,7 +124,7 @@ export default function GiftManager() {
     const responseText = await response.text();
     let data: any = {};
     try { data = responseText ? JSON.parse(responseText) : {}; }
-    catch { throw new Error(`FamBam received an unexpected server response (HTTP ${response.status}).`); }
+    catch {\n      const type = response.headers.get("content-type") || "unknown";\n      const preview = responseText.replace(/\\s+/g, " ").slice(0, 140);\n      throw new Error(`Gifts save returned ${type} (HTTP ${response.status}): ${preview || "empty response"}`);\n    }
     if (!response.ok) throw new Error(data.error || `Could not save (HTTP ${response.status}).`);
     return data;
   }

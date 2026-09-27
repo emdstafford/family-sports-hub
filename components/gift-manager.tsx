@@ -73,8 +73,11 @@ export default function GiftManager() {
     const apiUrl = new URL("/api/gifts", window.location.origin);\n    apiUrl.searchParams.set("playerId", session.playerId);\n    const response = await fetch(apiUrl.toString(), {
       headers: { "x-fambam-session": session.token },
     });
-    const data = await response.json();
-    if (!response.ok) return setError(data.error || "Could not load gifts.");
+    const responseText = await response.text();
+    let data: any = {};
+    try { data = responseText ? JSON.parse(responseText) : {}; }
+    catch { return setError(`Could not load Gifts (HTTP ${response.status}). Please refresh and try again.`); }
+    if (!response.ok) return setError(data.error || `Could not load gifts (HTTP ${response.status}).`);
     setPlayers(data.players || []);
     setGifts(data.gifts || []);
     setOccasionBudgets(data.occasionBudgets || []);
@@ -118,8 +121,11 @@ export default function GiftManager() {
       headers: { "content-type": "application/json", "x-fambam-session": session.token },
       body: JSON.stringify({ ...payload, shopperPlayerId: session.playerId }),
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not save.");
+    const responseText = await response.text();
+    let data: any = {};
+    try { data = responseText ? JSON.parse(responseText) : {}; }
+    catch { throw new Error(`FamBam received an unexpected server response (HTTP ${response.status}).`); }
+    if (!response.ok) throw new Error(data.error || `Could not save (HTTP ${response.status}).`);
     return data;
   }
 

@@ -96,3 +96,61 @@ alter table public.gift_budgets
     'christmas','birthday','mothers_day','fathers_day','valentines_day',
     'graduation','teacher_gift','wedding','baby_shower','just_because','other'
   ));
+
+
+-- Occasion-level and flexible recipient budgets
+create table if not exists public.gift_occasion_budgets (
+  id uuid primary key default gen_random_uuid(),
+  shopper_player_id uuid not null references public.players(id) on delete cascade,
+  occasion text not null check (occasion in (
+    'christmas','birthday','mothers_day','fathers_day','valentines_day',
+    'graduation','teacher_gift','wedding','baby_shower','just_because','other'
+  )),
+  occasion_name text null,
+  occasion_year integer not null check (occasion_year between 2020 and 2100),
+  budget numeric(10,2) not null default 0 check (budget >= 0),
+  stocking_budget numeric(10,2) not null default 0 check (stocking_budget >= 0),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists gift_occasion_budgets_unique_idx
+  on public.gift_occasion_budgets (
+    shopper_player_id,
+    occasion,
+    coalesce(lower(btrim(occasion_name)), ''),
+    occasion_year
+  );
+
+create index if not exists gift_occasion_budgets_shopper_year_idx
+  on public.gift_occasion_budgets(shopper_player_id, occasion_year desc);
+
+alter table public.gift_occasion_budgets enable row level security;
+
+alter table public.gift_budgets
+  alter column recipient_player_id drop not null;
+
+alter table public.gift_budgets
+  add column if not exists recipient_name text null,
+  add column if not exists occasion_name text null;
+
+alter table public.gift_budgets
+  drop constraint if exists gift_budgets_recipient_required_check;
+
+alter table public.gift_budgets
+  add constraint gift_budgets_recipient_required_check
+  check (
+    recipient_player_id is not null
+    or nullif(btrim(recipient_name), '') is not null
+  );
+
+alter table public.gift_budgets
+  drop constraint if exists gift_budgets_shopper_player_id_recipient_player_id_occasion_occasion_year_key;
+
+create unique index if not exists gift_budgets_unique_recipient_idx
+  on public.gift_budgets (
+    shopper_player_id,
+    coalesce(recipient_player_id::text, 'name:' || lower(btrim(recipient_name))),
+    occasion,
+    coalesce(lower(btrim(occasion_name)), ''),
+    occasion_year
+  );

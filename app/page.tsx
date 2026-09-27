@@ -2165,7 +2165,7 @@ export default function Home() {
 
     void refreshEventGames();
 
-    const interval = window.setInterval(refreshEventGames, activeSection === "Challenge" ? 60_000 : 15 * 60_000);
+    const interval = window.setInterval(refreshEventGames, activeSection === "Challenge" ? 5 * 60_000 : 30 * 60_000);
     window.addEventListener("focus", refreshEventGames);
 
     return () => {
@@ -2215,7 +2215,7 @@ export default function Home() {
         refreshPicks();
       }
     };
-    const interval = window.setInterval(refreshVisiblePicks, activeSection === "Events" ? 5 * 60_000 : 15 * 60_000);
+    const interval = window.setInterval(refreshVisiblePicks, activeSection === "Events" ? 15 * 60_000 : 30 * 60_000);
     window.addEventListener("focus", refreshVisiblePicks);
     return () => {
       if (initialRefresh !== null) window.clearTimeout(initialRefresh);
@@ -2628,7 +2628,7 @@ export default function Home() {
 
     const interval = window.setInterval(
       refreshGameRoomGame,
-      20_000,
+      120_000,
     );
 
     return () => {
@@ -3740,12 +3740,12 @@ export default function Home() {
 
     const initialLiveRefresh = window.setTimeout(
       refreshHomeLiveScores,
-      3_000,
+      10_000,
     );
 
     const interval = window.setInterval(
       refreshHomeLiveScores,
-      60_000,
+      5 * 60_000,
     );
 
     window.addEventListener("focus", refreshHomeLiveScores);

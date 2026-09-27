@@ -72,10 +72,10 @@ export async function GET(request: Request) {
         .eq("shopper_player_id", playerId).order("occasion_year", { ascending: false }),
     ]);
 
-    if (giftsError) throw giftsError;
-    if (playersError) throw playersError;
-    if (recipientBudgetError) throw recipientBudgetError;
-    if (occasionBudgetError) throw occasionBudgetError;
+    if (giftsError) return NextResponse.json({ error: `Gift items: ${giftsError.message}`, code: giftsError.code, details: giftsError.details, hint: giftsError.hint }, { status: 500 });
+    if (playersError) return NextResponse.json({ error: `Players: ${playersError.message}`, code: playersError.code, details: playersError.details, hint: playersError.hint }, { status: 500 });
+    if (recipientBudgetError) return NextResponse.json({ error: `Recipient budgets: ${recipientBudgetError.message}`, code: recipientBudgetError.code, details: recipientBudgetError.details, hint: recipientBudgetError.hint }, { status: 500 });
+    if (occasionBudgetError) return NextResponse.json({ error: `Occasion budgets: ${occasionBudgetError.message}`, code: occasionBudgetError.code, details: occasionBudgetError.details, hint: occasionBudgetError.hint }, { status: 500 });
 
     return NextResponse.json({
       gifts: gifts ?? [],

@@ -5,12 +5,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 type Player = { id: string; display_name: string };
 type Gift = {
   id: string; title: string; status: string; price: number | null; occasion: string;
-  occasion_name?: string | null; occasion_year: number; hiding_spot: string | null;
+  occasion_name?: string | null; event_name?: string | null; occasion_year: number; hiding_spot: string | null;
   is_stocking: boolean; recipient_player_id?: string | null; recipient_name?: string | null;
   recipient?: { display_name?: string } | null;
 };
 type OccasionBudget = {
-  id: string; occasion: string; occasion_name?: string | null; occasion_year: number;
+  id: string; occasion: string; occasion_name?: string | null; event_name?: string | null; occasion_year: number;
   budget: number; stocking_budget: number;
 };
 type RecipientBudget = {
@@ -20,7 +20,7 @@ type RecipientBudget = {
 };
 
 const occasions = [
-  ["christmas", "🎄 Christmas"], ["birthday", "🎂 Birthday"], ["mothers_day", "💐 Mother’s Day"],
+  ["christmas", "🎄 Christmas"], ["birthday", "🎂 Birthday"], ["trip", "✈️ Trip"], ["mothers_day", "💐 Mother’s Day"],
   ["fathers_day", "👔 Father’s Day"], ["valentines_day", "💝 Valentine’s Day"], ["graduation", "🎓 Graduation"],
   ["teacher_gift", "🍎 Teacher Gift"], ["wedding", "💍 Wedding"], ["baby_shower", "🍼 Baby Shower"],
   ["just_because", "❤️ Just Because"], ["other", "✨ Other"],
@@ -56,6 +56,7 @@ export default function GiftManager() {
   const [saving, setSaving] = useState(false);
   const [selectedOccasion, setSelectedOccasion] = useState("christmas");
   const [selectedOccasionName, setSelectedOccasionName] = useState("");
+  const [selectedEventName, setSelectedEventName] = useState("");
   const [selectedYear, setSelectedYear] = useState(2026);
   const [occasionBudgetForm, setOccasionBudgetForm] = useState({ budget: "", stockingBudget: "" });
   const [personBudgetForm, setPersonBudgetForm] = useState({
@@ -63,7 +64,7 @@ export default function GiftManager() {
   });
   const [form, setForm] = useState({
     recipientPlayerId: "", recipientName: "", title: "", occasion: "christmas",
-    occasionName: "", occasionYear: 2026, status: "purchased", price: "", store: "",
+    occasionName: "", eventName: "", occasionYear: 2026, status: "purchased", price: "", store: "",
     hidingSpot: "", notes: "", isStocking: false,
   });
 
@@ -99,12 +100,14 @@ export default function GiftManager() {
   const selectedGifts = useMemo(() => gifts.filter((g) =>
     g.occasion === selectedOccasion &&
     g.occasion_year === selectedYear &&
-    (selectedOccasion !== "other" || (g.occasion_name || "Other") === (selectedOccasionName || "Other"))
-  ), [gifts, selectedOccasion, selectedOccasionName, selectedYear]);
+    (selectedOccasion !== "other" || (g.occasion_name || "Other") === (selectedOccasionName || "Other")) &&
+    (g.event_name || "") === selectedEventName
+  ), [gifts, selectedOccasion, selectedOccasionName, selectedEventName, selectedYear]);
 
   const selectedBudget = occasionBudgets.find((b) =>
     b.occasion === selectedOccasion && b.occasion_year === selectedYear &&
-    (selectedOccasion !== "other" || (b.occasion_name || "Other") === (selectedOccasionName || "Other"))
+    (selectedOccasion !== "other" || (b.occasion_name || "Other") === (selectedOccasionName || "Other")) &&
+    (b.event_name || "") === selectedEventName
   );
   const spent = selectedGifts.filter((g) => paidStatuses.has(g.status)).reduce((sum, g) => sum + Number(g.price || 0), 0);
   const stockingSpent = selectedGifts.filter((g) => g.is_stocking && paidStatuses.has(g.status)).reduce((sum, g) => sum + Number(g.price || 0), 0);
@@ -152,7 +155,7 @@ export default function GiftManager() {
     try {
       await post({
         action: "saveOccasionBudget", occasion: selectedOccasion, occasionName: selectedOccasionName,
-        occasionYear: selectedYear, budget: occasionBudgetForm.budget || 0,
+        occasionYear: selectedYear, eventName: selectedEventName, budget: occasionBudgetForm.budget || 0,
         stockingBudget: occasionBudgetForm.stockingBudget || 0,
       });
       setOccasionBudgetForm({ budget: "", stockingBudget: "" }); await load();
@@ -165,7 +168,7 @@ export default function GiftManager() {
     try {
       await post({
         action: "saveRecipientBudget", ...personBudgetForm, occasion: selectedOccasion,
-        occasionName: selectedOccasionName, occasionYear: selectedYear,
+        occasionName: selectedOccasionName, eventName: selectedEventName, occasionYear: selectedYear,
       });
       setPersonBudgetForm({ recipientPlayerId: "", recipientName: "", budget: "", stockingBudget: "" });
       setBudgetOutsideRecipient(false); await load();
@@ -190,7 +193,7 @@ export default function GiftManager() {
 
     <div className="mt-4 rounded-2xl border bg-slate-50 p-3">
       <div className="grid grid-cols-2 gap-2">
-        <select value={selectedOccasion} onChange={(e) => { setSelectedOccasion(e.target.value); if (e.target.value !== "other") setSelectedOccasionName(""); }} className="rounded-xl border bg-white p-3 font-bold">
+        <select value={selectedOccasion} onChange={(e) => { setSelectedOccasion(e.target.value); setSelectedEventName(""); if (e.target.value !== "other") setSelectedOccasionName(""); }} className="rounded-xl border bg-white p-3 font-bold">
           {occasions.map(([value,label]) => <option key={value} value={value}>{label}</option>)}
         </select>
         <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="rounded-xl border bg-white p-3 font-bold">
@@ -198,10 +201,11 @@ export default function GiftManager() {
         </select>
       </div>
       {selectedOccasion === "other" && <input placeholder="Occasion name" value={selectedOccasionName} onChange={(e)=>setSelectedOccasionName(e.target.value)} className="mt-2 w-full rounded-xl border bg-white p-3" />}
+      {["birthday","trip","teacher_gift","graduation","wedding","baby_shower"].includes(selectedOccasion) && <input placeholder={selectedOccasion==="birthday"?"Whose birthday?":selectedOccasion==="trip"?"Trip name":selectedOccasion==="teacher_gift"?"Teacher's name":"Who / what is this for?"} value={selectedEventName} onChange={(e)=>setSelectedEventName(e.target.value)} className="mt-2 w-full rounded-xl border bg-white p-3" />}
 
       <div className="mt-3 flex items-center justify-between">
         <div>
-          <div className="text-xs font-black uppercase tracking-wider text-slate-500">{labelForOccasion(selectedOccasion, selectedOccasionName)} {selectedYear}</div>
+          <div className="text-xs font-black uppercase tracking-wider text-slate-500">{labelForOccasion(selectedOccasion, selectedOccasionName)}{selectedEventName ? ` · ${selectedEventName}` : ""} {selectedYear}</div>
           <div className="text-sm font-semibold text-slate-500">Budget and spending stay saved with this year forever.</div>
         </div>
         <button onClick={()=>setBudgetOpen(!budgetOpen)} className="rounded-xl border bg-white px-3 py-2 text-xs font-black">✏️ Budget</button>
@@ -260,6 +264,7 @@ export default function GiftManager() {
         <select value={form.occasion} onChange={(e)=>setForm({...form,occasion:e.target.value,occasionName:e.target.value==="other"?form.occasionName:""})} className="rounded-xl border bg-white p-3">{occasions.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>
         <select value={form.occasionYear} onChange={(e)=>setForm({...form,occasionYear:Number(e.target.value)})} className="rounded-xl border bg-white p-3">{yearOptions.map(y=><option key={y}>{y}</option>)}</select>
       </div>
+      {["birthday","trip","teacher_gift","graduation","wedding","baby_shower"].includes(form.occasion)&&<input required placeholder={form.occasion==="birthday"?"Whose birthday?":form.occasion==="trip"?"Trip name":form.occasion==="teacher_gift"?"Teacher’s name":"Who / what is this for?"} value={form.eventName} onChange={(e)=>setForm({...form,eventName:e.target.value})} className="w-full rounded-xl border bg-white p-3"/>}
       {form.occasion==="other"&&<input required placeholder="What’s the occasion?" value={form.occasionName} onChange={(e)=>setForm({...form,occasionName:e.target.value})} className="w-full rounded-xl border bg-white p-3"/>}
       <select value={form.status} onChange={(e)=>setForm({...form,status:e.target.value})} className="w-full rounded-xl border bg-white p-3"><option value="idea">💡 Idea</option><option value="to_buy">🛒 To Buy</option><option value="purchased">📦 Purchased</option><option value="wrapped">🎀 Wrapped</option><option value="given">✅ Given</option></select>
       <div className="grid grid-cols-2 gap-2"><input type="number" min="0" step="0.01" placeholder="Price" value={form.price} onChange={(e)=>setForm({...form,price:e.target.value})} className="rounded-xl border bg-white p-3"/><input placeholder="Store" value={form.store} onChange={(e)=>setForm({...form,store:e.target.value})} className="rounded-xl border bg-white p-3"/></div>

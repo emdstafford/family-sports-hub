@@ -132,7 +132,7 @@ export async function POST(request: Request) {
     );
 
     const requestUrl = new URL(request.url);
-    const reset =
+    const requestedReset =
       requestUrl.searchParams.get("reset") === "true";
 
     const now = new Date();
@@ -433,6 +433,10 @@ export async function POST(request: Request) {
     if (picksResult.error) {
       throw picksResult.error;
     }
+
+    const reset =
+      requestedReset ||
+      (picksResult.data ?? []).length === 0;
 
     const games =
       (gamesResult.data ?? []) as GameRow[];

@@ -296,7 +296,7 @@ export default function GiftManager() {
         const ps = pg.filter((g) => paidStatuses.has(g.status)).reduce((sum,g)=>sum+Number(g.price||0),0);
         return <button key={p.id} type="button" onClick={()=>openPerson(p.id)} className="flex w-full items-center justify-between rounded-2xl border border-amber-200 bg-white p-4 text-left">
           <div><div className="font-black">{p.display_name}</div><div className="text-xs font-semibold text-slate-500">{pg.length} gift{pg.length===1?"":"s"} · {money(ps)} spent</div></div>
-          <div className="text-right"><div className="font-black">{money(Number(pb?.budget||0))}</div><div className="text-xs text-slate-500">budget ›</div></div>
+          <div className="text-right"><div className="font-black">{money(Number(pb?.budget||0)-ps)}</div><div className="text-xs font-semibold text-slate-500">{pb ? "left" : "set budget"} ›</div></div>
         </button>;
       })}
     </div>}

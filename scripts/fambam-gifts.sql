@@ -196,3 +196,46 @@ create unique index gift_budgets_unique_recipient_idx on public.gift_budgets (
   coalesce(lower(btrim(event_name)), ''),
   occasion_year
 );
+
+
+-- General FamBam wishlists
+-- One ongoing wishlist per player. Claims are private from the wishlist owner.
+create table if not exists public.wishlist_items (
+  id uuid primary key default gen_random_uuid(),
+  owner_player_id uuid not null references public.players(id) on delete cascade,
+  title text not null,
+  product_url text null,
+  store text null,
+  price numeric(10,2) null check (price is null or price >= 0),
+  size_color text null,
+  notes text null,
+  priority text not null default 'normal' check (priority in ('normal','really_want')),
+  archived_at timestamptz null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists wishlist_items_owner_active_idx
+  on public.wishlist_items(owner_player_id, archived_at, created_at desc);
+
+create table if not exists public.wishlist_claims (
+  id uuid primary key default gen_random_uuid(),
+  wishlist_item_id uuid not null references public.wishlist_items(id) on delete cascade,
+  shopper_player_id uuid not null references public.players(id) on delete cascade,
+  occasion text not null default 'christmas',
+  occasion_name text null,
+  event_name text null,
+  occasion_year integer not null check (occasion_year between 2020 and 2100),
+  gift_item_id uuid null references public.gift_items(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (wishlist_item_id)
+);
+
+create index if not exists wishlist_claims_shopper_idx
+  on public.wishlist_claims(shopper_player_id, created_at desc);
+
+alter table public.wishlist_items enable row level security;
+alter table public.wishlist_claims enable row level security;
+
+grant select, insert, update, delete on table public.wishlist_items to service_role;
+grant select, insert, update, delete on table public.wishlist_claims to service_role;

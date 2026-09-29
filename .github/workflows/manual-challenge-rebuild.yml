@@ -14,9 +14,14 @@ jobs:
     steps:
       - name: Rebuild current FamBam Challenge
         run: |
-          curl --fail --silent --show-error \
+          set -o pipefail
+          code=$(curl --silent --show-error \
             -X POST \
+            -o response.json \
+            -w "%{http_code}" \
             "https://family-sports-hub.vercel.app/api/challenge/auto-build?reset=true" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          cat response.json
+          test "$code" -ge 200 -a "$code" -lt 300
 
-# Triggered 2026-09-29 after corrected reset deployment was live.
+# Diagnostic trigger 2026-09-29.

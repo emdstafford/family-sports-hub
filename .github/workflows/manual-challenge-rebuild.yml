@@ -35,4 +35,4 @@ jobs:
           cat response.json
           test "$code" -ge 200 -a "$code" -lt 300
 
-# Triggered after ESPN college-football fallback deployment.
+# Triggered 2026-09-29 after ESPN importer deployment turned green.

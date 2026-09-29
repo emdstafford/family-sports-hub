@@ -1,0 +1,22 @@
+name: One-time Challenge Rebuild
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/manual-challenge-rebuild.yml"
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for production deployment
+        run: sleep 90
+
+      - name: Rebuild current FamBam Challenge
+        run: |
+          curl --fail --silent --show-error \
+            -X POST \
+            "https://family-sports-hub.vercel.app/api/challenge/auto-build?reset=true" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

@@ -436,6 +436,10 @@ export async function POST(request: Request) {
       throw picksResult.error;
     }
 
+    const existing =
+      (existingResult.data ??
+        []) as ExistingChallengeGame[];
+
     const alreadyPriorityReset = existing.some(
       (row) =>
         (row.selection_reason ?? "").includes(
@@ -483,10 +487,6 @@ export async function POST(request: Request) {
 
     const sports =
       (sportsResult.data ?? []) as SportRow[];
-
-    const existing =
-      (existingResult.data ??
-        []) as ExistingChallengeGame[];
 
     const teamMap = new Map(
       teams.map((team) => [

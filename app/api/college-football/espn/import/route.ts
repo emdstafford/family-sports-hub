@@ -40,6 +40,11 @@ export async function POST() {
       .from("competitions").select("id, sport_id").eq("name", "NCAA Football").single();
     if (competitionError || !competition) return NextResponse.json({ error: "Could not find NCAA Football competition.", details: competitionError?.message }, { status: 500 });
 
+    // Copy the narrowed values before entering the nested teamId function. TypeScript
+    // cannot preserve the competition null check across that async closure by itself.
+    const competitionId = competition.id as string;
+    const sportId = competition.sport_id as string;
+
     const now = new Date();
     const start = new Date(now.getTime() - 2 * 86_400_000);
     const end = new Date(now.getTime() + 12 * 86_400_000);
@@ -60,12 +65,11 @@ export async function POST() {
       const key = externalId || name.toLowerCase();
       if (teamCache.has(key)) return teamCache.get(key)!;
 
-      // Reuse by name first so ESPN does not create a second Georgia/Kentucky beside CFBD.
-      const existing = await supabase.from("teams").select("id").eq("sport_id", competition.sport_id).ilike("name", name).limit(1).maybeSingle();
+      const existing = await supabase.from("teams").select("id").eq("sport_id", sportId).ilike("name", name).limit(1).maybeSingle();
       if (existing.data?.id) { teamCache.set(key, existing.data.id); return existing.data.id; }
 
       const inserted = await supabase.from("teams").upsert({
-        sport_id: competition.sport_id,
+        sport_id: sportId,
         name,
         external_provider: "espn-cfb",
         external_id: externalId || key,
@@ -91,8 +95,8 @@ export async function POST() {
       const completed = Boolean(event.status?.type?.completed);
 
       const game = await supabase.from("games").upsert({
-        sport_id: competition.sport_id,
-        competition_id: competition.id,
+        sport_id: sportId,
+        competition_id: competitionId,
         home_team_id: homeId,
         away_team_id: awayId,
         starts_at: event.date,
@@ -114,8 +118,6 @@ export async function POST() {
       if (awayRank && awayRank <= 25) rankings.push({ team_id: awayId, rank: awayRank });
     }
 
-    // ESPN exposes the current AP rank with scoreboard competitors. Store a fresh snapshot
-    // using a high synthetic week so Challenge selection prefers it over stale CFBD Week 2.
     if (rankings.length) {
       const season = now.getUTCFullYear();
       const week = 99;

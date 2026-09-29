@@ -6,17 +6,17 @@ on:
       - main
     paths:
       - ".github/workflows/manual-challenge-rebuild.yml"
+  workflow_dispatch:
 
 jobs:
   rebuild:
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for production deployment
-        run: sleep 90
-
       - name: Rebuild current FamBam Challenge
         run: |
           curl --fail --silent --show-error \
             -X POST \
             "https://family-sports-hub.vercel.app/api/challenge/auto-build?reset=true" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+# Triggered 2026-09-29 after corrected reset deployment was live.

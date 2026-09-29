@@ -49,6 +49,8 @@ type Candidate = {
 };
 
 const TARGET_GAMES = 10;
+const CURRENT_WEEK_PRIORITY_RESET = "2026-09-28";
+const CURRENT_WEEK_PRIORITY_MARKER = "priority-card-reset-2026-09-29";
 
 function normalize(value: string) {
   return value
@@ -434,9 +436,44 @@ export async function POST(request: Request) {
       throw picksResult.error;
     }
 
+    const alreadyPriorityReset = existing.some(
+      (row) =>
+        (row.selection_reason ?? "").includes(
+          CURRENT_WEEK_PRIORITY_MARKER,
+        ),
+    );
+
+    const isCurrentPriorityResetWeek =
+      weekStart.toISOString().slice(0, 10) ===
+      CURRENT_WEEK_PRIORITY_RESET;
+
+    const oneTimePriorityReset =
+      isCurrentPriorityResetWeek &&
+      !alreadyPriorityReset;
+
+    if (requestedReset || oneTimePriorityReset) {
+      const { error: clearPicksError } = await supabase
+        .from("player_picks")
+        .delete()
+        .eq(
+          "challenge_id",
+          openChallenge.id,
+        );
+
+      if (clearPicksError) {
+        throw clearPicksError;
+      }
+    }
+
+    const effectivePicks =
+      requestedReset || oneTimePriorityReset
+        ? []
+        : (picksResult.data ?? []);
+
     const reset =
       requestedReset ||
-      (picksResult.data ?? []).length === 0;
+      oneTimePriorityReset ||
+      effectivePicks.length === 0;
 
     const games =
       (gamesResult.data ?? []) as GameRow[];
@@ -597,6 +634,28 @@ export async function POST(request: Request) {
             "FamBam favorite team";
         }
 
+        const topTenTeam =
+          (homeRank !== null &&
+            homeRank <= 10) ||
+          (awayRank !== null &&
+            awayRank <= 10);
+
+        if (topTenTeam) {
+          mandatory = true;
+          score += 700;
+
+          if (!reason) {
+            const topRank =
+              homeRank !== null &&
+              homeRank <= 10
+                ? homeRank
+                : awayRank;
+
+            reason =
+              `AP Top 10 team (#${topRank})`;
+          }
+        }
+
         if (
           homeRank !== null &&
           awayRank !== null
@@ -725,7 +784,7 @@ export async function POST(request: Request) {
     const pickCounts = new Map<string, number>();
 
     for (const row of
-      (picksResult.data ?? []) as { game_id: string }[]) {
+      effectivePicks as { game_id: string }[]) {
       pickCounts.set(
         row.game_id,
         (pickCounts.get(row.game_id) ?? 0) + 1,
@@ -955,6 +1014,35 @@ export async function POST(request: Request) {
 
       if (insertError) {
         throw insertError;
+      }
+    }
+
+    if (
+      oneTimePriorityReset &&
+      selected.length > 0
+    ) {
+      const markerGame =
+        selected[0];
+
+      const {
+        error: markerError,
+      } = await supabase
+        .from("challenge_games")
+        .update({
+          selection_reason:
+            `${markerGame.reason} | ${CURRENT_WEEK_PRIORITY_MARKER}`,
+        })
+        .eq(
+          "challenge_id",
+          openChallenge.id,
+        )
+        .eq(
+          "game_id",
+          markerGame.game.id,
+        );
+
+      if (markerError) {
+        throw markerError;
       }
     }
 

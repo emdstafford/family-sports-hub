@@ -10,6 +10,7 @@ type GameRow = {
   away_team_id: string;
   sport_id: string;
   competition_id: string | null;
+  external_provider: string | null;
 };
 
 type TeamRow = {
@@ -358,7 +359,7 @@ export async function POST(request: Request) {
       supabase
         .from("games")
         .select(
-          "id, starts_at, start_time_tbd, status, home_team_id, away_team_id, sport_id, competition_id",
+          "id, starts_at, start_time_tbd, status, home_team_id, away_team_id, sport_id, competition_id, external_provider",
         )
         .gte("starts_at", now.toISOString())
         .lte(
@@ -556,6 +557,16 @@ export async function POST(request: Request) {
       if (
         sport !== "Soccer" &&
         sport !== "College Football"
+      ) {
+        continue;
+      }
+
+      // College-football Challenge candidates come from the current ESPN
+      // Division I/FBS feed. This prevents stale lower-division games that
+      // may still exist in the database from filling the weekly card.
+      if (
+        sport === "College Football" &&
+        game.external_provider !== "espn-cfb"
       ) {
         continue;
       }

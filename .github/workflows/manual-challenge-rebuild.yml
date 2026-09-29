@@ -12,6 +12,17 @@ jobs:
   rebuild:
     runs-on: ubuntu-latest
     steps:
+      - name: Refresh FamBam sports data
+        run: |
+          set -o pipefail
+          code=$(curl --silent --show-error \
+            -o sync-response.json \
+            -w "%{http_code}" \
+            "https://family-sports-hub.vercel.app/api/sync/sports" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          cat sync-response.json
+          test "$code" -ge 200 -a "$code" -lt 300
+
       - name: Rebuild current FamBam Challenge
         run: |
           set -o pipefail
@@ -24,4 +35,4 @@ jobs:
           cat response.json
           test "$code" -ge 200 -a "$code" -lt 300
 
-# Diagnostic trigger 2026-09-29.
+# Triggered after ESPN college-football fallback deployment.

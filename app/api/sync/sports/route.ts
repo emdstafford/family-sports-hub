@@ -73,6 +73,7 @@ async function runSync(request: NextRequest) {
   }
 
   const results: SyncResult[] = [];
+  const currentYear = new Date().getUTCFullYear();
 
   /*
    * College-football kickoff times move from TBD windows to exact times
@@ -82,7 +83,20 @@ async function runSync(request: NextRequest) {
   results.push(
     await callInternalRoute(
       request,
-      `/api/college-football/import?year=${new Date().getUTCFullYear()}`,
+      `/api/college-football/import?year=${currentYear}`,
+    ),
+  );
+
+  /*
+   * Challenge selection depends on the CURRENT AP poll. Previously the
+   * sports sync refreshed games but never refreshed college_football_rankings,
+   * so the builder could rank this week's games using an old poll. Import the
+   * latest available AP Top 25 before the Challenge builder runs.
+   */
+  results.push(
+    await callInternalRoute(
+      request,
+      `/api/college-football/rankings/import?year=${currentYear}`,
     ),
   );
 

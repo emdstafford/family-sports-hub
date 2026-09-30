@@ -26,8 +26,6 @@ function isFamilyTeam(name: string) {
 
 async function fetchScoreboard(date: Date) {
   const url = new URL("https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard");
-  // ESPN stopped accepting CFB date ranges in September 2026. A single YYYYMMDD
-  // still works, and groups=80 returns the full FBS slate rather than only ranked teams.
   url.searchParams.set("dates", easternDate(date));
   url.searchParams.set("limit", "500");
   url.searchParams.set("groups", "80");
@@ -50,8 +48,6 @@ export async function POST() {
 
     const now = new Date();
     const dates: Date[] = [];
-    // Current Challenge needs the coming weekend plus nearby weekday games. Query
-    // one day at a time because ESPN's former range syntax now returns HTTP 400.
     for (let offset = -1; offset <= 8; offset += 1) dates.push(new Date(now.getTime() + offset * 86_400_000));
     const scoreboards = await Promise.all(dates.map(fetchScoreboard));
     const eventMap = new Map<string, EspnEvent>();
@@ -86,9 +82,6 @@ export async function POST() {
       const awayId = await teamId(away.team);
       const completed = Boolean(event.status?.type?.completed);
 
-      // games_external_id_unique is global, not provider-scoped. Older CFBD rows can
-      // therefore already own the same numeric event ID. Reuse that game row instead
-      // of trying to insert a second ESPN row with the same external_id.
       const existingGame = await supabase
         .from("games")
         .select("id,external_provider")
@@ -108,11 +101,15 @@ export async function POST() {
         away_score: away.score ? Number(away.score) : null,
         status: completed ? "final" : "scheduled",
         source_notes: event.name ?? null,
+        // Important: an older row may already own ESPN's numeric external_id.
+        // Once ESPN FBS refreshes it, mark it as the vetted Division-I feed so
+        // Challenge selection does not accidentally filter the refreshed game out.
+        external_provider: "espn-cfb",
       };
 
       const game = existingGame.data?.id
         ? await supabase.from("games").update(gameValues).eq("id", existingGame.data.id)
-        : await supabase.from("games").insert({ ...gameValues, external_provider: "espn-cfb", external_id: event.id });
+        : await supabase.from("games").insert({ ...gameValues, external_id: event.id });
       if (game.error) throw new Error(`Could not import ${awayName} at ${homeName}: ${game.error.message}`);
       imported += 1;
       if (isFamilyTeam(homeName) || isFamilyTeam(awayName)) familyGames.push(`${awayName} at ${homeName}`);

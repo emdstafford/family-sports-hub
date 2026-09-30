@@ -133,6 +133,21 @@ export async function POST(request: Request) {
     const windowEnd = new Date(now);
     windowEnd.setUTCDate(windowEnd.getUTCDate() + 7);
 
+    // Refresh the Division-I college-football slate immediately before
+    // building the Challenge. This keeps UK/UGA, Top-10 and ranked games
+    // available even if the earlier daily sports sync was missed or stale.
+    const footballSyncUrl = new URL("/api/college-football/espn/import", request.url);
+    const footballSyncResponse = await fetch(footballSyncUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    if (!footballSyncResponse.ok) {
+      const details = await footballSyncResponse.text();
+      throw new Error(`College-football refresh failed before Challenge build: ${details}`);
+    }
+
     const [gamesResult, teamsResult, sportsResult, rankingsResult, existingResult, picksResult] = await Promise.all([
       supabase.from("games")
         .select("id,starts_at,start_time_tbd,status,home_team_id,away_team_id,sport_id,external_provider")

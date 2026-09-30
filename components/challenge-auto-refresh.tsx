@@ -4,6 +4,13 @@ import { useEffect, useRef } from "react";
 
 const REOPEN_KEY = "fambam_reopen_challenge_after_refresh";
 
+function isChallengeButton(button: HTMLButtonElement) {
+  // The bottom-nav button contains separate emoji + label spans, so its
+  // textContent is "🎯Challenge", not exactly "Challenge".
+  // Match the visible label instead of requiring an exact textContent value.
+  return button.textContent?.includes("Challenge") === true;
+}
+
 export default function ChallengeAutoRefresh() {
   const refreshingRef = useRef(false);
   const skipNextChallengeClickRef = useRef(false);
@@ -11,7 +18,7 @@ export default function ChallengeAutoRefresh() {
   useEffect(() => {
     function findChallengeButton() {
       return Array.from(document.querySelectorAll("button")).find(
-        (button) => button.textContent?.trim() === "Challenge",
+        (button) => isChallengeButton(button),
       ) as HTMLButtonElement | undefined;
     }
 
@@ -36,8 +43,8 @@ export default function ChallengeAutoRefresh() {
     }
 
     async function handleClick(event: MouseEvent) {
-      const button = (event.target as HTMLElement | null)?.closest("button");
-      if (!button || button.textContent?.trim() !== "Challenge") return;
+      const button = (event.target as HTMLElement | null)?.closest("button") as HTMLButtonElement | null;
+      if (!button || !isChallengeButton(button)) return;
 
       if (skipNextChallengeClickRef.current) {
         skipNextChallengeClickRef.current = false;
@@ -66,7 +73,7 @@ export default function ChallengeAutoRefresh() {
 
         if (!response.ok) {
           const data = await response.json().catch(() => null);
-          console.error("Challenge refresh failed:", data?.error ?? response.statusText);
+          console.error("Challenge refresh failed:", data?.error ?? response.statusText, data?.details ?? "");
           return;
         }
 

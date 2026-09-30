@@ -85,12 +85,34 @@ export async function POST() {
       const homeId = await teamId(home.team);
       const awayId = await teamId(away.team);
       const completed = Boolean(event.status?.type?.completed);
-      const game = await supabase.from("games").upsert({
-        sport_id: sportId, competition_id: competitionId, home_team_id: homeId, away_team_id: awayId,
-        starts_at: event.date, start_time_tbd: false, home_score: home.score ? Number(home.score) : null,
-        away_score: away.score ? Number(away.score) : null, status: completed ? "final" : "scheduled",
-        external_provider: "espn-cfb", external_id: event.id, source_notes: event.name ?? null,
-      }, { onConflict: "external_provider,external_id" });
+
+      // games_external_id_unique is global, not provider-scoped. Older CFBD rows can
+      // therefore already own the same numeric event ID. Reuse that game row instead
+      // of trying to insert a second ESPN row with the same external_id.
+      const existingGame = await supabase
+        .from("games")
+        .select("id,external_provider")
+        .eq("external_id", event.id)
+        .limit(1)
+        .maybeSingle();
+      if (existingGame.error) throw new Error(`Could not check existing game ${event.id}: ${existingGame.error.message}`);
+
+      const gameValues = {
+        sport_id: sportId,
+        competition_id: competitionId,
+        home_team_id: homeId,
+        away_team_id: awayId,
+        starts_at: event.date,
+        start_time_tbd: false,
+        home_score: home.score ? Number(home.score) : null,
+        away_score: away.score ? Number(away.score) : null,
+        status: completed ? "final" : "scheduled",
+        source_notes: event.name ?? null,
+      };
+
+      const game = existingGame.data?.id
+        ? await supabase.from("games").update(gameValues).eq("id", existingGame.data.id)
+        : await supabase.from("games").insert({ ...gameValues, external_provider: "espn-cfb", external_id: event.id });
       if (game.error) throw new Error(`Could not import ${awayName} at ${homeName}: ${game.error.message}`);
       imported += 1;
       if (isFamilyTeam(homeName) || isFamilyTeam(awayName)) familyGames.push(`${awayName} at ${homeName}`);

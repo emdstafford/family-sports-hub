@@ -25,15 +25,19 @@ function isFamilyTeam(name: string) {
   return normalized === "georgia" || normalized === "kentucky";
 }
 
+function isDivisionI(classification: string | null) {
+  const value = classification?.trim().toLowerCase();
+  return value === "fbs" || value === "fcs";
+}
+
 function shouldKeepGame(game: CfbdGame) {
-  // Permanent FamBam college-football rule:
-  // 1. ALWAYS keep every Georgia and Kentucky game.
-  // 2. Keep FBS-vs-FBS games.
-  // 3. ALSO keep games already selected for a FamBam Challenge.
-  //    The importer must continue refreshing those results even when
-  //    they are Division II/FCS matchups such as Benedict-Tuskegee.
-  if (isFamilyTeam(game.homeTeam) || isFamilyTeam(game.awayTeam)) {
-    return true;
+  // Permanent FamBam rule: college football is Division I only.
+  // Keep FBS-vs-FBS games, plus Georgia/Kentucky games against FCS teams.
+  // Never import Division II or Division III games.
+  const familyGame = isFamilyTeam(game.homeTeam) || isFamilyTeam(game.awayTeam);
+
+  if (familyGame) {
+    return isDivisionI(game.homeClassification) && isDivisionI(game.awayClassification);
   }
 
   return (
@@ -105,23 +109,11 @@ export async function POST(request: Request) {
         { status: 500 },
       );
     }
-      const competitionSportId = competition.sport_id;
 
-    /*
-     * IMPORTANT:
-     * We intentionally do NOT send classification=fbs here.
-     *
-     * We need CFBD to return Georgia/Kentucky games against FCS
-     * opponents too. We fetch the week, then apply FamBam's rule
-     * locally with shouldKeepGame().
-     */
-    const cfbdUrl = new URL(
-      "https://api.collegefootballdata.com/games",
-    );
+    const competitionSportId = competition.sport_id;
 
+    const cfbdUrl = new URL("https://api.collegefootballdata.com/games");
     cfbdUrl.searchParams.set("year", String(year));
-    // Do not force seasonType=regular here. FamBam needs the same importer
-    // to keep postseason/bowl Challenge games current later in the year.
 
     if (week !== undefined) {
       cfbdUrl.searchParams.set("week", String(week));
@@ -140,7 +132,6 @@ export async function POST(request: Request) {
 
     if (!cfbdResponse.ok) {
       const message = await cfbdResponse.text();
-
       return NextResponse.json(
         {
           error: "CollegeFootballData request failed.",
@@ -151,13 +142,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const receivedGames =
-      (await cfbdResponse.json()) as CfbdGame[];
+    const receivedGames = (await cfbdResponse.json()) as CfbdGame[];
 
-    // Challenge games are a special case: once a game is selected for a
-    // FamBam Challenge, keep refreshing it even if it is not FBS-vs-FBS.
-    // Otherwise CFBD can return the result but our normal import filter
-    // drops it before the score/status is written.
     const receivedExternalIds = receivedGames.map((game) => String(game.id));
     const { data: existingCfbdRows } = receivedExternalIds.length
       ? await supabase
@@ -167,43 +153,16 @@ export async function POST(request: Request) {
           .in("external_id", receivedExternalIds)
       : { data: [] as Array<{ id: string; external_id: string | null; status: string }> };
 
-    const existingGameIds = (existingCfbdRows ?? []).map((row) => row.id);
-    const { data: challengeRows } = existingGameIds.length
-      ? await supabase
-          .from("challenge_games")
-          .select("game_id")
-          .in("game_id", existingGameIds)
-      : { data: [] as Array<{ game_id: string }> };
-
-    const challengeGameIds = new Set(
-      (challengeRows ?? []).map((row) => row.game_id),
-    );
-    const challengeExternalIds = new Set(
+    const finalExternalIds = new Set(
       (existingCfbdRows ?? [])
-        .filter((row) => challengeGameIds.has(row.id))
-        .map((row) => row.external_id)
-        .filter((id): id is string => Boolean(id)),
+        .filter((row) => ["final", "finished", "completed", "closed"].includes(row.status.toLowerCase()))
+        .map((row) => row.external_id),
     );
 
-    const finalExternalIds = new Set((existingCfbdRows ?? [])
-      .filter((row) => ["final", "finished", "completed", "closed"].includes(row.status.toLowerCase()))
-      .map((row) => row.external_id));
+    const games = receivedGames.filter(shouldKeepGame);
+    const excludedGames = receivedGames.filter((game) => !shouldKeepGame(game));
 
-    const games = receivedGames.filter(
-      (game) =>
-        shouldKeepGame(game) ||
-        challengeExternalIds.has(String(game.id)),
-    );
-    const excludedGames = receivedGames.filter(
-      (game) =>
-        !shouldKeepGame(game) &&
-        !challengeExternalIds.has(String(game.id)),
-    );
-
-    /*
-     * Clean up lower-division matchups previously imported,
-     * but NEVER delete a Georgia or Kentucky game.
-     */
+    // Remove any lower-division CFBD games that were previously imported.
     const excludedIds = excludedGames.map((game) => String(game.id));
 
     if (excludedIds.length > 0) {
@@ -218,8 +177,7 @@ export async function POST(request: Request) {
           {
             error: "Could not clean up excluded college-football games.",
             details: cleanupError.message,
-            hint:
-              "Run: grant delete on public.games to service_role;",
+            hint: "Run: grant delete on public.games to service_role;",
           },
           { status: 500 },
         );
@@ -232,37 +190,28 @@ export async function POST(request: Request) {
 
     const teamCache = new Map<string, string>();
 
-    async function getOrCreateTeam(
-      externalId: number,
-      name: string,
-    ) {
+    async function getOrCreateTeam(externalId: number, name: string) {
       const key = String(externalId);
       const cached = teamCache.get(key);
-
       if (cached) return cached;
 
-      const { data: importedTeam, error: teamError } =
-        await supabase
-          .from("teams")
-          .upsert(
-            {
-              sport_id: competitionSportId,
-              name,
-              external_provider: "cfbd",
-              external_id: key,
-            },
-            {
-              onConflict: "external_provider,external_id",
-            },
-          )
-          .select("id")
-          .single();
+      const { data: importedTeam, error: teamError } = await supabase
+        .from("teams")
+        .upsert(
+          {
+            sport_id: competitionSportId,
+            name,
+            external_provider: "cfbd",
+            external_id: key,
+          },
+          { onConflict: "external_provider,external_id" },
+        )
+        .select("id")
+        .single();
 
       if (teamError || !importedTeam) {
         throw new Error(
-          `Failed importing team ${name}: ${
-            teamError?.message ?? "Unknown error"
-          }`,
+          `Failed importing team ${name}: ${teamError?.message ?? "Unknown error"}`,
         );
       }
 
@@ -272,7 +221,6 @@ export async function POST(request: Request) {
     }
 
     for (const game of games) {
-      // Never replace a verified final with a lagging schedule record.
       if (!game.completed && finalExternalIds.has(String(game.id))) continue;
 
       if (
@@ -285,14 +233,8 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const homeTeamId = await getOrCreateTeam(
-        game.homeId,
-        game.homeTeam,
-      );
-      const awayTeamId = await getOrCreateTeam(
-        game.awayId,
-        game.awayTeam,
-      );
+      const homeTeamId = await getOrCreateTeam(game.homeId, game.homeTeam);
+      const awayTeamId = await getOrCreateTeam(game.awayId, game.awayTeam);
 
       const { error: gameError } = await supabase
         .from("games")
@@ -311,9 +253,7 @@ export async function POST(request: Request) {
             external_provider: "cfbd",
             external_id: String(game.id),
           },
-          {
-            onConflict: "external_provider,external_id",
-          },
+          { onConflict: "external_provider,external_id" },
         );
 
       if (gameError) {
@@ -329,11 +269,9 @@ export async function POST(request: Request) {
       gamesImported += 1;
     }
 
-    const familyGames = games.filter(
-      (game) =>
-        isFamilyTeam(game.homeTeam) ||
-        isFamilyTeam(game.awayTeam),
-    ).map((game) => `${game.awayTeam} at ${game.homeTeam}`);
+    const familyGames = games
+      .filter((game) => isFamilyTeam(game.homeTeam) || isFamilyTeam(game.awayTeam))
+      .map((game) => `${game.awayTeam} at ${game.homeTeam}`);
 
     return NextResponse.json({
       success: true,
@@ -341,7 +279,7 @@ export async function POST(request: Request) {
       year,
       week: week ?? null,
       team: team ?? null,
-      scope: "FBS-vs-FBS plus all Georgia/Kentucky games",
+      scope: "Division I only: FBS-vs-FBS plus Georgia/Kentucky vs FCS",
       gamesReceived: receivedGames.length,
       gamesKept: games.length,
       excludedGamesRemoved: excludedGames.length,
@@ -356,10 +294,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: "Unexpected import error.",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Unknown error",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     );

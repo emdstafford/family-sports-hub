@@ -2,12 +2,10 @@
 
 import { useEffect, useRef } from "react";
 
-const REOPEN_KEY = "fambam_reopen_challenge_after_refresh";
+const REOPEN_KEY = "fambam_reopen_challenge_after_refresh_v2";
+const ATTEMPT_KEY = "fambam_challenge_refresh_attempt_v2";
 
 function isChallengeButton(button: HTMLButtonElement) {
-  // The bottom-nav button contains separate emoji + label spans, so its
-  // textContent is "🎯Challenge", not exactly "Challenge".
-  // Match the visible label instead of requiring an exact textContent value.
   return button.textContent?.includes("Challenge") === true;
 }
 
@@ -42,21 +40,17 @@ export default function ChallengeAutoRefresh() {
       window.setTimeout(() => observer.disconnect(), 10000);
     }
 
-    async function handleClick(event: MouseEvent) {
-      const button = (event.target as HTMLElement | null)?.closest("button") as HTMLButtonElement | null;
-      if (!button || !isChallengeButton(button)) return;
-
-      if (skipNextChallengeClickRef.current) {
-        skipNextChallengeClickRef.current = false;
-        return;
-      }
-
+    async function refreshChallenge(options?: { reopen?: boolean; force?: boolean }) {
       if (refreshingRef.current) return;
 
       const playerId = window.localStorage.getItem("fambam_player_id")?.trim();
       const sessionToken = window.localStorage.getItem("fambam_session_token")?.trim();
       if (!playerId || !sessionToken) return;
 
+      // Run once automatically for the signed-in family after this deployment.
+      // This removes the fragile dependency on detecting a navigation click.
+      if (!options?.force && window.sessionStorage.getItem(ATTEMPT_KEY) === "1") return;
+      window.sessionStorage.setItem(ATTEMPT_KEY, "1");
       refreshingRef.current = true;
 
       try {
@@ -67,29 +61,58 @@ export default function ChallengeAutoRefresh() {
           cache: "no-store",
         });
 
-        // A 409 means someone has already picked. The Challenge is locked,
-        // so simply keep the currently displayed card.
+        // Someone has started picking, so the server correctly freezes the card.
         if (response.status === 409) return;
 
         if (!response.ok) {
           const data = await response.json().catch(() => null);
-          console.error("Challenge refresh failed:", data?.error ?? response.statusText, data?.details ?? "");
+          console.error(
+            "Challenge refresh failed:",
+            data?.error ?? response.statusText,
+            data?.details ?? "",
+          );
+          // Allow another manual Challenge tap to retry a transient provider error.
+          window.sessionStorage.removeItem(ATTEMPT_KEY);
           return;
         }
 
-        // The Challenge games are part of the page's initial data load.
-        // Reload once after a successful rebuild, then reopen Challenge.
-        window.sessionStorage.setItem(REOPEN_KEY, "1");
+        if (options?.reopen) {
+          window.sessionStorage.setItem(REOPEN_KEY, "1");
+        }
         window.location.reload();
       } catch (error) {
         console.error("Challenge refresh failed:", error);
+        window.sessionStorage.removeItem(ATTEMPT_KEY);
       } finally {
         refreshingRef.current = false;
       }
     }
 
+    // Most important path: once the app has restored the signed-in family session,
+    // refresh the unpicked Challenge directly. No button click is required.
+    const automaticTimer = window.setTimeout(() => {
+      void refreshChallenge();
+    }, 1200);
+
+    async function handleClick(event: MouseEvent) {
+      const button = (event.target as HTMLElement | null)?.closest("button") as HTMLButtonElement | null;
+      if (!button || !isChallengeButton(button)) return;
+
+      if (skipNextChallengeClickRef.current) {
+        skipNextChallengeClickRef.current = false;
+        return;
+      }
+
+      // Challenge taps are also an explicit retry path. The server remains the
+      // authority and refuses to rebuild as soon as any family pick exists.
+      await refreshChallenge({ reopen: true, force: true });
+    }
+
     document.addEventListener("click", handleClick, true);
-    return () => document.removeEventListener("click", handleClick, true);
+    return () => {
+      window.clearTimeout(automaticTimer);
+      document.removeEventListener("click", handleClick, true);
+    };
   }, []);
 
   return null;

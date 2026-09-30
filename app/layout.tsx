@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import ChallengeAutoRefresh from "@/components/challenge-auto-refresh";
 import "./globals.css";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -75,6 +76,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <ChallengeAutoRefresh />
           {children}
         </ThemeProvider>
       </body>

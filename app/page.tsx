@@ -274,6 +274,14 @@ function formatGameTime(
   }).format(new Date(startsAt));
 }
 
+function basketballSpecialLabel(game: BrowserGame) {
+  if (game.sport !== "College Basketball") return null;
+  const notes = (game.sourceNotes ?? "").toUpperCase();
+  if (notes.includes("BIG BLUE MADNESS")) return "BIG BLUE MADNESS";
+  if (notes.includes("EXHIBITION")) return "EXHIBITION";
+  return null;
+}
+
 function normalizeLockerTeamName(value: string) {
   return value
     .toLowerCase()
@@ -909,6 +917,23 @@ function getCompetitionExplainer(
   const competition = (
     game.competition ?? ""
   ).toLowerCase();
+
+  const basketballNote = (game.sourceNotes ?? "").toUpperCase();
+  if (game.sport === "College Basketball" && basketballNote.includes("BIG BLUE MADNESS")) {
+    return [
+      "Big Blue Madness is Kentucky’s preseason celebration and first big look at the team.",
+      "Blue vs White is an intrasquad exhibition: Kentucky players compete against each other, so it does not count toward the regular-season record.",
+      "The FamBam pick is just for fun — choose whether Blue or White wins the scrimmage.",
+    ];
+  }
+
+  if (game.sport === "College Basketball" && basketballNote.includes("EXHIBITION")) {
+    return [
+      "This is an exhibition game, which means it is played before the regular season and does not count toward Kentucky’s official win-loss record.",
+      "Coaches use exhibitions to test lineups, rotations and game plans before the season begins.",
+      "FamBam still gets to make a pick so everyone can start learning the team before regular-season games begin.",
+    ];
+  }
 
   if (competition.includes("premier league")) {
     return [
@@ -5896,6 +5921,11 @@ export default function Home() {
                                       <div className="mt-1 text-[7px] font-black uppercase leading-tight text-[#10254a]">
                                         {game.competition}
                                       </div>
+                                      {basketballSpecialLabel(game) && (
+                                        <div className="mt-1 rounded-full bg-[#eaf0ff] px-1.5 py-0.5 text-[6px] font-black uppercase leading-tight text-[#0033a0]">
+                                          {basketballSpecialLabel(game)}
+                                        </div>
+                                      )}
 
                                       <div className="mt-1 flex flex-wrap items-center justify-center gap-0.5">
                                         {watchMarkers.map((marker) => (
@@ -9052,10 +9082,13 @@ export default function Home() {
                             <div className="flex items-start justify-between">
                               <div>
                                 <div className="text-[9px] font-black uppercase tracking-wide text-[#b28a2e]">
-                                  {
-                                    game.competition
-                                  }
+                                  {game.competition}
                                 </div>
+                                {basketballSpecialLabel(game) && (
+                                  <div className="mt-1 inline-flex rounded-full bg-[#eaf0ff] px-2 py-1 text-[8px] font-black uppercase tracking-wide text-[#0033a0]">
+                                    {basketballSpecialLabel(game)}
+                                  </div>
+                                )}
 
                                 <div className="mt-1 text-xs font-semibold text-slate-500">
                                   {formatGameDate(

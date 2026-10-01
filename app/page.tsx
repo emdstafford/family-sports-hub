@@ -1331,9 +1331,6 @@ export default function Home() {
   const [activeSport, setActiveSport] =
     useState<Sport>("All");
 
-  const [resultsSport, setResultsSport] =
-    useState<Sport>("All");
-
   const [gamesPageView, setGamesPageView] =
     useState<"games" | "standings" | "results">("games");
 
@@ -4264,9 +4261,9 @@ export default function Home() {
         new Date(a.startsAt ?? 0).getTime(),
     );
 
-  const filteredRecentResults = resultsSport === "All"
+  const filteredRecentResults = activeSport === "All"
     ? recentResults
-    : recentResults.filter((game) => game.sport === resultsSport);
+    : recentResults.filter((game) => game.sport === activeSport);
 
   const sportFilteredGames =
     activeSport === "All"
@@ -5643,7 +5640,11 @@ export default function Home() {
           </div>
 
           {gamesPageView === "standings" && (
-            <StandingsHub favoriteTeamNames={favoriteProfileTeams.map((team) => team.name)} />
+            <StandingsHub
+              favoriteTeamNames={favoriteProfileTeams.map((team) => team.name)}
+              activeSport={activeSport}
+              onSportChange={(sport) => setActiveSport(sport as Sport)}
+            />
           )}
 
           <div className={gamesPageView === "games" ? "block" : "hidden"}>
@@ -6006,10 +6007,10 @@ export default function Home() {
               <button
                 key={sport}
                 type="button"
-                onClick={() => setResultsSport(sport)}
-                aria-pressed={resultsSport === sport}
+                onClick={() => setActiveSport(sport)}
+                aria-pressed={activeSport === sport}
                 className={`shrink-0 rounded-full px-4 py-2 text-[10px] font-black ${
-                  resultsSport === sport
+                  activeSport === sport
                     ? "bg-[#06284a] text-white"
                     : "bg-white text-[#10254a] shadow-sm"
                 }`}
@@ -6034,9 +6035,9 @@ export default function Home() {
 
             {filteredRecentResults.length === 0 ? (
               <p className="p-4 text-xs font-semibold text-slate-500">
-                {resultsSport === "All"
+                {activeSport === "All"
                   ? "No final scores from your games in the last seven days."
-                  : `No ${resultsSport.toLowerCase()} results in the last seven days.`}
+                  : `No ${activeSport.toLowerCase()} results in the last seven days.`}
               </p>
             ) : (
             <div className="grid grid-cols-2 gap-2 p-3">

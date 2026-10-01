@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const maxDuration = 180;
+export const maxDuration = 120;
+
+type EspnTeam = { id?: string; displayName?: string; shortDisplayName?: string; abbreviation?: string };
+type EspnCompetitor = { homeAway?: "home" | "away"; score?: string; team?: EspnTeam };
+type EspnEvent = {
+  id?: string;
+  date?: string;
+  name?: string;
+  status?: { type?: { completed?: boolean } };
+  competitions?: Array<{ competitors?: EspnCompetitor[] }>;
+};
 
 function easternDate(date: Date) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -13,7 +23,7 @@ function easternDate(date: Date) {
 }
 
 function normalize(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 const KENTUCKY_EXHIBITIONS = [
@@ -50,6 +60,16 @@ const KENTUCKY_EXHIBITIONS = [
     note: "EXHIBITION · This preseason game does not count toward Kentucky's regular-season record. · Rupp Arena at Central Bank Center",
   },
 ] as const;
+
+async function fetchScoreboard(date: Date) {
+  const url = new URL("https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard");
+  url.searchParams.set("dates", easternDate(date));
+  url.searchParams.set("groups", "50");
+  url.searchParams.set("limit", "500");
+  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(12_000) });
+  if (!response.ok) throw new Error(`ESPN men's basketball ${easternDate(date)} failed (${response.status})`);
+  return await response.json();
+}
 
 export async function POST() {
   try {
@@ -93,176 +113,166 @@ export async function POST() {
 
     let competition = competitionResult.data;
     if (!competition) {
-      const createdCompetition = await supabase
+      const created = await supabase
         .from("competitions")
-        .insert({
-          sport_id: sport.id,
-          name: "NCAA Division I Men's Basketball",
-        })
+        .insert({ sport_id: sport.id, name: "NCAA Division I Men's Basketball" })
         .select("id,sport_id,name")
         .single();
-
-      if (createdCompetition.error || !createdCompetition.data) {
+      if (created.error || !created.data) {
         return NextResponse.json(
-          { error: "Could not create college-basketball competition.", details: createdCompetition.error?.message ?? null },
+          { error: "Could not create college-basketball competition.", details: created.error?.message ?? null },
           { status: 500 },
         );
       }
-
-      competition = createdCompetition.data;
-    }
-    const teamCache = new Map<string, string>();
-
-    async function ensureTeam(name: string, provider: string, externalId?: string) {
-      const cacheKey = `${provider}:${externalId ?? normalize(name)}`;
-      const cached = teamCache.get(cacheKey);
-      if (cached) return cached;
-
-      const existing = await supabase
-        .from("teams")
-        .select("id")
-        .eq("sport_id", sport.id)
-        .ilike("name", name)
-        .limit(1)
-        .maybeSingle();
-
-      if (existing.error) throw new Error(`Could not look up basketball team ${name}: ${existing.error.message}`);
-      if (existing.data?.id) {
-        teamCache.set(cacheKey, existing.data.id);
-        return existing.data.id as string;
-      }
-
-      const inserted = await supabase
-        .from("teams")
-        .upsert(
-          {
-            sport_id: sport.id,
-            name,
-            external_provider: provider,
-            external_id: externalId ?? `${provider}-${normalize(name)}`,
-          },
-          { onConflict: "external_provider,external_id" },
-        )
-        .select("id")
-        .single();
-
-      if (inserted.error || !inserted.data?.id) {
-        throw new Error(`Could not import basketball team ${name}: ${inserted.error?.message ?? "unknown error"}`);
-      }
-
-      teamCache.set(cacheKey, inserted.data.id);
-      return inserted.data.id as string;
+      competition = created.data;
     }
 
-    let divisionIGamesImported = 0;
     const now = new Date();
+    const dates: Date[] = [];
+    for (let offset = -1; offset <= 7; offset += 1) {
+      dates.push(new Date(now.getTime() + offset * 86_400_000));
+    }
 
-    for (let offset = -1; offset <= 9; offset += 1) {
-      const date = new Date(now.getTime() + offset * 86_400_000);
-      const url = new URL("https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard");
-      url.searchParams.set("dates", easternDate(date));
-      url.searchParams.set("groups", "50");
-      url.searchParams.set("limit", "500");
-
-      const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) {
-        throw new Error(`ESPN men's basketball ${easternDate(date)} failed (${response.status})`);
-      }
-
-      const body = await response.json();
-      const events = Array.isArray(body?.events) ? body.events : [];
-
-      for (const event of events) {
-        const competitors = event?.competitions?.[0]?.competitors ?? [];
-        const home = competitors.find((row: any) => row?.homeAway === "home");
-        const away = competitors.find((row: any) => row?.homeAway === "away");
-        if (!home?.team || !away?.team || !event?.id || !event?.date) continue;
-
-        const homeName = home.team.displayName || home.team.shortDisplayName || home.team.abbreviation || "Unknown";
-        const awayName = away.team.displayName || away.team.shortDisplayName || away.team.abbreviation || "Unknown";
-        const homeId = await ensureTeam(homeName, "espn-mbb", String(home.team.id ?? normalize(homeName)));
-        const awayId = await ensureTeam(awayName, "espn-mbb", String(away.team.id ?? normalize(awayName)));
-
-        const existing = await supabase
-          .from("games")
-          .select("id")
-          .eq("external_id", String(event.id))
-          .limit(1)
-          .maybeSingle();
-
-        if (existing.error) throw new Error(`Could not check basketball game ${event.id}: ${existing.error.message}`);
-
-        const values = {
-          sport_id: sport.id,
-          competition_id: competition.id,
-          home_team_id: homeId,
-          away_team_id: awayId,
-          starts_at: event.date,
-          start_time_tbd: false,
-          home_score: home.score ? Number(home.score) : null,
-          away_score: away.score ? Number(away.score) : null,
-          status: event?.status?.type?.completed ? "final" : "scheduled",
-          source_notes: event?.name ?? "NCAA Division I men's basketball",
-          external_provider: "espn-mbb",
-        };
-
-        const write = existing.data?.id
-          ? await supabase.from("games").update(values).eq("id", existing.data.id)
-          : await supabase.from("games").insert({ ...values, external_id: String(event.id) });
-
-        if (write.error) {
-          throw new Error(`Could not import ${awayName} at ${homeName}: ${write.error.message}`);
-        }
-        divisionIGamesImported += 1;
+    // Fetch all D-I dates in parallel. During the regular season this avoids the
+    // old one-date-at-a-time importer taking several minutes.
+    const scoreboards = await Promise.all(dates.map(fetchScoreboard));
+    const events = new Map<string, EspnEvent>();
+    for (const body of scoreboards) {
+      for (const event of Array.isArray(body?.events) ? body.events : []) {
+        if (event?.id) events.set(String(event.id), event);
       }
     }
 
-    let kentuckyExhibitionsImported = 0;
+    const { data: existingTeams, error: existingTeamsError } = await supabase
+      .from("teams")
+      .select("id,name,external_provider,external_id")
+      .eq("sport_id", sport.id);
+    if (existingTeamsError) throw new Error(`Could not load basketball teams: ${existingTeamsError.message}`);
+
+    const teamIdByExternal = new Map<string, string>();
+    const teamIdByName = new Map<string, string>();
+    for (const row of existingTeams ?? []) {
+      if (row.external_id) teamIdByExternal.set(String(row.external_id), row.id);
+      if (row.name) teamIdByName.set(normalize(row.name), row.id);
+    }
+
+    const providerTeams = new Map<string, { externalId: string; name: string; provider: string }>();
+
+    for (const event of events.values()) {
+      for (const competitor of event.competitions?.[0]?.competitors ?? []) {
+        const team = competitor.team;
+        const externalId = String(team?.id ?? "");
+        const name = team?.displayName || team?.shortDisplayName || team?.abbreviation || "";
+        if (externalId && name) providerTeams.set(`espn-mbb:${externalId}`, { externalId, name, provider: "espn-mbb" });
+      }
+    }
 
     for (const exhibition of KENTUCKY_EXHIBITIONS) {
-      const homeId = await ensureTeam(exhibition.home, "ukathletics-mbb");
-      const awayId = await ensureTeam(exhibition.away, "ukathletics-mbb");
-      const externalId = `kentucky-mbb-exh-${exhibition.id}`;
+      for (const name of [exhibition.home, exhibition.away]) {
+        const externalId = `ukathletics-mbb-${normalize(name).replace(/ /g, "-")}`;
+        providerTeams.set(`ukathletics-mbb:${externalId}`, { externalId, name, provider: "ukathletics-mbb" });
+      }
+    }
 
-      const existing = await supabase
-        .from("games")
-        .select("id,status,home_score,away_score")
-        .eq("external_id", externalId)
-        .limit(1)
-        .maybeSingle();
+    const missingTeams = [...providerTeams.values()].filter(
+      (team) => !teamIdByExternal.has(team.externalId) && !teamIdByName.has(normalize(team.name)),
+    );
 
-      if (existing.error) throw new Error(`Could not check Kentucky exhibition ${exhibition.id}: ${existing.error.message}`);
+    if (missingTeams.length) {
+      const { data: inserted, error: insertError } = await supabase
+        .from("teams")
+        .upsert(
+          missingTeams.map((team) => ({
+            sport_id: sport.id,
+            name: team.name,
+            external_provider: team.provider,
+            external_id: team.externalId,
+          })),
+          { onConflict: "external_provider,external_id" },
+        )
+        .select("id,name,external_id");
+      if (insertError) throw new Error(`Could not import basketball teams: ${insertError.message}`);
+      for (const row of inserted ?? []) {
+        if (row.external_id) teamIdByExternal.set(String(row.external_id), row.id);
+        if (row.name) teamIdByName.set(normalize(row.name), row.id);
+      }
+    }
 
-      const values = {
+    for (const team of providerTeams.values()) {
+      if (!teamIdByExternal.has(team.externalId)) {
+        const id = teamIdByName.get(normalize(team.name));
+        if (id) teamIdByExternal.set(team.externalId, id);
+      }
+    }
+
+    const gameRows: any[] = [];
+
+    for (const event of events.values()) {
+      const competitors = event.competitions?.[0]?.competitors ?? [];
+      const home = competitors.find((row) => row.homeAway === "home");
+      const away = competitors.find((row) => row.homeAway === "away");
+      if (!home?.team?.id || !away?.team?.id || !event.id || !event.date) continue;
+
+      const homeId = teamIdByExternal.get(String(home.team.id));
+      const awayId = teamIdByExternal.get(String(away.team.id));
+      if (!homeId || !awayId) continue;
+
+      gameRows.push({
+        sport_id: sport.id,
+        competition_id: competition.id,
+        home_team_id: homeId,
+        away_team_id: awayId,
+        starts_at: event.date,
+        start_time_tbd: false,
+        home_score: home.score ? Number(home.score) : null,
+        away_score: away.score ? Number(away.score) : null,
+        status: event.status?.type?.completed ? "final" : "scheduled",
+        source_notes: event.name ?? "NCAA Division I men's basketball",
+        external_provider: "espn-mbb",
+        external_id: String(event.id),
+      });
+    }
+
+    for (const exhibition of KENTUCKY_EXHIBITIONS) {
+      const homeExternal = `ukathletics-mbb-${normalize(exhibition.home).replace(/ /g, "-")}`;
+      const awayExternal = `ukathletics-mbb-${normalize(exhibition.away).replace(/ /g, "-")}`;
+      const homeId = teamIdByExternal.get(homeExternal) ?? teamIdByName.get(normalize(exhibition.home));
+      const awayId = teamIdByExternal.get(awayExternal) ?? teamIdByName.get(normalize(exhibition.away));
+      if (!homeId || !awayId) continue;
+
+      gameRows.push({
         sport_id: sport.id,
         competition_id: competition.id,
         home_team_id: homeId,
         away_team_id: awayId,
         starts_at: exhibition.startsAt,
         start_time_tbd: exhibition.startTimeTbd,
-        home_score: existing.data?.home_score ?? null,
-        away_score: existing.data?.away_score ?? null,
-        status: existing.data?.status ?? "scheduled",
+        home_score: null,
+        away_score: null,
+        status: "scheduled",
         source_notes: exhibition.note,
         external_provider: "ukathletics-mbb",
-      };
+        external_id: `kentucky-mbb-exh-${exhibition.id}`,
+      });
+    }
 
-      const write = existing.data?.id
-        ? await supabase.from("games").update(values).eq("id", existing.data.id)
-        : await supabase.from("games").insert({ ...values, external_id: externalId });
-
-      if (write.error) throw new Error(`Could not import Kentucky exhibition ${exhibition.id}: ${write.error.message}`);
-      kentuckyExhibitionsImported += 1;
+    if (gameRows.length) {
+      const { error: gameWriteError } = await supabase
+        .from("games")
+        .upsert(gameRows, { onConflict: "external_id" });
+      if (gameWriteError) throw new Error(`Could not save basketball slate: ${gameWriteError.message}`);
     }
 
     return NextResponse.json({
       success: true,
       source: "ESPN Division I + Kentucky Athletics",
-      divisionIGamesImported,
-      kentuckyExhibitionsImported,
+      divisionIGamesImported: [...events.values()].length,
+      kentuckyExhibitionsImported: KENTUCKY_EXHIBITIONS.length,
+      gameRowsSaved: gameRows.length,
       exhibitionLabelsReady: true,
     });
   } catch (error) {
+    console.error("College-basketball import failed:", error);
     return NextResponse.json(
       {
         error: "College-basketball import failed.",

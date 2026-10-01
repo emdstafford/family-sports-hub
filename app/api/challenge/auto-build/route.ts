@@ -279,11 +279,11 @@ export async function POST(request: Request) {
 
       const competition = game.competition_id ? competitionMap.get(game.competition_id) ?? "" : "";
 
-      // Football may come from either of our Division-I feeds. The CFBD
-      // importer permanently removes D-II/D-III games before they reach here.
+      // ESPN is the verified current Division-I feed for weekly picks.
+      // Historical CFBD rows remain useful for old results, but stale lower-division
+      // CFBD games must never be eligible for the live FamBam Challenge.
       if (
         sport === "College Football" &&
-        game.external_provider !== "cfbd" &&
         game.external_provider !== "espn-cfb"
       ) continue;
 
@@ -515,6 +515,20 @@ export async function POST(request: Request) {
         if (error) throw error;
       }
     }
+
+    console.log(
+      "Challenge selected games:",
+      selected.map((row) => ({
+        sport: row.sport,
+        away: row.away,
+        home: row.home,
+        reason: row.reason,
+        awayRank: row.awayRank,
+        homeRank: row.homeRank,
+      })),
+      "warnings:",
+      importWarnings,
+    );
 
     return NextResponse.json({
       success: true,

@@ -41,7 +41,61 @@ function isFamilySoccerTeam(name: string) {
 }
 
 function isFamilyFootballTeam(name: string) {
-  return exactTeam(name, "Kentucky") || exactTeam(name, "Georgia");
+  const n = normalize(name);
+  return ["kentucky", "kentuckywildcats", "georgia", "georgiabulldogs"].includes(n);
+}
+
+function isKentuckyBasketballTeam(name: string) {
+  const n = normalize(name);
+  return n === "kentucky" || n === "kentuckywildcats";
+}
+
+function isBigBlueMadnessTeam(name: string) {
+  const n = normalize(name);
+  return n === "blue" || n === "white";
+}
+
+const SEC_BASKETBALL_TEAMS = [
+  "Alabama", "Arkansas", "Auburn", "Florida", "Georgia", "Kentucky", "LSU",
+  "Mississippi State", "Missouri", "Oklahoma", "Ole Miss", "South Carolina",
+  "Tennessee", "Texas", "Texas A&M", "Vanderbilt",
+];
+
+function isSecBasketballTeam(name: string) {
+  const n = normalize(name);
+  return SEC_BASKETBALL_TEAMS.some((team) => {
+    const base = normalize(team);
+    return n === base || n.startsWith(base);
+  });
+}
+
+async function getBasketballRankings() {
+  try {
+    const response = await fetch(
+      "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/rankings",
+      { cache: "no-store" },
+    );
+    if (!response.ok) return new Map<string, number>();
+    const data = await response.json();
+    const poll = data?.rankings?.[0];
+    const map = new Map<string, number>();
+    for (const row of poll?.ranks ?? []) {
+      const rank = Number(row?.current);
+      if (!rank) continue;
+      const team = row?.team ?? {};
+      const names = [
+        team.displayName,
+        team.location && team.nickname ? `${team.location} ${team.nickname}` : null,
+        team.location,
+        team.name,
+        team.nickname,
+      ].filter((value): value is string => Boolean(value));
+      for (const name of names) map.set(normalize(name), rank);
+    }
+    return map;
+  } catch {
+    return new Map<string, number>();
+  }
 }
 
 function isFinal(status: string | null) {
@@ -148,6 +202,21 @@ export async function POST(request: Request) {
       throw new Error(`College-football refresh failed before Challenge build: ${details}`);
     }
 
+    // Basketball is refreshed on every build as well. This makes the Challenge
+    // season-aware automatically, including Kentucky exhibitions before the regular season.
+    const basketballSyncUrl = new URL("/api/college-basketball/import", request.url);
+    const basketballSyncResponse = await fetch(basketballSyncUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+    if (!basketballSyncResponse.ok) {
+      const details = await basketballSyncResponse.text();
+      throw new Error(`College-basketball refresh failed before Challenge build: ${details}`);
+    }
+
+    const basketballRankingMap = await getBasketballRankings();
+
     const [gamesResult, teamsResult, sportsResult, rankingsResult, existingResult, picksResult] = await Promise.all([
       supabase.from("games")
         .select("id,starts_at,start_time_tbd,status,home_team_id,away_team_id,sport_id,external_provider")
@@ -195,7 +264,7 @@ export async function POST(request: Request) {
       const away = teamMap.get(game.away_team_id);
       const sport = sportMap.get(game.sport_id);
       if (!home || !away || !sport) continue;
-      if (sport !== "Soccer" && sport !== "College Football") continue;
+      if (sport !== "Soccer" && sport !== "College Football" && sport !== "College Basketball") continue;
 
       // Football may come from either of our Division-I feeds. The CFBD
       // importer permanently removes D-II/D-III games before they reach here.
@@ -205,9 +274,10 @@ export async function POST(request: Request) {
         game.external_provider !== "espn-cfb"
       ) continue;
 
-      const homeRank = rankingMap.get(normalize(home)) ?? null;
-      const awayRank = rankingMap.get(normalize(away)) ?? null;
-      let score = sport === "College Football" ? 30 : 10;
+      const activeRankingMap = sport === "College Basketball" ? basketballRankingMap : rankingMap;
+      const homeRank = activeRankingMap.get(normalize(home)) ?? null;
+      const awayRank = activeRankingMap.get(normalize(away)) ?? null;
+      let score = sport === "College Football" ? 30 : sport === "College Basketball" ? 25 : 10;
       let mandatory = false;
       let reason = "Weekly featured matchup";
 
@@ -223,6 +293,58 @@ export async function POST(request: Request) {
             score += 150;
             reason = "Major soccer matchup";
           }
+        }
+      }
+
+      if (sport === "College Basketball") {
+        const kentuckyGame =
+          isKentuckyBasketballTeam(home) ||
+          isKentuckyBasketballTeam(away) ||
+          (game.external_provider === "ukathletics-mbb" &&
+            isBigBlueMadnessTeam(home) &&
+            isBigBlueMadnessTeam(away));
+
+        if (kentuckyGame) {
+          mandatory = true;
+          score += 1400;
+          reason = game.external_provider === "ukathletics-mbb" &&
+            isBigBlueMadnessTeam(home) &&
+            isBigBlueMadnessTeam(away)
+            ? "Big Blue Madness · Blue vs White exhibition"
+            : game.external_provider === "ukathletics-mbb"
+              ? "Kentucky exhibition"
+              : "Kentucky basketball";
+        }
+
+        const topTen = (homeRank !== null && homeRank <= 10) || (awayRank !== null && awayRank <= 10);
+        if (topTen) {
+          mandatory = true;
+          score += 850;
+          if (reason === "Weekly featured matchup") {
+            const rank = homeRank !== null && homeRank <= 10 ? homeRank : awayRank;
+            reason = `AP Top 10 basketball team (#${rank})`;
+          }
+        }
+
+        if (homeRank !== null && awayRank !== null) {
+          score += 500 + Math.max(0, 70 - Math.min(homeRank + awayRank, 50));
+          if (reason === "Weekly featured matchup") reason = `Ranked basketball matchup: #${awayRank} vs #${homeRank}`;
+        } else {
+          const rank = homeRank ?? awayRank;
+          if (rank !== null) {
+            score += Math.max(60, 220 - rank * 5);
+            if (reason === "Weekly featured matchup") reason = `AP Top 25 basketball team (#${rank})`;
+          }
+        }
+
+        const homeSec = isSecBasketballTeam(home);
+        const awaySec = isSecBasketballTeam(away);
+        if (homeSec && awaySec) {
+          score += 250;
+          if (reason === "Weekly featured matchup") reason = "SEC basketball matchup";
+        } else if (homeSec || awaySec) {
+          score += 90;
+          if (reason === "Weekly featured matchup") reason = "SEC basketball";
         }
       }
 

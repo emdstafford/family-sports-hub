@@ -254,6 +254,20 @@ export async function POST(request: Request) {
 
     const existing = (existingResult.data ?? []) as ExistingRow[];
     const picks = (picksResult.data ?? []) as { game_id: string }[];
+
+    // The weekly card becomes immutable as soon as anyone makes a pick.
+    // This protects the shared family slate from the daily cron changing games
+    // after one person has already started.
+    if (picks.length > 0) {
+      return NextResponse.json({
+        success: true,
+        locked: true,
+        reason: "Challenge already has family picks.",
+        challenge: { id: challenge.id, name: challenge.name ?? challenge.title ?? "FamBam Challenge" },
+        existingCount: existing.length,
+      });
+    }
+
     const reset = new URL(request.url).searchParams.get("reset") === "true" || picks.length === 0;
 
     const teamMap = new Map((teamsResult.data ?? []).map((row) => [row.id, row.name]));
@@ -573,4 +587,11 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+
+// Vercel Cron invokes scheduled paths with GET. Keep POST for in-app refreshes
+// and let both entry points use the same authenticated builder.
+export async function GET(request: Request) {
+  return POST(request);
 }

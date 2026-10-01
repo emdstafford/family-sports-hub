@@ -190,7 +190,20 @@ export async function GET(request: Request) {
       }
     }
 
-    const games = rows.map((row) => ({
+    const now = Date.now();
+
+    // Current/future college football comes exclusively from the verified ESPN
+    // Division-I feed. Keep historical CFBD games available for past results and
+    // Passport history, but never surface stale future D-II/D-III CFBD rows.
+    const visibleRows = rows.filter((row) => {
+      const sportName = getName(row.sport);
+      if (sportName !== "College Football") return true;
+      if (row.external_provider !== "cfbd") return true;
+      if (!row.starts_at) return false;
+      return new Date(row.starts_at).getTime() < now;
+    });
+
+    const games = visibleRows.map((row) => ({
       id: row.id,
       sport: getName(row.sport) ?? "Sports",
       competition:

@@ -113,9 +113,11 @@ export async function GET(request: NextRequest) {
       "inprogress",
       "halftime",
       "final",
+      "finished",
       "completed",
       "complete",
-    ].includes(normalizedStatus);
+      "closed",
+    ].some((value) => normalizedStatus.includes(value));
 
     const scheduledStartHasPassed =
       Boolean(game.starts_at) &&

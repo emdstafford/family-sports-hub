@@ -302,22 +302,26 @@ export async function POST(request: Request) {
         sport === "College Basketball" ? 25 :
         sport === "Soccer" ? 15 : 10;
       let mandatory = false;
+      let worthy = false;
       let reason = "Weekly featured matchup";
 
       // Use the family's actual saved favorites instead of relying only on a
       // hard-coded list. This automatically follows future profile changes.
       if (isFamilyFavorite(home) || isFamilyFavorite(away)) {
         mandatory = true;
+        worthy = true;
         score += 1000;
         reason = "FamBam favorite team";
       }
 
       if (sport === "Baseball" && /postseason|playoff|world series/i.test(competition)) {
+        worthy = true;
         score += 300;
         if (reason === "Weekly featured matchup") reason = "MLB postseason";
       }
 
       if (sport === "Hockey" && /playoff|stanley/i.test(competition)) {
+        worthy = true;
         score += 300;
         if (reason === "Weekly featured matchup") reason = "Hockey postseason";
       }
@@ -325,21 +329,25 @@ export async function POST(request: Request) {
       if (sport === "Soccer") {
         if (isFamilySoccerTeam(home) || isFamilySoccerTeam(away)) {
           mandatory = true;
+          worthy = true;
           score += 1000;
           reason = "FamBam favorite team";
         } else {
           const bigSix = ["Arsenal", "Chelsea", "Liverpool", "Manchester City", "Manchester United", "Tottenham Hotspur"];
           const heavyweight = bigSix.some((t) => exactTeam(home, t)) && bigSix.some((t) => exactTeam(away, t));
           if (heavyweight) {
+            worthy = true;
             score += 150;
             reason = "Major soccer matchup";
           }
         }
 
         if (/champions league/i.test(competition)) {
+          worthy = true;
           score += 250;
           if (reason === "Weekly featured matchup") reason = "Champions League";
         } else if (/fa cup|carabao|league cup|efl cup/i.test(competition)) {
+          worthy = true;
           score += 160;
           if (reason === "Weekly featured matchup") reason = "Cup match";
         }
@@ -355,6 +363,7 @@ export async function POST(request: Request) {
 
         if (kentuckyGame) {
           mandatory = true;
+          worthy = true;
           score += 500;
           reason = game.external_provider === "ukathletics-mbb" &&
             isBigBlueMadnessTeam(home) &&
@@ -368,6 +377,7 @@ export async function POST(request: Request) {
         const topTen = (homeRank !== null && homeRank <= 10) || (awayRank !== null && awayRank <= 10);
         if (topTen) {
           mandatory = true;
+          worthy = true;
           score += 850;
           if (reason === "Weekly featured matchup") {
             const rank = homeRank !== null && homeRank <= 10 ? homeRank : awayRank;
@@ -376,11 +386,13 @@ export async function POST(request: Request) {
         }
 
         if (homeRank !== null && awayRank !== null) {
+          worthy = true;
           score += 500 + Math.max(0, 70 - Math.min(homeRank + awayRank, 50));
           if (reason === "Weekly featured matchup") reason = `Ranked basketball matchup: #${awayRank} vs #${homeRank}`;
         } else {
           const rank = homeRank ?? awayRank;
           if (rank !== null) {
+            worthy = true;
             score += Math.max(60, 220 - rank * 5);
             if (reason === "Weekly featured matchup") reason = `AP Top 25 basketball team (#${rank})`;
           }
@@ -389,6 +401,7 @@ export async function POST(request: Request) {
         const homeSec = isSecBasketballTeam(home);
         const awaySec = isSecBasketballTeam(away);
         if (homeSec && awaySec) {
+          worthy = true;
           score += 250;
           if (reason === "Weekly featured matchup") reason = "SEC basketball matchup";
         } else if (homeSec || awaySec) {
@@ -400,6 +413,7 @@ export async function POST(request: Request) {
       if (sport === "College Football") {
         if (isFamilyFootballTeam(home) || isFamilyFootballTeam(away)) {
           mandatory = true;
+          worthy = true;
           score += 400;
           reason = "FamBam favorite team";
         }
@@ -407,6 +421,7 @@ export async function POST(request: Request) {
         const topTen = (homeRank !== null && homeRank <= 10) || (awayRank !== null && awayRank <= 10);
         if (topTen) {
           mandatory = true;
+          worthy = true;
           score += 800;
           if (reason === "Weekly featured matchup") {
             const rank = homeRank !== null && homeRank <= 10 ? homeRank : awayRank;
@@ -415,11 +430,13 @@ export async function POST(request: Request) {
         }
 
         if (homeRank !== null && awayRank !== null) {
+          worthy = true;
           score += 450 + Math.max(0, 60 - Math.min(homeRank + awayRank, 50));
           if (reason === "Weekly featured matchup") reason = `Ranked matchup: #${awayRank} vs #${homeRank}`;
         } else {
           const rank = homeRank ?? awayRank;
           if (rank !== null) {
+            worthy = true;
             score += Math.max(40, 180 - rank * 4);
             if (reason === "Weekly featured matchup") reason = `AP Top 25 team (#${rank})`;
           }
@@ -433,10 +450,16 @@ export async function POST(request: Request) {
           (exactTeam(home, a) && exactTeam(away, b)) || (exactTeam(home, b) && exactTeam(away, a)),
         );
         if (rivalry) {
+          worthy = true;
           score += 200;
           if (reason === "Weekly featured matchup") reason = "Rivalry game";
         }
       }
+
+      // Never fill the card with random games just to reach ten. If a matchup
+      // is not a family favorite, ranked/big game, rivalry, cup, or postseason
+      // game, it does not belong in the weekly Challenge.
+      if (!worthy) continue;
 
       candidates.push({ game, home, away, sport, homeRank, awayRank, score, mandatory, reason });
     }

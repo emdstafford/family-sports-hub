@@ -47,13 +47,43 @@ function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-export default function StandingsHub({ favoriteTeamNames }: { favoriteTeamNames: string[] }) {
-  const [competition, setCompetition] = useState("premier-league");
+type RadarSport = "All" | "Soccer" | "College Football" | "College Basketball" | "Volleyball" | "Hockey" | "Baseball" | "Cheerleading";
+
+function competitionForSport(sport: RadarSport) {
+  if (sport === "College Football") return "college-football";
+  if (sport === "College Basketball") return "college-basketball";
+  if (sport === "Volleyball") return "volleyball";
+  if (sport === "Hockey") return "nhl";
+  if (sport === "Baseball") return "mlb";
+  return "premier-league";
+}
+
+function sportForCompetition(competition: string): RadarSport {
+  if (competition === "college-football") return "College Football";
+  if (competition === "college-basketball") return "College Basketball";
+  if (competition === "volleyball") return "Volleyball";
+  if (competition === "nhl") return "Hockey";
+  if (competition === "mlb") return "Baseball";
+  return "Soccer";
+}
+
+export default function StandingsHub({ favoriteTeamNames, activeSport, onSportChange }: {
+  favoriteTeamNames: string[];
+  activeSport: RadarSport;
+  onSportChange: (sport: RadarSport) => void;
+}) {
+  const [competition, setCompetition] = useState(() => competitionForSport(activeSport));
   const [data, setData] = useState<StandingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const nextCompetition = competitionForSport(activeSport);
+    if (activeSport !== "All" && nextCompetition !== competition) {
+      setCompetition(nextCompetition);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -144,7 +174,10 @@ export default function StandingsHub({ favoriteTeamNames }: { favoriteTeamNames:
           <button
             key={item.id}
             type="button"
-            onClick={() => setCompetition(item.id)}
+            onClick={() => {
+              setCompetition(item.id);
+              onSportChange(sportForCompetition(item.id));
+            }}
             className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-black ${
               competition === item.id ? "bg-[#06284a] text-white" : "bg-white text-[#10254a] shadow-sm"
             }`}

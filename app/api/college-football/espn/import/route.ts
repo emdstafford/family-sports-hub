@@ -24,39 +24,15 @@ function isFamilyTeam(name: string) {
   return n === "georgia" || n === "georgia bulldogs" || n === "kentucky" || n === "kentucky wildcats";
 }
 
-async function fetchScoreboard(date: Date) {
+async function fetchDivisionIScoreboard(date: Date, group: "80" | "81") {
   const url = new URL("https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard");
   url.searchParams.set("dates", easternDate(date));
   url.searchParams.set("limit", "500");
-  url.searchParams.set("groups", "80");
+  // ESPN: 80 = FBS (I-A), 81 = FCS (I-AA). These are the only football groups FamBam imports.
+  url.searchParams.set("groups", group);
   const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`ESPN ${easternDate(date)} failed (${response.status}): ${await response.text()}`);
+  if (!response.ok) throw new Error(`ESPN ${easternDate(date)} group ${group} failed (${response.status}): ${await response.text()}`);
   return (await response.json()) as EspnScoreboard;
-}
-
-async function fetchDivisionITeamIds() {
-  const ids = new Set<string>();
-  // ESPN group 80 = FBS and 81 = FCS. Both are NCAA Division I.
-  for (const group of ["80", "81"]) {
-    const url = new URL("https://site.web.api.espn.com/apis/site/v2/sports/football/college-football/teams");
-    url.searchParams.set("groups", group);
-    url.searchParams.set("groupType", "conference");
-    url.searchParams.set("enable", "groups");
-    url.searchParams.set("limit", "500");
-    const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) throw new Error(`ESPN Division-I team list failed for group ${group} (${response.status})`);
-    const body = await response.json();
-    const sports = Array.isArray(body?.sports) ? body.sports : [];
-    for (const sport of sports) {
-      for (const league of sport?.leagues ?? []) {
-        for (const item of league?.teams ?? []) {
-          const id = item?.team?.id ?? item?.id;
-          if (id != null) ids.add(String(id));
-        }
-      }
-    }
-  }
-  return ids;
 }
 
 export async function POST() {
@@ -74,29 +50,16 @@ export async function POST() {
     const now = new Date();
     const dates: Date[] = [];
     for (let offset = -1; offset <= 8; offset += 1) dates.push(new Date(now.getTime() + offset * 86_400_000));
-    const [scoreboards, divisionITeamIds] = await Promise.all([
-      Promise.all(dates.map(fetchScoreboard)),
-      fetchDivisionITeamIds(),
-    ]);
-    if (!divisionITeamIds.size) throw new Error("ESPN returned no Division-I team IDs; refusing to import an unfiltered slate.");
 
+    // Query ONLY ESPN's two Division-I rollups. Do not query the unfiltered college-football scoreboard.
+    const boards = await Promise.all(
+      dates.flatMap((date) => [fetchDivisionIScoreboard(date, "80"), fetchDivisionIScoreboard(date, "81")]),
+    );
     const eventMap = new Map<string, EspnEvent>();
-    for (const board of scoreboards) for (const event of board.events ?? []) eventMap.set(event.id, event);
-    const receivedEvents = [...eventMap.values()];
+    for (const board of boards) for (const event of board.events ?? []) eventMap.set(event.id, event);
+    const events = [...eventMap.values()];
 
-    // This is the hard safety gate: BOTH teams must be FBS or FCS.
-    // It prevents D-II/D-III games from ever being tagged espn-cfb again.
-    const events = receivedEvents.filter((event) => {
-      const competitors = event.competitions?.[0]?.competitors ?? [];
-      const home = competitors.find((c) => c.homeAway === "home");
-      const away = competitors.find((c) => c.homeAway === "away");
-      const homeId = home?.team?.id ? String(home.team.id) : null;
-      const awayId = away?.team?.id ? String(away.team.id) : null;
-      return Boolean(homeId && awayId && divisionITeamIds.has(homeId) && divisionITeamIds.has(awayId));
-    });
-
-    // Remove stale future ESPN football rows first. The Challenge can then only see
-    // the freshly verified Division-I rows inserted below.
+    // Purge every future ESPN CFB row before replacing it with the FBS/FCS-only slate.
     const cleanup = await supabase
       .from("games")
       .delete()
@@ -171,16 +134,13 @@ export async function POST() {
       if (rankWrite.error) throw new Error(`Could not save ESPN rankings: ${rankWrite.error.message}`);
     }
 
-    if (!imported) return NextResponse.json({ error: "ESPN returned no verified Division-I college-football games; Challenge rebuild should not proceed." }, { status: 502 });
+    if (!imported) return NextResponse.json({ error: "ESPN returned no FBS/FCS games; Challenge rebuild should not proceed." }, { status: 502 });
     return NextResponse.json({
       success: true,
       source: "espn",
-      scope: "NCAA Division I only (FBS + FCS); D-II/D-III blocked by team ID",
+      scope: "NCAA Division I only: ESPN groups 80 (FBS) + 81 (FCS)",
       datesQueried: dates.map(easternDate),
-      eventsReceived: receivedEvents.length,
-      divisionIEventsKept: events.length,
-      excludedNonDivisionI: receivedEvents.length - events.length,
-      gamesImported: imported,
+      divisionIGamesImported: imported,
       familyGames,
       rankedTeamsFound: rankings.length,
     });

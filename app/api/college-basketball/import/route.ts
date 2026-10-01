@@ -149,10 +149,12 @@ export async function POST() {
       .eq("sport_id", sport.id);
     if (existingTeamsError) throw new Error(`Could not load basketball teams: ${existingTeamsError.message}`);
 
-    const teamIdByExternal = new Map<string, string>();
+    const teamIdByProviderExternal = new Map<string, string>();
     const teamIdByName = new Map<string, string>();
     for (const row of existingTeams ?? []) {
-      if (row.external_id) teamIdByExternal.set(String(row.external_id), row.id);
+      if (row.external_provider && row.external_id) {
+        teamIdByProviderExternal.set(`${row.external_provider}:${String(row.external_id)}`, row.id);
+      }
       if (row.name) teamIdByName.set(normalize(row.name), row.id);
     }
 
@@ -175,7 +177,7 @@ export async function POST() {
     }
 
     const missingTeams = [...providerTeams.values()].filter(
-      (team) => !teamIdByExternal.has(team.externalId) && !teamIdByName.has(normalize(team.name)),
+      (team) => !teamIdByProviderExternal.has(`${team.provider}:${team.externalId}`) && !teamIdByName.has(normalize(team.name)),
     );
 
     if (missingTeams.length) {
@@ -193,15 +195,19 @@ export async function POST() {
         .select("id,name,external_id");
       if (insertError) throw new Error(`Could not import basketball teams: ${insertError.message}`);
       for (const row of inserted ?? []) {
-        if (row.external_id) teamIdByExternal.set(String(row.external_id), row.id);
+        if (row.external_id) {
+          const provider = missingTeams.find((team) => team.externalId === String(row.external_id))?.provider;
+          if (provider) teamIdByProviderExternal.set(`${provider}:${String(row.external_id)}`, row.id);
+        }
         if (row.name) teamIdByName.set(normalize(row.name), row.id);
       }
     }
 
     for (const team of providerTeams.values()) {
-      if (!teamIdByExternal.has(team.externalId)) {
+      const key = `${team.provider}:${team.externalId}`;
+      if (!teamIdByProviderExternal.has(key)) {
         const id = teamIdByName.get(normalize(team.name));
-        if (id) teamIdByExternal.set(team.externalId, id);
+        if (id) teamIdByProviderExternal.set(key, id);
       }
     }
 
@@ -213,8 +219,8 @@ export async function POST() {
       const away = competitors.find((row) => row.homeAway === "away");
       if (!home?.team?.id || !away?.team?.id || !event.id || !event.date) continue;
 
-      const homeId = teamIdByExternal.get(String(home.team.id));
-      const awayId = teamIdByExternal.get(String(away.team.id));
+      const homeId = teamIdByProviderExternal.get(`espn-mbb:${String(home.team.id)}`);
+      const awayId = teamIdByProviderExternal.get(`espn-mbb:${String(away.team.id)}`);
       if (!homeId || !awayId) continue;
 
       gameRows.push({
@@ -236,10 +242,11 @@ export async function POST() {
     for (const exhibition of KENTUCKY_EXHIBITIONS) {
       const homeExternal = `ukathletics-mbb-${normalize(exhibition.home).replace(/ /g, "-")}`;
       const awayExternal = `ukathletics-mbb-${normalize(exhibition.away).replace(/ /g, "-")}`;
-      const homeId = teamIdByExternal.get(homeExternal) ?? teamIdByName.get(normalize(exhibition.home));
-      const awayId = teamIdByExternal.get(awayExternal) ?? teamIdByName.get(normalize(exhibition.away));
+      const homeId = teamIdByProviderExternal.get(`ukathletics-mbb:${homeExternal}`) ?? teamIdByName.get(normalize(exhibition.home));
+      const awayId = teamIdByProviderExternal.get(`ukathletics-mbb:${awayExternal}`) ?? teamIdByName.get(normalize(exhibition.away));
       if (!homeId || !awayId) continue;
 
+      const externalId = `kentucky-mbb-exh-${exhibition.id}`;
       gameRows.push({
         sport_id: sport.id,
         competition_id: competition.id,
@@ -252,8 +259,30 @@ export async function POST() {
         status: "scheduled",
         source_notes: exhibition.note,
         external_provider: "ukathletics-mbb",
-        external_id: `kentucky-mbb-exh-${exhibition.id}`,
+        external_id: externalId,
       });
+    }
+
+    // Preserve manually entered scores/status for Kentucky exhibitions.
+    // Daily schedule sync must never erase an exhibition result that was already recorded.
+    const exhibitionIds = KENTUCKY_EXHIBITIONS.map((exhibition) => `kentucky-mbb-exh-${exhibition.id}`);
+    if (exhibitionIds.length) {
+      const { data: existingExhibitions, error: existingExhibitionError } = await supabase
+        .from("games")
+        .select("external_id,home_score,away_score,status")
+        .in("external_id", exhibitionIds);
+      if (existingExhibitionError) {
+        throw new Error(`Could not load existing Kentucky exhibitions: ${existingExhibitionError.message}`);
+      }
+      const existingById = new Map((existingExhibitions ?? []).map((row) => [String(row.external_id), row]));
+      for (const row of gameRows) {
+        if (row.external_provider !== "ukathletics-mbb") continue;
+        const existing = existingById.get(String(row.external_id));
+        if (!existing) continue;
+        row.home_score = existing.home_score;
+        row.away_score = existing.away_score;
+        row.status = existing.status;
+      }
     }
 
     if (gameRows.length) {

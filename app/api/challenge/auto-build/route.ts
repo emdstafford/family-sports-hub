@@ -9,6 +9,7 @@ type GameRow = {
   home_team_id: string;
   away_team_id: string;
   sport_id: string;
+  competition_id: string | null;
   external_provider: string | null;
 };
 
@@ -191,11 +192,23 @@ export async function POST(request: Request) {
     // building the Challenge. This keeps UK/UGA, Top-10 and ranked games
     // available even if the earlier daily sports sync was missed or stale.
     const footballSyncUrl = new URL("/api/college-football/espn/import", request.url);
-    const footballSyncResponse = await fetch(footballSyncUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store",
-    });
+    const basketballSyncUrl = new URL("/api/college-basketball/import", request.url);
+
+    // These feeds are independent. Refresh them in parallel so one slow provider
+    // cannot double the time a family waits for a Challenge rebuild.
+    const [footballSyncResponse, basketballSyncResponse, basketballRankingMap] = await Promise.all([
+      fetch(footballSyncUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      }),
+      fetch(basketballSyncUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      }),
+      getBasketballRankings(),
+    ]);
 
     const importWarnings: string[] = [];
     if (!footballSyncResponse.ok) {
@@ -203,31 +216,21 @@ export async function POST(request: Request) {
       importWarnings.push(`College football refresh failed: ${details}`);
       console.error("Challenge import warning:", importWarnings[importWarnings.length - 1]);
     }
-
-    // Basketball is refreshed on every build as well. A provider/import problem must
-    // never prevent the rest of the weekly Challenge from rebuilding.
-    const basketballSyncUrl = new URL("/api/college-basketball/import", request.url);
-    const basketballSyncResponse = await fetch(basketballSyncUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store",
-    });
     if (!basketballSyncResponse.ok) {
       const details = await basketballSyncResponse.text();
       importWarnings.push(`College basketball refresh failed: ${details}`);
       console.error("Challenge import warning:", importWarnings[importWarnings.length - 1]);
     }
 
-    const basketballRankingMap = await getBasketballRankings();
-
-    const [gamesResult, teamsResult, sportsResult, rankingsResult, existingResult, picksResult] = await Promise.all([
+    const [gamesResult, teamsResult, sportsResult, competitionsResult, rankingsResult, existingResult, picksResult, favoritesResult] = await Promise.all([
       supabase.from("games")
-        .select("id,starts_at,start_time_tbd,status,home_team_id,away_team_id,sport_id,external_provider")
+        .select("id,starts_at,start_time_tbd,status,home_team_id,away_team_id,sport_id,competition_id,external_provider")
         .gte("starts_at", now.toISOString())
         .lte("starts_at", windowEnd.toISOString())
         .order("starts_at", { ascending: true }),
       supabase.from("teams").select("id,name"),
       supabase.from("sports").select("id,name"),
+      supabase.from("competitions").select("id,name"),
       supabase.from("college_football_rankings")
         .select("team_name,rank,season,week")
         .eq("poll", "AP Top 25")
@@ -238,9 +241,10 @@ export async function POST(request: Request) {
         .select("game_id,selection_source,selection_reason")
         .eq("challenge_id", challenge.id),
       supabase.from("player_picks").select("game_id").eq("challenge_id", challenge.id),
+      supabase.from("player_favorite_teams").select("team_id"),
     ]);
 
-    for (const result of [gamesResult, teamsResult, sportsResult, rankingsResult, existingResult, picksResult]) {
+    for (const result of [gamesResult, teamsResult, sportsResult, competitionsResult, rankingsResult, existingResult, picksResult, favoritesResult]) {
       if (result.error) throw result.error;
     }
 
@@ -250,6 +254,15 @@ export async function POST(request: Request) {
 
     const teamMap = new Map((teamsResult.data ?? []).map((row) => [row.id, row.name]));
     const sportMap = new Map((sportsResult.data ?? []).map((row) => [row.id, row.name]));
+    const competitionMap = new Map((competitionsResult.data ?? []).map((row) => [row.id, row.name]));
+    const favoriteTeamIds = new Set((favoritesResult.data ?? []).map((row) => row.team_id));
+    const favoriteNames = new Set(
+      [...favoriteTeamIds]
+        .map((id) => teamMap.get(id))
+        .filter((name): name is string => Boolean(name))
+        .map(normalize),
+    );
+    const isFamilyFavorite = (name: string) => favoriteNames.has(normalize(name));
     const rankingRows = (rankingsResult.data ?? []) as RankingRow[];
     const latestSeason = rankingRows[0]?.season;
     const latestWeek = rankingRows[0]?.week;
@@ -262,12 +275,16 @@ export async function POST(request: Request) {
     const candidates: Candidate[] = [];
 
     for (const game of (gamesResult.data ?? []) as GameRow[]) {
-      if (game.start_time_tbd || isFinal(game.status)) continue;
+      // A TBD kickoff/time is still a valid weekly pick. It remains visible as TBD
+      // and the client can lock it when the game actually starts.
+      if (isFinal(game.status)) continue;
       const home = teamMap.get(game.home_team_id);
       const away = teamMap.get(game.away_team_id);
       const sport = sportMap.get(game.sport_id);
       if (!home || !away || !sport) continue;
-      if (sport !== "Soccer" && sport !== "College Football" && sport !== "College Basketball") continue;
+      if (!["Soccer", "College Football", "College Basketball", "Volleyball", "Hockey", "Baseball"].includes(sport)) continue;
+
+      const competition = game.competition_id ? competitionMap.get(game.competition_id) ?? "" : "";
 
       // Football may come from either of our Division-I feeds. The CFBD
       // importer permanently removes D-II/D-III games before they reach here.
@@ -280,9 +297,30 @@ export async function POST(request: Request) {
       const activeRankingMap = sport === "College Basketball" ? basketballRankingMap : rankingMap;
       const homeRank = activeRankingMap.get(normalize(home)) ?? null;
       const awayRank = activeRankingMap.get(normalize(away)) ?? null;
-      let score = sport === "College Football" ? 30 : sport === "College Basketball" ? 25 : 10;
+      let score =
+        sport === "College Football" ? 30 :
+        sport === "College Basketball" ? 25 :
+        sport === "Soccer" ? 15 : 10;
       let mandatory = false;
       let reason = "Weekly featured matchup";
+
+      // Use the family's actual saved favorites instead of relying only on a
+      // hard-coded list. This automatically follows future profile changes.
+      if (isFamilyFavorite(home) || isFamilyFavorite(away)) {
+        mandatory = true;
+        score += 1000;
+        reason = "FamBam favorite team";
+      }
+
+      if (sport === "Baseball" && /postseason|playoff|world series/i.test(competition)) {
+        score += 300;
+        if (reason === "Weekly featured matchup") reason = "MLB postseason";
+      }
+
+      if (sport === "Hockey" && /playoff|stanley/i.test(competition)) {
+        score += 300;
+        if (reason === "Weekly featured matchup") reason = "Hockey postseason";
+      }
 
       if (sport === "Soccer") {
         if (isFamilySoccerTeam(home) || isFamilySoccerTeam(away)) {
@@ -297,6 +335,14 @@ export async function POST(request: Request) {
             reason = "Major soccer matchup";
           }
         }
+
+        if (/champions league/i.test(competition)) {
+          score += 250;
+          if (reason === "Weekly featured matchup") reason = "Champions League";
+        } else if (/fa cup|carabao|league cup|efl cup/i.test(competition)) {
+          score += 160;
+          if (reason === "Weekly featured matchup") reason = "Cup match";
+        }
       }
 
       if (sport === "College Basketball") {
@@ -309,7 +355,7 @@ export async function POST(request: Request) {
 
         if (kentuckyGame) {
           mandatory = true;
-          score += 1400;
+          score += 500;
           reason = game.external_provider === "ukathletics-mbb" &&
             isBigBlueMadnessTeam(home) &&
             isBigBlueMadnessTeam(away)
@@ -354,7 +400,7 @@ export async function POST(request: Request) {
       if (sport === "College Football") {
         if (isFamilyFootballTeam(home) || isFamilyFootballTeam(away)) {
           mandatory = true;
-          score += 1200;
+          score += 400;
           reason = "FamBam favorite team";
         }
 

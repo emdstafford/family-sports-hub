@@ -197,13 +197,15 @@ export async function POST(request: Request) {
       cache: "no-store",
     });
 
+    const importWarnings: string[] = [];
     if (!footballSyncResponse.ok) {
       const details = await footballSyncResponse.text();
-      throw new Error(`College-football refresh failed before Challenge build: ${details}`);
+      importWarnings.push(`College football refresh failed: ${details}`);
+      console.error("Challenge import warning:", importWarnings[importWarnings.length - 1]);
     }
 
-    // Basketball is refreshed on every build as well. This makes the Challenge
-    // season-aware automatically, including Kentucky exhibitions before the regular season.
+    // Basketball is refreshed on every build as well. A provider/import problem must
+    // never prevent the rest of the weekly Challenge from rebuilding.
     const basketballSyncUrl = new URL("/api/college-basketball/import", request.url);
     const basketballSyncResponse = await fetch(basketballSyncUrl, {
       method: "POST",
@@ -212,7 +214,8 @@ export async function POST(request: Request) {
     });
     if (!basketballSyncResponse.ok) {
       const details = await basketballSyncResponse.text();
-      throw new Error(`College-basketball refresh failed before Challenge build: ${details}`);
+      importWarnings.push(`College basketball refresh failed: ${details}`);
+      console.error("Challenge import warning:", importWarnings[importWarnings.length - 1]);
     }
 
     const basketballRankingMap = await getBasketballRankings();
@@ -460,6 +463,7 @@ export async function POST(request: Request) {
       protectedCount: protectedIds.size,
       removedCount: removeIds.length,
       addedCount: rowsToInsert.length,
+      importWarnings,
       selectedGames: selected.map((row) => ({
         gameId: row.game.id,
         startsAt: row.game.starts_at,

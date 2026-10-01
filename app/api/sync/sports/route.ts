@@ -34,6 +34,10 @@ async function runSync(request: NextRequest) {
   results.push(await callInternalRoute(request, `/api/college-football/import?year=${currentYear}`));
   results.push(await callInternalRoute(request, `/api/college-football/rankings/import?year=${currentYear}`));
 
+  // Men's Division-I basketball is season-aware. ESPN supplies the live D-I slate,
+  // while Kentucky Athletics supplies preseason exhibitions such as Big Blue Madness.
+  results.push(await callInternalRoute(request, "/api/college-basketball/import"));
+
   results.push(await callInternalRoute(request, "/api/nhl/import"));
   results.push(await callInternalRoute(request, "/api/soccer/premier-league/import?season=2026"));
   results.push(await callInternalRoute(request, "/api/soccer/espn/import"));

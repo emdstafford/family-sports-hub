@@ -11,6 +11,7 @@ type GameRow = {
   sport_id: string;
   competition_id: string | null;
   external_provider: string | null;
+  source_notes: string | null;
 };
 
 type RankingRow = { team_name: string; rank: number; season: number; week: number };
@@ -185,8 +186,11 @@ export async function POST(request: Request) {
       challenge = data;
     }
 
-    const windowEnd = new Date(now);
-    windowEnd.setUTCDate(windowEnd.getUTCDate() + 7);
+    // A weekly Challenge must contain games from this Challenge week only.
+    // Building on Thursday must not pull Monday/Tuesday games from next week's card.
+    const windowEnd = challenge.ends_at
+      ? new Date(challenge.ends_at)
+      : weekEnd;
 
     // Refresh the Division-I college-football slate immediately before
     // building the Challenge. This keeps UK/UGA, Top-10 and ranked games
@@ -224,7 +228,7 @@ export async function POST(request: Request) {
 
     const [gamesResult, teamsResult, sportsResult, competitionsResult, rankingsResult, existingResult, picksResult, favoritesResult] = await Promise.all([
       supabase.from("games")
-        .select("id,starts_at,start_time_tbd,status,home_team_id,away_team_id,sport_id,competition_id,external_provider")
+        .select("id,starts_at,start_time_tbd,status,home_team_id,away_team_id,sport_id,competition_id,external_provider,source_notes")
         .gte("starts_at", now.toISOString())
         .lte("starts_at", windowEnd.toISOString())
         .order("starts_at", { ascending: true }),
@@ -270,7 +274,14 @@ export async function POST(request: Request) {
     for (const game of (gamesResult.data ?? []) as GameRow[]) {
       // A TBD kickoff/time is still a valid weekly pick. It remains visible as TBD
       // and the client can lock it when the game actually starts.
-      if (isFinal(game.status)) continue;
+      const normalizedStatus = String(game.status ?? "").toLowerCase();
+      const notes = String(game.source_notes ?? "").toLowerCase();
+      if (
+        isFinal(game.status) ||
+        ["postponed", "cancelled", "canceled", "suspended"].some(
+          (value) => normalizedStatus.includes(value) || notes.includes(value),
+        )
+      ) continue;
       const home = teamMap.get(game.home_team_id);
       const away = teamMap.get(game.away_team_id);
       const sport = sportMap.get(game.sport_id);

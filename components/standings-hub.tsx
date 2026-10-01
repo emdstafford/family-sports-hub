@@ -111,7 +111,7 @@ export default function StandingsHub({ favoriteTeamNames, activeSport, onSportCh
       });
 
     return () => { cancelled = true; };
-  }, [competition]);
+  }, [competition, activeSport]);
 
   const watchedNames = useMemo(
     () => [...new Set([...FAMILY_TEAM_NAMES, ...favoriteTeamNames.map(normalize)])],

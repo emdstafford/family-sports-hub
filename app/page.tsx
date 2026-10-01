@@ -669,14 +669,22 @@ function gameIsLocked(
   game: BrowserGame,
   currentTime: number | null,
 ) {
-  if (game.startTimeTbd) return true;
   if (!game.startsAt) return true;
   if (currentTime === null) return false;
 
-  return (
-    currentTime >=
-    new Date(game.startsAt).getTime()
-  );
+  const status = String(game.status ?? "").toLowerCase();
+  if (["live", "in_progress", "in progress", "final", "finished", "complete", "completed", "closed"]
+    .some((value) => status.includes(value))) {
+    return true;
+  }
+
+  if (game.startTimeTbd) {
+    // A TBD time should not make a game impossible to pick all week.
+    // Keep it open through its scheduled Eastern date; live/final status still locks it.
+    return getEasternDateKey(currentTime) > getEasternDateKey(game.startsAt);
+  }
+
+  return currentTime >= new Date(game.startsAt).getTime();
 }
 
 
@@ -1875,7 +1883,6 @@ export default function Home() {
     const gamesToReveal = realGames.filter(
       (game) =>
         challengeGameIds.includes(game.id) &&
-        !game.startTimeTbd &&
         gameIsLocked(game, currentTime) &&
         !challengeRevealedPicks[game.id],
     );
@@ -3548,6 +3555,7 @@ export default function Home() {
         if (
           game.sport !== "Soccer" &&
           game.sport !== "College Football" &&
+          game.sport !== "College Basketball" &&
           game.sport !== "Baseball" &&
           game.sport !== "Hockey" &&
           game.sport !== "Volleyball"
@@ -4228,7 +4236,12 @@ export default function Home() {
     hasTeam(game, "Arsenal") ||
     hasTeam(game, "Liverpool") ||
     hasTeam(game, "Aston Villa") ||
-    hasTeam(game, "AFC Wimbledon");
+    hasTeam(game, "AFC Wimbledon") ||
+    favoriteProfileTeams.some(
+      (team) =>
+        team.name.trim().toLowerCase() === game.home.trim().toLowerCase() ||
+        team.name.trim().toLowerCase() === game.away.trim().toLowerCase(),
+    );
 
   const recentResults = realGames
     .filter((game) => {

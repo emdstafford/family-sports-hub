@@ -35,4 +35,4 @@ jobs:
           cat response.json
           test "$code" -ge 200 -a "$code" -lt 300
 
-# Triggered 2026-09-29 after ESPN importer deployment turned green.
+# Triggered 2026-10-01 after full Challenge picks audit.

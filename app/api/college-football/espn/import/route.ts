@@ -120,7 +120,9 @@ export async function POST() {
     const teamIdByExternal = new Map<string, string>();
     const teamIdByName = new Map<string, string>();
     for (const row of existingTeams ?? []) {
-      if (row.external_id) teamIdByExternal.set(String(row.external_id), row.id);
+      if (row.external_provider === "espn-cfb" && row.external_id) {
+        teamIdByExternal.set(String(row.external_id), row.id);
+      }
       if (row.name) teamIdByName.set(normalizeName(row.name), row.id);
     }
 

@@ -31,16 +31,8 @@ const COMPETITIONS = [
 ];
 
 const FAMILY_TEAM_NAMES = [
-  "arsenal",
-  "aston villa",
-  "liverpool",
-  "afc wimbledon",
-  "wimbledon",
-  "vancouver canucks",
-  "kentucky",
-  "georgia",
-  "atlanta braves",
-  "chicago cubs",
+  "arsenal", "aston villa", "liverpool", "afc wimbledon", "wimbledon",
+  "vancouver canucks", "kentucky", "georgia", "atlanta braves", "chicago cubs",
 ];
 
 function normalize(value: string) {
@@ -67,6 +59,10 @@ function sportForCompetition(competition: string): RadarSport {
   return "Soccer";
 }
 
+function isSoccerCompetition(competition: string) {
+  return competition === "premier-league" || competition === "champions-league" || competition === "league-one";
+}
+
 export default function StandingsHub({ favoriteTeamNames, activeSport, onSportChange }: {
   favoriteTeamNames: string[];
   activeSport: RadarSport;
@@ -77,41 +73,35 @@ export default function StandingsHub({ favoriteTeamNames, activeSport, onSportCh
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Sync when the parent sport really changes. Soccer has three competition tabs,
+  // so do not force a clicked Champions League/League One tab back to Premier League.
   useEffect(() => {
+    if (activeSport === "All") return;
+    if (activeSport === "Soccer" && isSoccerCompetition(competition)) return;
     const nextCompetition = competitionForSport(activeSport);
-    if (activeSport !== "All" && nextCompetition !== competition) {
-      setCompetition(nextCompetition);
-      return;
-    }
+    if (nextCompetition !== competition) setCompetition(nextCompetition);
+  }, [activeSport, competition]);
 
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    fetch(`/api/standings?competition=${encodeURIComponent(competition)}`, {
-      cache: "no-store",
-    })
+    fetch(`/api/standings?competition=${encodeURIComponent(competition)}`, { cache: "no-store" })
       .then(async (response) => {
-        const body = await response.json().catch(() => {
-          throw new Error("Standings could not load. Please try again shortly.");
-        });
+        const body = await response.json().catch(() => { throw new Error("Standings could not load. Please try again shortly."); });
         if (!response.ok) throw new Error(body?.error ?? "Could not load standings.");
         return body as StandingsData;
       })
-      .then((body) => {
-        if (!cancelled) setData(body);
-      })
+      .then((body) => { if (!cancelled) setData(body); })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error && !/string did not match the expected pattern/i.test(reason.message)
-          ? reason.message
-          : "Standings could not load. Please try again shortly.");
+          ? reason.message : "Standings could not load. Please try again shortly.");
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [competition, activeSport]);
+  }, [competition]);
 
   const watchedNames = useMemo(
     () => [...new Set([...FAMILY_TEAM_NAMES, ...favoriteTeamNames.map(normalize)])],
@@ -123,20 +113,15 @@ export default function StandingsHub({ favoriteTeamNames, activeSport, onSportCh
     return watchedNames.some((name) => normalized === name || normalized.includes(name));
   };
 
-  const familyRows = data
-    ? data.groups.flatMap((group) =>
-        group.rows.filter((row) => isFamilyTeam(row.team)).map((row) => ({ ...row, group: group.name })),
-      )
-    : [];
+  const familyRows = data ? data.groups.flatMap((group) =>
+    group.rows.filter((row) => isFamilyTeam(row.team)).map((row) => ({ ...row, group: group.name })),
+  ) : [];
 
   const columnLayout = `42px minmax(152px, 1fr) repeat(${data?.columns.length ?? 0}, 48px)`;
   const rowBackground = (row: TableRow) => isFamilyTeam(row.team) ? "bg-[#fff7dc]" : "bg-white";
 
   const renderHeader = () => (
-    <div
-      className="grid min-w-[580px] items-center bg-slate-50 py-2 text-[8px] font-black uppercase text-slate-500"
-      style={{ gridTemplateColumns: columnLayout }}
-    >
+    <div className="grid min-w-[580px] items-center bg-slate-50 py-2 text-[8px] font-black uppercase text-slate-500" style={{ gridTemplateColumns: columnLayout }}>
       <div className="sticky left-0 z-20 bg-slate-50 text-center">#</div>
       <div className="sticky left-[42px] z-10 bg-slate-50 pr-2 pl-1 shadow-[4px_0_6px_-5px_rgba(16,37,74,0.5)]">Team</div>
       {data?.columns.map((column) => <div key={column.key} className="text-center">{column.label}</div>)}
@@ -144,11 +129,7 @@ export default function StandingsHub({ favoriteTeamNames, activeSport, onSportCh
   );
 
   const renderRow = (row: TableRow, compact = false) => (
-    <div
-      key={`${row.team}-${row.position}-${compact ? "watch" : "table"}`}
-      className={`grid min-w-[580px] items-center border-b border-slate-100 py-2 last:border-b-0 ${rowBackground(row)}`}
-      style={{ gridTemplateColumns: columnLayout }}
-    >
+    <div key={`${row.team}-${row.position}-${compact ? "watch" : "table"}`} className={`grid min-w-[580px] items-center border-b border-slate-100 py-2 last:border-b-0 ${rowBackground(row)}`} style={{ gridTemplateColumns: columnLayout }}>
       <div className={`sticky left-0 z-20 flex h-full items-center justify-center text-xs font-black text-slate-500 ${rowBackground(row)}`}>{row.position}</div>
       <div className={`sticky left-[42px] z-10 flex min-w-0 items-center gap-2 pr-2 pl-1 shadow-[4px_0_6px_-5px_rgba(16,37,74,0.5)] ${rowBackground(row)}`}>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-50">
@@ -171,33 +152,18 @@ export default function StandingsHub({ favoriteTeamNames, activeSport, onSportCh
     <div>
       <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
         {COMPETITIONS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => {
-              setCompetition(item.id);
-              onSportChange(sportForCompetition(item.id));
-            }}
-            className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-black ${
-              competition === item.id ? "bg-[#06284a] text-white" : "bg-white text-[#10254a] shadow-sm"
-            }`}
-          >
+          <button key={item.id} type="button" onClick={() => {
+            setCompetition(item.id);
+            const nextSport = sportForCompetition(item.id);
+            if (nextSport !== activeSport) onSportChange(nextSport);
+          }} className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-black ${competition === item.id ? "bg-[#06284a] text-white" : "bg-white text-[#10254a] shadow-sm"}`}>
             {item.icon} {item.label}
           </button>
         ))}
       </div>
 
-      {loading && (
-        <div className="rounded-2xl bg-white p-8 text-center text-xs font-black text-slate-500 shadow-sm">
-          Loading the latest table…
-        </div>
-      )}
-
-      {error && !loading && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-center text-xs font-bold text-red-700">
-          {error}
-        </div>
-      )}
+      {loading && <div className="rounded-2xl bg-white p-8 text-center text-xs font-black text-slate-500 shadow-sm">Loading the latest table…</div>}
+      {error && !loading && <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-center text-xs font-bold text-red-700">{error}</div>}
 
       {data && !loading && !error && (
         <div className="space-y-4">
@@ -207,11 +173,7 @@ export default function StandingsHub({ favoriteTeamNames, activeSport, onSportCh
             <div className="mt-1 text-[10px] font-semibold text-blue-100">{data.subtitle}</div>
           </div>
 
-          {data.kind === "soccer" && (
-            <p className="px-1 text-[10px] font-semibold leading-relaxed text-slate-600">
-              Pts = points · P = played · W/D/L = wins/draws/losses · GF/GA = goals scored/conceded · GD = goal difference. Swipe the table for more →
-            </p>
-          )}
+          {data.kind === "soccer" && <p className="px-1 text-[10px] font-semibold leading-relaxed text-slate-600">Pts = points · P = played · W/D/L = wins/draws/losses · GF/GA = goals scored/conceded · GD = goal difference. Swipe the table for more →</p>}
 
           {familyRows.length > 0 && (
             <section className="overflow-hidden rounded-2xl border-2 border-[#f3c64f] bg-white shadow-sm">
@@ -219,20 +181,14 @@ export default function StandingsHub({ favoriteTeamNames, activeSport, onSportCh
                 <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#9b7011]">💙 Family Watch</div>
                 <div className="mt-0.5 text-sm font-black text-[#10254a]">Your teams at a glance</div>
               </div>
-              <div className="overflow-x-auto overscroll-x-contain">
-                {renderHeader()}
-                {familyRows.map((row) => renderRow(row, true))}
-              </div>
+              <div className="overflow-x-auto overscroll-x-contain">{renderHeader()}{familyRows.map((row) => renderRow(row, true))}</div>
             </section>
           )}
 
           {data.groups.map((group) => (
             <section key={group.name} className="overflow-hidden rounded-2xl bg-white shadow-sm">
               <div className="border-b border-slate-200 px-4 py-3 text-sm font-black text-[#10254a]">{group.name}</div>
-              <div className="overflow-x-auto overscroll-x-contain">
-                {renderHeader()}
-                {group.rows.map((row) => renderRow(row))}
-              </div>
+              <div className="overflow-x-auto overscroll-x-contain">{renderHeader()}{group.rows.map((row) => renderRow(row))}</div>
             </section>
           ))}
         </div>

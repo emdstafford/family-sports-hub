@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 const REOPEN_KEY = "fambam_reopen_challenge_after_refresh_v2";
-const ATTEMPT_KEY = "fambam_challenge_refresh_attempt_v8";
+const ATTEMPT_KEY = "fambam_challenge_refresh_attempt_v9";
 
 function isChallengeButton(button: HTMLButtonElement) {
   return button.textContent?.includes("Challenge") === true;
@@ -106,6 +106,12 @@ export default function ChallengeAutoRefresh() {
         skipNextChallengeClickRef.current = false;
         return;
       }
+
+      // Once this deployment has already rebuilt the unpicked card successfully,
+      // a normal Challenge tap should simply open the page instead of causing
+      // another rebuild/reload. A tap remains a retry only after a failed attempt.
+      if (window.sessionStorage.getItem(ATTEMPT_KEY) === "done") return;
+
       await refreshChallenge({ reopen: true, force: true });
     }
 

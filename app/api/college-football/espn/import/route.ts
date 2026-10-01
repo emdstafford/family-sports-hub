@@ -70,7 +70,7 @@ export async function POST() {
 
     let imported = 0;
     const familyGames: string[] = [];
-    const rankings: Array<{ team_id: string; rank: number }> = [];
+    const rankings: Array<{ team_id: string; team_name: string; rank: number }> = [];
     for (const event of events) {
       const competitors = event.competitions?.[0]?.competitors ?? [];
       const home = competitors.find((c) => c.homeAway === "home");
@@ -101,9 +101,6 @@ export async function POST() {
         away_score: away.score ? Number(away.score) : null,
         status: completed ? "final" : "scheduled",
         source_notes: event.name ?? null,
-        // Important: an older row may already own ESPN's numeric external_id.
-        // Once ESPN FBS refreshes it, mark it as the vetted Division-I feed so
-        // Challenge selection does not accidentally filter the refreshed game out.
         external_provider: "espn-cfb",
       };
 
@@ -115,8 +112,8 @@ export async function POST() {
       if (isFamilyTeam(homeName) || isFamilyTeam(awayName)) familyGames.push(`${awayName} at ${homeName}`);
       const homeRank = home.curatedRank?.current;
       const awayRank = away.curatedRank?.current;
-      if (homeRank && homeRank <= 25) rankings.push({ team_id: homeId, rank: homeRank });
-      if (awayRank && awayRank <= 25) rankings.push({ team_id: awayId, rank: awayRank });
+      if (homeRank && homeRank <= 25) rankings.push({ team_id: homeId, team_name: homeName, rank: homeRank });
+      if (awayRank && awayRank <= 25) rankings.push({ team_id: awayId, team_name: awayName, rank: awayRank });
     }
 
     if (rankings.length) {
@@ -125,7 +122,14 @@ export async function POST() {
       const deleteResult = await supabase.from("college_football_rankings").delete().eq("season", season).eq("week", week);
       if (deleteResult.error) throw new Error(`Could not replace ESPN rankings: ${deleteResult.error.message}`);
       const unique = [...new Map(rankings.map((r) => [r.team_id, r])).values()];
-      const rankWrite = await supabase.from("college_football_rankings").insert(unique.map((r) => ({ season, week, poll: "AP Top 25", team_id: r.team_id, rank: r.rank })));
+      const rankWrite = await supabase.from("college_football_rankings").insert(unique.map((r) => ({
+        season,
+        week,
+        poll: "AP Top 25",
+        team_id: r.team_id,
+        team_name: r.team_name,
+        rank: r.rank,
+      })));
       if (rankWrite.error) throw new Error(`Could not save ESPN rankings: ${rankWrite.error.message}`);
     }
 

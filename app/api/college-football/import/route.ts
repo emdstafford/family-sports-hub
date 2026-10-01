@@ -31,19 +31,9 @@ function isDivisionI(classification: string | null) {
 }
 
 function shouldKeepGame(game: CfbdGame) {
-  // Permanent FamBam rule: college football is Division I only.
-  // Keep FBS-vs-FBS games, plus Georgia/Kentucky games against FCS teams.
-  // Never import Division II or Division III games.
-  const familyGame = isFamilyTeam(game.homeTeam) || isFamilyTeam(game.awayTeam);
-
-  if (familyGame) {
-    return isDivisionI(game.homeClassification) && isDivisionI(game.awayClassification);
-  }
-
-  return (
-    game.homeClassification?.toLowerCase() === "fbs" &&
-    game.awayClassification?.toLowerCase() === "fbs"
-  );
+  // Permanent FamBam rule: NCAA football is Division I only.
+  // FBS and FCS are both Division I. D-II, D-III and other classifications never enter the app.
+  return isDivisionI(game.homeClassification) && isDivisionI(game.awayClassification);
 }
 
 export async function POST(request: Request) {
@@ -115,35 +105,23 @@ export async function POST(request: Request) {
     const cfbdUrl = new URL("https://api.collegefootballdata.com/games");
     cfbdUrl.searchParams.set("year", String(year));
 
-    if (week !== undefined) {
-      cfbdUrl.searchParams.set("week", String(week));
-    }
-
-    if (team) {
-      cfbdUrl.searchParams.set("team", team);
-    }
+    if (week !== undefined) cfbdUrl.searchParams.set("week", String(week));
+    if (team) cfbdUrl.searchParams.set("team", team);
 
     const cfbdResponse = await fetch(cfbdUrl, {
-      headers: {
-        Authorization: `Bearer ${cfbdApiKey}`,
-      },
+      headers: { Authorization: `Bearer ${cfbdApiKey}` },
       cache: "no-store",
     });
 
     if (!cfbdResponse.ok) {
       const message = await cfbdResponse.text();
       return NextResponse.json(
-        {
-          error: "CollegeFootballData request failed.",
-          status: cfbdResponse.status,
-          details: message,
-        },
+        { error: "CollegeFootballData request failed.", status: cfbdResponse.status, details: message },
         { status: cfbdResponse.status },
       );
     }
 
     const receivedGames = (await cfbdResponse.json()) as CfbdGame[];
-
     const receivedExternalIds = receivedGames.map((game) => String(game.id));
     const { data: existingCfbdRows } = receivedExternalIds.length
       ? await supabase
@@ -161,8 +139,6 @@ export async function POST(request: Request) {
 
     const games = receivedGames.filter(shouldKeepGame);
     const excludedGames = receivedGames.filter((game) => !shouldKeepGame(game));
-
-    // Remove any lower-division CFBD games that were previously imported.
     const excludedIds = excludedGames.map((game) => String(game.id));
 
     if (excludedIds.length > 0) {
@@ -171,14 +147,9 @@ export async function POST(request: Request) {
         .delete()
         .eq("external_provider", "cfbd")
         .in("external_id", excludedIds);
-
       if (cleanupError) {
         return NextResponse.json(
-          {
-            error: "Could not clean up excluded college-football games.",
-            details: cleanupError.message,
-            hint: "Run: grant delete on public.games to service_role;",
-          },
+          { error: "Could not clean up excluded college-football games.", details: cleanupError.message },
           { status: 500 },
         );
       }
@@ -187,34 +158,21 @@ export async function POST(request: Request) {
     let teamsProcessed = 0;
     let gamesImported = 0;
     let gamesSkipped = 0;
-
     const teamCache = new Map<string, string>();
 
     async function getOrCreateTeam(externalId: number, name: string) {
       const key = String(externalId);
       const cached = teamCache.get(key);
       if (cached) return cached;
-
       const { data: importedTeam, error: teamError } = await supabase
         .from("teams")
         .upsert(
-          {
-            sport_id: competitionSportId,
-            name,
-            external_provider: "cfbd",
-            external_id: key,
-          },
+          { sport_id: competitionSportId, name, external_provider: "cfbd", external_id: key },
           { onConflict: "external_provider,external_id" },
         )
         .select("id")
         .single();
-
-      if (teamError || !importedTeam) {
-        throw new Error(
-          `Failed importing team ${name}: ${teamError?.message ?? "Unknown error"}`,
-        );
-      }
-
+      if (teamError || !importedTeam) throw new Error(`Failed importing team ${name}: ${teamError?.message ?? "Unknown error"}`);
       teamCache.set(key, importedTeam.id);
       teamsProcessed += 1;
       return importedTeam.id;
@@ -222,20 +180,12 @@ export async function POST(request: Request) {
 
     for (const game of games) {
       if (!game.completed && finalExternalIds.has(String(game.id))) continue;
-
-      if (
-        game.homeId === null ||
-        game.awayId === null ||
-        !game.homeTeam ||
-        !game.awayTeam
-      ) {
+      if (game.homeId === null || game.awayId === null || !game.homeTeam || !game.awayTeam) {
         gamesSkipped += 1;
         continue;
       }
-
       const homeTeamId = await getOrCreateTeam(game.homeId, game.homeTeam);
       const awayTeamId = await getOrCreateTeam(game.awayId, game.awayTeam);
-
       const { error: gameError } = await supabase
         .from("games")
         .upsert(
@@ -255,17 +205,7 @@ export async function POST(request: Request) {
           },
           { onConflict: "external_provider,external_id" },
         );
-
-      if (gameError) {
-        return NextResponse.json(
-          {
-            error: `Failed importing ${game.awayTeam} at ${game.homeTeam}.`,
-            details: gameError.message,
-          },
-          { status: 500 },
-        );
-      }
-
+      if (gameError) return NextResponse.json({ error: `Failed importing ${game.awayTeam} at ${game.homeTeam}.`, details: gameError.message }, { status: 500 });
       gamesImported += 1;
     }
 
@@ -279,7 +219,7 @@ export async function POST(request: Request) {
       year,
       week: week ?? null,
       team: team ?? null,
-      scope: "Division I only: FBS-vs-FBS plus Georgia/Kentucky vs FCS",
+      scope: "NCAA Division I only: FBS and FCS; no D-II or D-III",
       gamesReceived: receivedGames.length,
       gamesKept: games.length,
       excludedGamesRemoved: excludedGames.length,
@@ -290,12 +230,8 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("College football import error:", error);
-
     return NextResponse.json(
-      {
-        error: "Unexpected import error.",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Unexpected import error.", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 },
     );
   }

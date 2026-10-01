@@ -25,29 +25,31 @@ async function runSync(request: NextRequest) {
   const results: SyncResult[] = [];
   const currentYear = new Date().getUTCFullYear();
 
-  // ESPN is the primary current-week college-football source. It avoids CFBD's
-  // monthly quota becoming a single point of failure for UK/UGA and Challenge picks.
-  results.push(await callInternalRoute(request, "/api/college-football/espn/import"));
+  // Independent providers should sync in parallel. The old sequential chain could
+  // spend several minutes waiting on one provider before even starting the next.
+  const primaryImports = await Promise.all([
+    callInternalRoute(request, "/api/college-football/espn/import"),
+    callInternalRoute(request, `/api/college-football/rankings/import?year=${currentYear}`),
+    callInternalRoute(request, "/api/college-basketball/import"),
+    callInternalRoute(request, "/api/nhl/import"),
+    callInternalRoute(request, "/api/soccer/premier-league/import?season=2026"),
+    callInternalRoute(request, "/api/soccer/espn/import"),
+    callInternalRoute(request, "/api/college-volleyball/import"),
+    callInternalRoute(request, "/api/local-hockey/import"),
+  ]);
+  results.push(...primaryImports);
 
-  // Keep CFBD as a best-effort secondary source for its historical coverage/rankings.
-  // A quota error here no longer prevents ESPN data from reaching FamBam.
-  results.push(await callInternalRoute(request, `/api/college-football/import?year=${currentYear}`));
-  results.push(await callInternalRoute(request, `/api/college-football/rankings/import?year=${currentYear}`));
+  // Do not re-import the entire CFBD season every morning. ESPN is the live D-I
+  // source now; the full-year CFBD call was slow and burned quota for duplicate data.
+  // Historical CFBD rows remain in the database and rankings still refresh above.
 
-  // Men's Division-I basketball is season-aware. ESPN supplies the live D-I slate,
-  // while Kentucky Athletics supplies preseason exhibitions such as Big Blue Madness.
-  results.push(await callInternalRoute(request, "/api/college-basketball/import"));
-
-  results.push(await callInternalRoute(request, "/api/nhl/import"));
-  results.push(await callInternalRoute(request, "/api/soccer/premier-league/import?season=2026"));
-  results.push(await callInternalRoute(request, "/api/soccer/espn/import"));
-  results.push(await callInternalRoute(request, "/api/college-volleyball/import"));
-  results.push(await callInternalRoute(request, "/api/local-hockey/import"));
-
-  for (let daysAgo = 0; daysAgo <= 3; daysAgo += 1) {
-    const date = new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
-    results.push(await callInternalRoute(request, `/api/mlb/import?date=${date}`));
-  }
+  const mlbImports = await Promise.all(
+    Array.from({ length: 4 }, (_, daysAgo) => {
+      const date = new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+      return callInternalRoute(request, `/api/mlb/import?date=${date}`);
+    }),
+  );
+  results.push(...mlbImports);
 
   const today = new Date();
   const seasonYear = today.getUTCFullYear();

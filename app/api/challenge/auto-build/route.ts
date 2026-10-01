@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const maxDuration = 300;
+
 type GameRow = {
   id: string;
   starts_at: string;
@@ -382,7 +384,7 @@ export async function POST(request: Request) {
         if (kentuckyGame) {
           mandatory = true;
           worthy = true;
-          score += 500;
+          score += 1400;
           reason = game.external_provider === "ukathletics-mbb" &&
             isBigBlueMadnessTeam(home) &&
             isBigBlueMadnessTeam(away)
@@ -432,7 +434,7 @@ export async function POST(request: Request) {
         if (isFamilyFootballTeam(home) || isFamilyFootballTeam(away)) {
           mandatory = true;
           worthy = true;
-          score += 400;
+          score += 1200;
           reason = "FamBam favorite team";
         }
 

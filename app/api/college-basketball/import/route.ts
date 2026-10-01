@@ -84,14 +84,33 @@ export async function POST() {
       .limit(1)
       .maybeSingle();
 
-    if (competitionResult.error || !competitionResult.data) {
+    if (competitionResult.error) {
       return NextResponse.json(
-        { error: "Could not find a college-basketball competition.", details: competitionResult.error?.message ?? null },
+        { error: "Could not load college-basketball competition.", details: competitionResult.error.message },
         { status: 500 },
       );
     }
 
-    const competition = competitionResult.data;
+    let competition = competitionResult.data;
+    if (!competition) {
+      const createdCompetition = await supabase
+        .from("competitions")
+        .insert({
+          sport_id: sport.id,
+          name: "NCAA Division I Men's Basketball",
+        })
+        .select("id,sport_id,name")
+        .single();
+
+      if (createdCompetition.error || !createdCompetition.data) {
+        return NextResponse.json(
+          { error: "Could not create college-basketball competition.", details: createdCompetition.error?.message ?? null },
+          { status: 500 },
+        );
+      }
+
+      competition = createdCompetition.data;
+    }
     const teamCache = new Map<string, string>();
 
     async function ensureTeam(name: string, provider: string, externalId?: string) {

@@ -34,6 +34,31 @@ async function fetchScoreboard(date: Date) {
   return (await response.json()) as EspnScoreboard;
 }
 
+async function fetchDivisionITeamIds() {
+  const ids = new Set<string>();
+  // ESPN group 80 = FBS and 81 = FCS. Both are NCAA Division I.
+  for (const group of ["80", "81"]) {
+    const url = new URL("https://site.web.api.espn.com/apis/site/v2/sports/football/college-football/teams");
+    url.searchParams.set("groups", group);
+    url.searchParams.set("groupType", "conference");
+    url.searchParams.set("enable", "groups");
+    url.searchParams.set("limit", "500");
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`ESPN Division-I team list failed for group ${group} (${response.status})`);
+    const body = await response.json();
+    const sports = Array.isArray(body?.sports) ? body.sports : [];
+    for (const sport of sports) {
+      for (const league of sport?.leagues ?? []) {
+        for (const item of league?.teams ?? []) {
+          const id = item?.team?.id ?? item?.id;
+          if (id != null) ids.add(String(id));
+        }
+      }
+    }
+  }
+  return ids;
+}
+
 export async function POST() {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -49,10 +74,35 @@ export async function POST() {
     const now = new Date();
     const dates: Date[] = [];
     for (let offset = -1; offset <= 8; offset += 1) dates.push(new Date(now.getTime() + offset * 86_400_000));
-    const scoreboards = await Promise.all(dates.map(fetchScoreboard));
+    const [scoreboards, divisionITeamIds] = await Promise.all([
+      Promise.all(dates.map(fetchScoreboard)),
+      fetchDivisionITeamIds(),
+    ]);
+    if (!divisionITeamIds.size) throw new Error("ESPN returned no Division-I team IDs; refusing to import an unfiltered slate.");
+
     const eventMap = new Map<string, EspnEvent>();
     for (const board of scoreboards) for (const event of board.events ?? []) eventMap.set(event.id, event);
-    const events = [...eventMap.values()];
+    const receivedEvents = [...eventMap.values()];
+
+    // This is the hard safety gate: BOTH teams must be FBS or FCS.
+    // It prevents D-II/D-III games from ever being tagged espn-cfb again.
+    const events = receivedEvents.filter((event) => {
+      const competitors = event.competitions?.[0]?.competitors ?? [];
+      const home = competitors.find((c) => c.homeAway === "home");
+      const away = competitors.find((c) => c.homeAway === "away");
+      const homeId = home?.team?.id ? String(home.team.id) : null;
+      const awayId = away?.team?.id ? String(away.team.id) : null;
+      return Boolean(homeId && awayId && divisionITeamIds.has(homeId) && divisionITeamIds.has(awayId));
+    });
+
+    // Remove stale future ESPN football rows first. The Challenge can then only see
+    // the freshly verified Division-I rows inserted below.
+    const cleanup = await supabase
+      .from("games")
+      .delete()
+      .eq("external_provider", "espn-cfb")
+      .gte("starts_at", new Date(now.getTime() - 86_400_000).toISOString());
+    if (cleanup.error) throw new Error(`Could not remove stale ESPN football games: ${cleanup.error.message}`);
 
     const teamCache = new Map<string, string>();
     async function teamId(team: EspnTeam) {
@@ -82,12 +132,7 @@ export async function POST() {
       const awayId = await teamId(away.team);
       const completed = Boolean(event.status?.type?.completed);
 
-      const existingGame = await supabase
-        .from("games")
-        .select("id,external_provider")
-        .eq("external_id", event.id)
-        .limit(1)
-        .maybeSingle();
+      const existingGame = await supabase.from("games").select("id,external_provider").eq("external_id", event.id).limit(1).maybeSingle();
       if (existingGame.error) throw new Error(`Could not check existing game ${event.id}: ${existingGame.error.message}`);
 
       const gameValues = {
@@ -122,19 +167,23 @@ export async function POST() {
       const deleteResult = await supabase.from("college_football_rankings").delete().eq("season", season).eq("week", week);
       if (deleteResult.error) throw new Error(`Could not replace ESPN rankings: ${deleteResult.error.message}`);
       const unique = [...new Map(rankings.map((r) => [r.team_id, r])).values()];
-      const rankWrite = await supabase.from("college_football_rankings").insert(unique.map((r) => ({
-        season,
-        week,
-        poll: "AP Top 25",
-        team_id: r.team_id,
-        team_name: r.team_name,
-        rank: r.rank,
-      })));
+      const rankWrite = await supabase.from("college_football_rankings").insert(unique.map((r) => ({ season, week, poll: "AP Top 25", team_id: r.team_id, team_name: r.team_name, rank: r.rank })));
       if (rankWrite.error) throw new Error(`Could not save ESPN rankings: ${rankWrite.error.message}`);
     }
 
-    if (!imported) return NextResponse.json({ error: "ESPN returned no college-football games; Challenge rebuild should not proceed." }, { status: 502 });
-    return NextResponse.json({ success: true, source: "espn", datesQueried: dates.map(easternDate), eventsReceived: events.length, gamesImported: imported, familyGames, rankedTeamsFound: rankings.length });
+    if (!imported) return NextResponse.json({ error: "ESPN returned no verified Division-I college-football games; Challenge rebuild should not proceed." }, { status: 502 });
+    return NextResponse.json({
+      success: true,
+      source: "espn",
+      scope: "NCAA Division I only (FBS + FCS); D-II/D-III blocked by team ID",
+      datesQueried: dates.map(easternDate),
+      eventsReceived: receivedEvents.length,
+      divisionIEventsKept: events.length,
+      excludedNonDivisionI: receivedEvents.length - events.length,
+      gamesImported: imported,
+      familyGames,
+      rankedTeamsFound: rankings.length,
+    });
   } catch (error) {
     return NextResponse.json({ error: "ESPN college-football import failed.", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }

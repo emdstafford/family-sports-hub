@@ -625,6 +625,82 @@ export async function GET(request: NextRequest) {
         null;
       liveProvider = "espn";
     } else if (
+      typedGame.external_provider === "espn-cfb" ||
+      typedGame.external_provider === "espn-mbb"
+    ) {
+      const sportPath =
+        typedGame.external_provider === "espn-cfb"
+          ? "football/college-football"
+          : "basketball/mens-college-basketball";
+
+      const summaryResponse = await fetch(
+        `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/summary?event=${encodeURIComponent(
+          typedGame.external_id,
+        )}`,
+        {
+          cache: "no-store",
+          signal: AbortSignal.timeout(10_000),
+        },
+      );
+
+      if (!summaryResponse.ok) {
+        return NextResponse.json(
+          {
+            error: "Could not refresh this ESPN game.",
+            providerStatus: summaryResponse.status,
+          },
+          { status: 502 },
+        );
+      }
+
+      const summary = (await summaryResponse.json()) as {
+        header?: {
+          id?: string;
+          competitions?: Array<{
+            date?: string;
+            status?: EspnEvent["status"];
+            competitors?: EspnCompetitor[];
+          }>;
+        };
+      };
+
+      const competition = summary.header?.competitions?.[0];
+      const home = competition?.competitors?.find(
+        (team) => team.homeAway === "home",
+      );
+      const away = competition?.competitors?.find(
+        (team) => team.homeAway === "away",
+      );
+
+      if (!competition || !home || !away) {
+        return NextResponse.json(
+          { error: "ESPN did not return this game." },
+          { status: 404 },
+        );
+      }
+
+      homeScore = scoreToNumber(home.score);
+      awayScore = scoreToNumber(away.score);
+
+      const espnType = competition.status?.type;
+      if (espnType?.completed || espnType?.state === "post") {
+        status = "final";
+      } else if (espnType?.state === "in") {
+        status = "live";
+      } else {
+        status = "scheduled";
+      }
+
+      startsAt = competition.date ?? startsAt;
+      livePeriod = competition.status?.period ?? null;
+      liveClock = competition.status?.displayClock ?? null;
+      liveDetail =
+        espnType?.shortDetail ??
+        espnType?.detail ??
+        espnType?.description ??
+        null;
+      liveProvider = "espn";
+    } else if (
       typedGame.external_provider === "cfbd"
     ) {
       const homeTeamName =

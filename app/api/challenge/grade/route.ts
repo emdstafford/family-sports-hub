@@ -6,10 +6,10 @@ export async function POST(request: Request) {
     const supabaseUrl =
       process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-    const supabasePublishableKey =
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const supabaseSecretKey =
+      process.env.SUPABASE_SECRET_KEY;
 
-    if (!supabaseUrl || !supabasePublishableKey) {
+    if (!supabaseUrl || !supabaseSecretKey) {
       return NextResponse.json(
         {
           error:
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
     const supabase = createClient(
       supabaseUrl,
-      supabasePublishableKey,
+      supabaseSecretKey,
     );
 
     const {

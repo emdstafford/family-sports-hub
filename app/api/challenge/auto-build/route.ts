@@ -256,13 +256,6 @@ export async function POST(request: Request) {
     const sportMap = new Map((sportsResult.data ?? []).map((row) => [row.id, row.name]));
     const competitionMap = new Map((competitionsResult.data ?? []).map((row) => [row.id, row.name]));
     const favoriteTeamIds = new Set((favoritesResult.data ?? []).map((row) => row.team_id));
-    const favoriteNames = new Set(
-      [...favoriteTeamIds]
-        .map((id) => teamMap.get(id))
-        .filter((name): name is string => Boolean(name))
-        .map(normalize),
-    );
-    const isFamilyFavorite = (name: string) => favoriteNames.has(normalize(name));
     const rankingRows = (rankingsResult.data ?? []) as RankingRow[];
     const latestSeason = rankingRows[0]?.season;
     const latestWeek = rankingRows[0]?.week;
@@ -307,7 +300,7 @@ export async function POST(request: Request) {
 
       // Use the family's actual saved favorites instead of relying only on a
       // hard-coded list. This automatically follows future profile changes.
-      if (isFamilyFavorite(home) || isFamilyFavorite(away)) {
+      if (favoriteTeamIds.has(game.home_team_id) || favoriteTeamIds.has(game.away_team_id)) {
         mandatory = true;
         worthy = true;
         score += 1000;

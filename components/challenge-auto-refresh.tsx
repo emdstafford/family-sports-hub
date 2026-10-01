@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 const REOPEN_KEY = "fambam_reopen_challenge_after_refresh_v2";
-const ATTEMPT_KEY = "fambam_challenge_refresh_attempt_v9";
+const ATTEMPT_KEY = "fambam_challenge_refresh_attempt_v10";
 
 function isChallengeButton(button: HTMLButtonElement) {
   return button.textContent?.includes("Challenge") === true;

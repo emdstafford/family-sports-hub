@@ -297,6 +297,7 @@ export async function POST(request: Request) {
     );
 
     const candidates: Candidate[] = [];
+    const fallbackCandidates: Candidate[] = [];
 
     for (const game of (gamesResult.data ?? []) as GameRow[]) {
       // A TBD kickoff/time is still a valid weekly pick. It remains visible as TBD
@@ -487,16 +488,33 @@ export async function POST(request: Request) {
         }
       }
 
-      // Never fill the card with random games just to reach ten. If a matchup
-      // is not a family favorite, ranked/big game, rivalry, cup, or postseason
-      // game, it does not belong in the weekly Challenge.
-      if (!worthy) continue;
+      // Preferred games come first. If there are fewer than 10 preferred
+      // matchups in the week, keep the best remaining eligible games as
+      // fallbacks so every FamBam Challenge still has exactly 10 picks.
+      if (!worthy) {
+        fallbackCandidates.push({
+          game,
+          home,
+          away,
+          sport,
+          homeRank,
+          awayRank,
+          score,
+          mandatory: false,
+          reason: "Best available weekly matchup",
+        });
+        continue;
+      }
 
       candidates.push({ game, home, away, sport, homeRank, awayRank, score, mandatory, reason });
     }
 
     candidates.sort((a, b) => {
       if (a.mandatory !== b.mandatory) return a.mandatory ? -1 : 1;
+      if (b.score !== a.score) return b.score - a.score;
+      return new Date(a.game.starts_at).getTime() - new Date(b.game.starts_at).getTime();
+    });
+    fallbackCandidates.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return new Date(a.game.starts_at).getTime() - new Date(b.game.starts_at).getTime();
     });
@@ -509,11 +527,17 @@ export async function POST(request: Request) {
     }
 
     const selected: Candidate[] = [];
-    for (const candidate of candidates) {
-      if (protectedIds.has(candidate.game.id)) continue;
-      if (protectedIds.size + selected.length >= TARGET_GAMES) break;
-      selected.push(candidate);
-    }
+    const fillFrom = (pool: Candidate[]) => {
+      for (const candidate of pool) {
+        if (protectedIds.has(candidate.game.id)) continue;
+        if (selected.some((row) => row.game.id === candidate.game.id)) continue;
+        if (protectedIds.size + selected.length >= TARGET_GAMES) break;
+        selected.push(candidate);
+      }
+    };
+
+    fillFrom(candidates);
+    fillFrom(fallbackCandidates);
 
     const desiredIds = new Set([...protectedIds, ...selected.map((row) => row.game.id)]);
     const removeIds = existing.filter((row) => !desiredIds.has(row.game_id)).map((row) => row.game_id);

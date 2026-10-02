@@ -37,3 +37,4 @@ jobs:
 
 # Triggered 2026-10-01 after full Challenge picks audit.
 # Triggered 2026-10-02 Friday reset after enabling pick clearing.
+# Triggered 2026-10-02 after exact-10 selector fix.

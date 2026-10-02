@@ -12,11 +12,14 @@ function easternDate(date: Date) { return new Intl.DateTimeFormat("en-CA", { tim
 function normalizeName(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
 function isFamilyTeam(name: string) { const n = normalizeName(name); return ["georgia", "georgia bulldogs", "kentucky", "kentucky wildcats"].includes(n); }
 
-async function fetchDivisionIScoreboard(date: Date, group: "80" | "81") {
+async function fetchFbsScoreboard(date: Date) {
   const url = new URL("https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard");
-  url.searchParams.set("dates", easternDate(date)); url.searchParams.set("limit", "500"); url.searchParams.set("groups", group);
+  url.searchParams.set("dates", easternDate(date));
+  url.searchParams.set("limit", "500");
+  // ESPN group 80 is FBS. Do not import FCS/D-II/D-III into the FamBam Challenge pool.
+  url.searchParams.set("groups", "80");
   const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(12_000) });
-  if (!response.ok) throw new Error(`ESPN ${easternDate(date)} group ${group} failed (${response.status})`);
+  if (!response.ok) throw new Error(`ESPN ${easternDate(date)} FBS failed (${response.status})`);
   return (await response.json()) as EspnScoreboard;
 }
 
@@ -29,10 +32,10 @@ export async function POST() {
     if (competitionError || !competition) return NextResponse.json({ error: "Could not find NCAA Football competition.", details: competitionError?.message }, { status: 500 });
     const competitionId = competition.id as string; const sportId = competition.sport_id as string; const now = new Date();
     const dates: Date[] = []; for (let offset = -1; offset <= 7; offset += 1) dates.push(new Date(now.getTime() + offset * 86_400_000));
-    const boards = await Promise.all(dates.flatMap((date) => [fetchDivisionIScoreboard(date, "80"), fetchDivisionIScoreboard(date, "81")]));
+    const boards = await Promise.all(dates.map((date) => fetchFbsScoreboard(date)));
     const eventMap = new Map<string, EspnEvent>(); for (const board of boards) for (const event of board.events ?? []) eventMap.set(String(event.id), event);
     const events = [...eventMap.values()];
-    if (!events.length) return NextResponse.json({ error: "ESPN returned no FBS/FCS games; existing Challenge data was left untouched." }, { status: 502 });
+    if (!events.length) return NextResponse.json({ error: "ESPN returned no FBS games; existing Challenge data was left untouched." }, { status: 502 });
 
     const providerTeams = new Map<string, { externalId: string; name: string }>();
     for (const event of events) for (const competitor of event.competitions?.[0]?.competitors ?? []) { const team = competitor.team; const externalId = String(team?.id ?? ""); const name = team?.displayName || team?.shortDisplayName || team?.abbreviation || ""; if (externalId && name) providerTeams.set(externalId, { externalId, name }); }
@@ -59,30 +62,30 @@ export async function POST() {
       const homeRank = Number(home.curatedRank?.current); const awayRank = Number(away.curatedRank?.current);
       if (homeRank > 0 && homeRank <= 25) rankings.push({ team_id: homeId, team_name: homeName, rank: homeRank }); if (awayRank > 0 && awayRank <= 25) rankings.push({ team_id: awayId, team_name: awayName, rank: awayRank });
     }
-    if (!gameRows.length) return NextResponse.json({ error: "ESPN returned no usable FBS/FCS games; existing Challenge data was left untouched." }, { status: 502 });
+    if (!gameRows.length) return NextResponse.json({ error: "ESPN returned no usable FBS games; existing Challenge data was left untouched." }, { status: 502 });
 
-    // games.external_id is not backed by a database-wide unique constraint, so a Supabase
-    // upsert on external_id fails. Resolve existing ESPN rows first, then update/insert in batches.
     const externalIds = gameRows.map((row) => String(row.external_id));
     const { data: existingGames, error: existingGamesError } = await supabase.from("games").select("id,external_id").eq("external_provider", "espn-cfb").in("external_id", externalIds);
-    if (existingGamesError) throw new Error(`Could not load existing Division-I football games: ${existingGamesError.message}`);
+    if (existingGamesError) throw new Error(`Could not load existing FBS games: ${existingGamesError.message}`);
     const existingByExternal = new Map((existingGames ?? []).map((row) => [String(row.external_id), row.id]));
     const inserts = gameRows.filter((row) => !existingByExternal.has(String(row.external_id)));
-    for (const row of gameRows) { const id = existingByExternal.get(String(row.external_id)); if (!id) continue; const { external_id: _externalId, ...values } = row; const { error } = await supabase.from("games").update(values).eq("id", id); if (error) throw new Error(`Could not update Division-I football game ${row.external_id}: ${error.message}`); }
-    if (inserts.length) { const { error } = await supabase.from("games").insert(inserts); if (error) throw new Error(`Could not insert Division-I football slate: ${error.message}`); }
+    for (const row of gameRows) { const id = existingByExternal.get(String(row.external_id)); if (!id) continue; const { external_id: _externalId, ...values } = row; const { error } = await supabase.from("games").update(values).eq("id", id); if (error) throw new Error(`Could not update FBS game ${row.external_id}: ${error.message}`); }
+    if (inserts.length) { const { error } = await supabase.from("games").insert(inserts); if (error) throw new Error(`Could not insert FBS slate: ${error.message}`); }
 
+    // Remove all future ESPN college-football rows that are not in the current FBS feed.
+    // This cleans out previously imported FCS games so they cannot be selected as fillers.
     const cutoff = new Date(now.getTime() - 86_400_000).toISOString();
     const { data: futureEspnRows, error: staleLookupError } = await supabase.from("games").select("id,external_id").eq("external_provider", "espn-cfb").gte("starts_at", cutoff);
     if (staleLookupError) throw new Error(`Could not inspect stale ESPN football rows: ${staleLookupError.message}`);
     const liveExternalIds = new Set(gameRows.map((row) => String(row.external_id))); const staleIds = (futureEspnRows ?? []).filter((row) => row.external_id && !liveExternalIds.has(String(row.external_id))).map((row) => row.id);
-    if (staleIds.length) { const { error: staleDeleteError } = await supabase.from("games").delete().in("id", staleIds); if (staleDeleteError) throw new Error(`Could not remove stale ESPN football games: ${staleDeleteError.message}`); }
+    if (staleIds.length) { const { error: staleDeleteError } = await supabase.from("games").delete().in("id", staleIds); if (staleDeleteError) throw new Error(`Could not remove non-FBS/stale ESPN football games: ${staleDeleteError.message}`); }
 
     if (rankings.length) {
       const season = now.getUTCFullYear(); const week = 99; const unique = [...new Map(rankings.map((row) => [row.team_id, row])).values()];
       const { error: deleteRankError } = await supabase.from("college_football_rankings").delete().eq("season", season).eq("week", week); if (deleteRankError) throw new Error(`Could not replace ESPN rankings: ${deleteRankError.message}`);
       const { error: rankWriteError } = await supabase.from("college_football_rankings").insert(unique.map((row) => ({ season, week, poll: "AP Top 25", team_id: row.team_id, team_name: row.team_name, rank: row.rank }))); if (rankWriteError) throw new Error(`Could not save ESPN rankings: ${rankWriteError.message}`);
     }
-    return NextResponse.json({ success: true, source: "espn", scope: "NCAA Division I only: ESPN groups 80 (FBS) + 81 (FCS)", datesQueried: dates.map(easternDate), divisionIGamesImported: gameRows.length, staleGamesRemoved: staleIds.length, familyGames, rankedTeamsFound: rankings.length });
+    return NextResponse.json({ success: true, source: "espn", scope: "NCAA FBS only: ESPN group 80", datesQueried: dates.map(easternDate), fbsGamesImported: gameRows.length, staleOrNonFbsGamesRemoved: staleIds.length, familyGames, rankedTeamsFound: rankings.length });
   } catch (error) {
     console.error("ESPN college-football import failed:", error);
     return NextResponse.json({ error: "ESPN college-football import failed.", details: error instanceof Error ? error.message : String(error) }, { status: 500 });

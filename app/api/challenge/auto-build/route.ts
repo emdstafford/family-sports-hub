@@ -40,8 +40,8 @@ function exactTeam(name: string, target: string) {
   return normalize(name) === normalize(target);
 }
 
-function isFamilySoccerTeam(name: string) {
-  return ["Arsenal", "Liverpool", "Aston Villa", "AFC Wimbledon"].some((team) => exactTeam(name, team));
+function isChallengeSoccerTeam(name: string) {
+  return ["Arsenal", "Liverpool", "Aston Villa"].some((team) => exactTeam(name, team));
 }
 
 function isFamilyFootballTeam(name: string) {
@@ -49,57 +49,14 @@ function isFamilyFootballTeam(name: string) {
   return ["kentucky", "kentuckywildcats", "georgia", "georgiabulldogs"].includes(n);
 }
 
-function isKentuckyBasketballTeam(name: string) {
+function getRank(name: string, rankingMap: Map<string, number>) {
   const n = normalize(name);
-  return n === "kentucky" || n === "kentuckywildcats";
-}
-
-function isBigBlueMadnessTeam(name: string) {
-  const n = normalize(name);
-  return n === "blue" || n === "white";
-}
-
-const SEC_BASKETBALL_TEAMS = [
-  "Alabama", "Arkansas", "Auburn", "Florida", "Georgia", "Kentucky", "LSU",
-  "Mississippi State", "Missouri", "Oklahoma", "Ole Miss", "South Carolina",
-  "Tennessee", "Texas", "Texas A&M", "Vanderbilt",
-];
-
-function isSecBasketballTeam(name: string) {
-  const n = normalize(name);
-  return SEC_BASKETBALL_TEAMS.some((team) => {
-    const base = normalize(team);
-    return n === base || n.startsWith(base);
-  });
-}
-
-async function getBasketballRankings() {
-  try {
-    const response = await fetch(
-      "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/rankings",
-      { cache: "no-store" },
-    );
-    if (!response.ok) return new Map<string, number>();
-    const data = await response.json();
-    const poll = data?.rankings?.[0];
-    const map = new Map<string, number>();
-    for (const row of poll?.ranks ?? []) {
-      const rank = Number(row?.current);
-      if (!rank) continue;
-      const team = row?.team ?? {};
-      const names = [
-        team.displayName,
-        team.location && team.nickname ? `${team.location} ${team.nickname}` : null,
-        team.location,
-        team.name,
-        team.nickname,
-      ].filter((value): value is string => Boolean(value));
-      for (const name of names) map.set(normalize(name), rank);
-    }
-    return map;
-  } catch {
-    return new Map<string, number>();
+  const exact = rankingMap.get(n);
+  if (exact !== undefined) return exact;
+  for (const [team, rank] of rankingMap.entries()) {
+    if (n.startsWith(team) || team.startsWith(n)) return rank;
   }
+  return null;
 }
 
 function isFinal(status: string | null) {
@@ -188,47 +145,22 @@ export async function POST(request: Request) {
       challenge = data;
     }
 
-    // A weekly Challenge must contain games from this Challenge week only.
-    // Building on Thursday must not pull Monday/Tuesday games from next week's card.
-    const windowEnd = challenge.ends_at
-      ? new Date(challenge.ends_at)
-      : weekEnd;
+    const windowEnd = challenge.ends_at ? new Date(challenge.ends_at) : weekEnd;
 
-    // Refresh the Division-I college-football slate immediately before
-    // building the Challenge. This keeps UK/UGA, Top-10 and ranked games
-    // available even if the earlier daily sports sync was missed or stale.
     const footballSyncUrl = new URL("/api/college-football/espn/import", request.url);
-    const basketballSyncUrl = new URL("/api/college-basketball/import", request.url);
-
-    // These feeds are independent. Refresh them in parallel so one slow provider
-    // cannot double the time a family waits for a Challenge rebuild.
-    const [footballSyncResponse, basketballSyncResponse, basketballRankingMap] = await Promise.all([
-      fetch(footballSyncUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        cache: "no-store",
-      }),
-      fetch(basketballSyncUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        cache: "no-store",
-      }),
-      getBasketballRankings(),
-    ]);
+    const footballSyncResponse = await fetch(footballSyncUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
 
     const importWarnings: string[] = [];
     if (!footballSyncResponse.ok) {
       const details = await footballSyncResponse.text();
       importWarnings.push(`College football refresh failed: ${details}`);
-      console.error("Challenge import warning:", importWarnings[importWarnings.length - 1]);
-    }
-    if (!basketballSyncResponse.ok) {
-      const details = await basketballSyncResponse.text();
-      importWarnings.push(`College basketball refresh failed: ${details}`);
-      console.error("Challenge import warning:", importWarnings[importWarnings.length - 1]);
     }
 
-    const [gamesResult, teamsResult, sportsResult, competitionsResult, rankingsResult, existingResult, picksResult, favoritesResult] = await Promise.all([
+    const [gamesResult, teamsResult, sportsResult, rankingsResult, existingResult, picksResult] = await Promise.all([
       supabase.from("games")
         .select("id,starts_at,start_time_tbd,status,home_team_id,away_team_id,sport_id,competition_id,external_provider,source_notes")
         .gte("starts_at", now.toISOString())
@@ -236,7 +168,6 @@ export async function POST(request: Request) {
         .order("starts_at", { ascending: true }),
       supabase.from("teams").select("id,name"),
       supabase.from("sports").select("id,name"),
-      supabase.from("competitions").select("id,name"),
       supabase.from("college_football_rankings")
         .select("team_name,rank,season,week")
         .eq("poll", "AP Top 25")
@@ -247,10 +178,9 @@ export async function POST(request: Request) {
         .select("game_id,selection_source,selection_reason")
         .eq("challenge_id", challenge.id),
       supabase.from("player_picks").select("game_id").eq("challenge_id", challenge.id),
-      supabase.from("player_favorite_teams").select("team_id"),
     ]);
 
-    for (const result of [gamesResult, teamsResult, sportsResult, competitionsResult, rankingsResult, existingResult, picksResult, favoritesResult]) {
+    for (const result of [gamesResult, teamsResult, sportsResult, rankingsResult, existingResult, picksResult]) {
       if (result.error) throw result.error;
     }
 
@@ -258,19 +188,14 @@ export async function POST(request: Request) {
     let picks = (picksResult.data ?? []) as { game_id: string }[];
     const resetRequested = new URL(request.url).searchParams.get("reset") === "true";
 
-    // A manual reset is an explicit admin action used for the weekly Friday refresh.
-    // Clear this challenge's picks first so the card can be rebuilt to the fresh 10-game slate.
+    // Monday is the normal weekly rollover. A manual reset can also rebuild the
+    // current week and intentionally clears old picks before replacing the card.
     if (resetRequested && picks.length > 0) {
-      const { error: deletePicksError } = await supabase
-        .from("player_picks")
-        .delete()
-        .eq("challenge_id", challenge.id);
-      if (deletePicksError) throw deletePicksError;
+      const { error } = await supabase.from("player_picks").delete().eq("challenge_id", challenge.id);
+      if (error) throw error;
       picks = [];
     }
 
-    // Outside an explicit reset, the weekly card becomes immutable as soon as
-    // anyone makes a pick. This protects the family slate from daily cron changes.
     if (picks.length > 0) {
       return NextResponse.json({
         success: true,
@@ -282,11 +207,8 @@ export async function POST(request: Request) {
     }
 
     const reset = resetRequested || picks.length === 0;
-
     const teamMap = new Map((teamsResult.data ?? []).map((row) => [row.id, row.name]));
     const sportMap = new Map((sportsResult.data ?? []).map((row) => [row.id, row.name]));
-    const competitionMap = new Map((competitionsResult.data ?? []).map((row) => [row.id, row.name]));
-    const favoriteTeamIds = new Set((favoritesResult.data ?? []).map((row) => row.team_id));
     const rankingRows = (rankingsResult.data ?? []) as RankingRow[];
     const latestSeason = rankingRows[0]?.season;
     const latestWeek = rankingRows[0]?.week;
@@ -300,8 +222,6 @@ export async function POST(request: Request) {
     const fallbackCandidates: Candidate[] = [];
 
     for (const game of (gamesResult.data ?? []) as GameRow[]) {
-      // A TBD kickoff/time is still a valid weekly pick. It remains visible as TBD
-      // and the client can lock it when the game actually starts.
       const normalizedStatus = String(game.status ?? "").toLowerCase();
       const notes = String(game.source_notes ?? "").toLowerCase();
       if (
@@ -310,214 +230,103 @@ export async function POST(request: Request) {
           (value) => normalizedStatus.includes(value) || notes.includes(value),
         )
       ) continue;
+
       const home = teamMap.get(game.home_team_id);
       const away = teamMap.get(game.away_team_id);
       const sport = sportMap.get(game.sport_id);
       if (!home || !away || !sport) continue;
-      if (!["Soccer", "College Football", "College Basketball", "Volleyball", "Hockey", "Baseball"].includes(sport)) continue;
 
-      const competition = game.competition_id ? competitionMap.get(game.competition_id) ?? "" : "";
-
-      // ESPN is the verified current Division-I feed for weekly picks.
-      // Historical CFBD rows remain useful for old results, but stale lower-division
-      // CFBD games must never be eligible for the live FamBam Challenge.
-      if (
-        sport === "College Football" &&
-        game.external_provider !== "espn-cfb"
-      ) continue;
-
-      const activeRankingMap = sport === "College Basketball" ? basketballRankingMap : rankingMap;
-      const homeRank = activeRankingMap.get(normalize(home)) ?? null;
-      const awayRank = activeRankingMap.get(normalize(away)) ?? null;
-      let score =
-        sport === "College Football" ? 30 :
-        sport === "College Basketball" ? 25 :
-        sport === "Soccer" ? 15 : 10;
-      let mandatory = false;
-      let worthy = false;
-      let reason = "Weekly featured matchup";
-
-      // Use the family's actual saved favorites instead of relying only on a
-      // hard-coded list. This automatically follows future profile changes.
-      if (favoriteTeamIds.has(game.home_team_id) || favoriteTeamIds.has(game.away_team_id)) {
-        mandatory = true;
-        worthy = true;
-        score += 1000;
-        reason = "FamBam favorite team";
-      }
-
-      if (sport === "Baseball" && /postseason|playoff|world series/i.test(competition)) {
-        worthy = true;
-        score += 300;
-        if (reason === "Weekly featured matchup") reason = "MLB postseason";
-      }
-
-      if (sport === "Hockey" && /playoff|stanley/i.test(competition)) {
-        worthy = true;
-        score += 300;
-        if (reason === "Weekly featured matchup") reason = "Hockey postseason";
-      }
+      // The weekly Challenge is deliberately narrower than general FamBam favorites:
+      // UK/UGA football, AP Top 10 and big college-football games, plus Arsenal,
+      // Liverpool and Aston Villa when they play. No MLB, NHL, volleyball, etc.
+      if (sport !== "College Football" && sport !== "Soccer") continue;
 
       if (sport === "Soccer") {
-        if (isFamilySoccerTeam(home) || isFamilySoccerTeam(away)) {
-          mandatory = true;
-          worthy = true;
-          score += 1000;
-          reason = "FamBam favorite team";
-        } else {
-          const bigSix = ["Arsenal", "Chelsea", "Liverpool", "Manchester City", "Manchester United", "Tottenham Hotspur"];
-          const heavyweight = bigSix.some((t) => exactTeam(home, t)) && bigSix.some((t) => exactTeam(away, t));
-          if (heavyweight) {
-            worthy = true;
-            score += 150;
-            reason = "Major soccer matchup";
-          }
-        }
-
-        if (/champions league/i.test(competition)) {
-          worthy = true;
-          score += 250;
-          if (reason === "Weekly featured matchup") reason = "Champions League";
-        } else if (/fa cup|carabao|league cup|efl cup/i.test(competition)) {
-          worthy = true;
-          score += 160;
-          if (reason === "Weekly featured matchup") reason = "Cup match";
-        }
-      }
-
-      if (sport === "College Basketball") {
-        const kentuckyGame =
-          isKentuckyBasketballTeam(home) ||
-          isKentuckyBasketballTeam(away) ||
-          (game.external_provider === "ukathletics-mbb" &&
-            isBigBlueMadnessTeam(home) &&
-            isBigBlueMadnessTeam(away));
-
-        if (kentuckyGame) {
-          mandatory = true;
-          worthy = true;
-          score += 1400;
-          reason = game.external_provider === "ukathletics-mbb" &&
-            isBigBlueMadnessTeam(home) &&
-            isBigBlueMadnessTeam(away)
-            ? "Big Blue Madness · Blue vs White exhibition"
-            : game.external_provider === "ukathletics-mbb"
-              ? "Kentucky exhibition"
-              : "Kentucky basketball";
-        }
-
-        const topTen = (homeRank !== null && homeRank <= 10) || (awayRank !== null && awayRank <= 10);
-        if (topTen) {
-          mandatory = true;
-          worthy = true;
-          score += 850;
-          if (reason === "Weekly featured matchup") {
-            const rank = homeRank !== null && homeRank <= 10 ? homeRank : awayRank;
-            reason = `AP Top 10 basketball team (#${rank})`;
-          }
-        }
-
-        if (homeRank !== null && awayRank !== null) {
-          worthy = true;
-          score += 500 + Math.max(0, 70 - Math.min(homeRank + awayRank, 50));
-          if (reason === "Weekly featured matchup") reason = `Ranked basketball matchup: #${awayRank} vs #${homeRank}`;
-        } else {
-          const rank = homeRank ?? awayRank;
-          if (rank !== null) {
-            worthy = true;
-            score += Math.max(60, 220 - rank * 5);
-            if (reason === "Weekly featured matchup") reason = `AP Top 25 basketball team (#${rank})`;
-          }
-        }
-
-        const homeSec = isSecBasketballTeam(home);
-        const awaySec = isSecBasketballTeam(away);
-        if (homeSec && awaySec) {
-          worthy = true;
-          score += 250;
-          if (reason === "Weekly featured matchup") reason = "SEC basketball matchup";
-        } else if (homeSec || awaySec) {
-          score += 90;
-          if (reason === "Weekly featured matchup") reason = "SEC basketball";
-        }
-      }
-
-      if (sport === "College Football") {
-        if (isFamilyFootballTeam(home) || isFamilyFootballTeam(away)) {
-          mandatory = true;
-          worthy = true;
-          score += 1200;
-          reason = "FamBam favorite team";
-        }
-
-        const topTen = (homeRank !== null && homeRank <= 10) || (awayRank !== null && awayRank <= 10);
-        if (topTen) {
-          mandatory = true;
-          worthy = true;
-          score += 800;
-          if (reason === "Weekly featured matchup") {
-            const rank = homeRank !== null && homeRank <= 10 ? homeRank : awayRank;
-            reason = `AP Top 10 team (#${rank})`;
-          }
-        }
-
-        if (homeRank !== null && awayRank !== null) {
-          worthy = true;
-          score += 450 + Math.max(0, 60 - Math.min(homeRank + awayRank, 50));
-          if (reason === "Weekly featured matchup") reason = `Ranked matchup: #${awayRank} vs #${homeRank}`;
-        } else {
-          const rank = homeRank ?? awayRank;
-          if (rank !== null) {
-            worthy = true;
-            score += Math.max(40, 180 - rank * 4);
-            if (reason === "Weekly featured matchup") reason = `AP Top 25 team (#${rank})`;
-          }
-        }
-
-        const rivalryPairs = [
-          ["iowa", "iowa state"], ["missouri", "kansas"], ["ohio state", "michigan"],
-          ["alabama", "auburn"], ["georgia", "georgia tech"], ["kentucky", "louisville"],
-        ];
-        const rivalry = rivalryPairs.some(([a, b]) =>
-          (exactTeam(home, a) && exactTeam(away, b)) || (exactTeam(home, b) && exactTeam(away, a)),
-        );
-        if (rivalry) {
-          worthy = true;
-          score += 200;
-          if (reason === "Weekly featured matchup") reason = "Rivalry game";
-        }
-      }
-
-      // Preferred games come first. If there are fewer than 10 preferred
-      // matchups in the week, keep the best remaining eligible games as
-      // fallbacks so every FamBam Challenge still has exactly 10 picks.
-      if (!worthy) {
-        fallbackCandidates.push({
+        if (!isChallengeSoccerTeam(home) && !isChallengeSoccerTeam(away)) continue;
+        candidates.push({
           game,
           home,
           away,
           sport,
-          homeRank,
-          awayRank,
-          score,
-          mandatory: false,
-          reason: "Best available weekly matchup",
+          homeRank: null,
+          awayRank: null,
+          score: 1100,
+          mandatory: true,
+          reason: "FamBam Challenge soccer team",
         });
         continue;
       }
 
-      candidates.push({ game, home, away, sport, homeRank, awayRank, score, mandatory, reason });
+      if (game.external_provider !== "espn-cfb") continue;
+
+      const homeRank = getRank(home, rankingMap);
+      const awayRank = getRank(away, rankingMap);
+      let score = 30;
+      let mandatory = false;
+      let worthy = false;
+      let reason = "Best available college football matchup";
+
+      if (isFamilyFootballTeam(home) || isFamilyFootballTeam(away)) {
+        mandatory = true;
+        worthy = true;
+        score += 1500;
+        reason = isFamilyFootballTeam(home) && normalize(home).startsWith("kentucky") || isFamilyFootballTeam(away) && normalize(away).startsWith("kentucky")
+          ? "Kentucky football"
+          : "Georgia football";
+      }
+
+      const topTen = (homeRank !== null && homeRank <= 10) || (awayRank !== null && awayRank <= 10);
+      if (topTen) {
+        worthy = true;
+        score += 700;
+        if (reason === "Best available college football matchup") {
+          const rank = homeRank !== null && homeRank <= 10 ? homeRank : awayRank;
+          reason = `AP Top 10 team (#${rank})`;
+        }
+      }
+
+      if (homeRank !== null && awayRank !== null) {
+        worthy = true;
+        score += 650 + Math.max(0, 80 - homeRank - awayRank);
+        if (reason === "Best available college football matchup") {
+          reason = `Ranked matchup: #${awayRank} vs #${homeRank}`;
+        }
+      } else {
+        const rank = homeRank ?? awayRank;
+        if (rank !== null) {
+          worthy = true;
+          score += Math.max(50, 250 - rank * 5);
+          if (reason === "Best available college football matchup") reason = `AP Top 25 team (#${rank})`;
+        }
+      }
+
+      const rivalryPairs = [
+        ["iowa", "iowa state"], ["missouri", "kansas"], ["ohio state", "michigan"],
+        ["alabama", "auburn"], ["georgia", "georgia tech"], ["kentucky", "louisville"],
+        ["texas", "oklahoma"], ["florida", "georgia"], ["usc", "notre dame"],
+      ];
+      const rivalry = rivalryPairs.some(([a, b]) =>
+        (normalize(home).startsWith(normalize(a)) && normalize(away).startsWith(normalize(b))) ||
+        (normalize(home).startsWith(normalize(b)) && normalize(away).startsWith(normalize(a))),
+      );
+      if (rivalry) {
+        worthy = true;
+        score += 300;
+        if (reason === "Best available college football matchup") reason = "Rivalry game";
+      }
+
+      const candidate = { game, home, away, sport, homeRank, awayRank, score, mandatory, reason };
+      if (worthy) candidates.push(candidate);
+      else fallbackCandidates.push(candidate);
     }
 
-    candidates.sort((a, b) => {
+    const sortCandidates = (a: Candidate, b: Candidate) => {
       if (a.mandatory !== b.mandatory) return a.mandatory ? -1 : 1;
       if (b.score !== a.score) return b.score - a.score;
       return new Date(a.game.starts_at).getTime() - new Date(b.game.starts_at).getTime();
-    });
-    fallbackCandidates.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return new Date(a.game.starts_at).getTime() - new Date(b.game.starts_at).getTime();
-    });
+    };
+    candidates.sort(sortCandidates);
+    fallbackCandidates.sort(sortCandidates);
 
     const protectedIds = new Set<string>(picks.map((pick) => pick.game_id));
     if (!reset) {
@@ -578,20 +387,6 @@ export async function POST(request: Request) {
       }
     }
 
-    console.log(
-      "Challenge selected games:",
-      selected.map((row) => ({
-        sport: row.sport,
-        away: row.away,
-        home: row.home,
-        reason: row.reason,
-        awayRank: row.awayRank,
-        homeRank: row.homeRank,
-      })),
-      "warnings:",
-      importWarnings,
-    );
-
     return NextResponse.json({
       success: true,
       mode: reset ? "reset" : "weekly",
@@ -626,9 +421,6 @@ export async function POST(request: Request) {
   }
 }
 
-
-// Vercel Cron invokes scheduled paths with GET. Keep POST for in-app refreshes
-// and let both entry points use the same authenticated builder.
 export async function GET(request: Request) {
   return POST(request);
 }

@@ -65,13 +65,16 @@ export async function POST(request: Request) {
       if (error) throw error; challenge = data;
     }
 
-    const windowEnd = challenge.ends_at ? new Date(challenge.ends_at) : weekEnd;
+    // The Challenge card resets Monday, but weekend games can extend into Sunday night UTC/Monday UTC.
+    // Search through the end of the current Monday-Sunday sports week plus a small overnight buffer,
+    // rather than trusting an older challenge.ends_at timestamp that may cut off valid games.
+    const selectionWindowEnd = new Date(weekEnd); selectionWindowEnd.setUTCHours(selectionWindowEnd.getUTCHours() + 8);
     const footballSyncResponse = await fetch(new URL("/api/college-football/espn/import", request.url), { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store" });
     const importWarnings: string[] = [];
     if (!footballSyncResponse.ok) importWarnings.push(`College football refresh failed: ${await footballSyncResponse.text()}`);
 
     const [gamesResult, teamsResult, sportsResult, rankingsResult, existingResult, picksResult] = await Promise.all([
-      supabase.from("games").select("id,starts_at,start_time_tbd,status,home_team_id,away_team_id,sport_id,competition_id,external_provider,source_notes").gte("starts_at", now.toISOString()).lte("starts_at", windowEnd.toISOString()).order("starts_at", { ascending: true }),
+      supabase.from("games").select("id,starts_at,start_time_tbd,status,home_team_id,away_team_id,sport_id,competition_id,external_provider,source_notes").gte("starts_at", now.toISOString()).lte("starts_at", selectionWindowEnd.toISOString()).order("starts_at", { ascending: true }),
       supabase.from("teams").select("id,name"), supabase.from("sports").select("id,name"),
       supabase.from("college_football_rankings").select("team_name,rank,season,week").eq("poll", "AP Top 25").order("season", { ascending: false }).order("week", { ascending: false }).order("rank", { ascending: true }),
       supabase.from("challenge_games").select("game_id,selection_source,selection_reason").eq("challenge_id", challenge.id),
@@ -99,7 +102,6 @@ export async function POST(request: Request) {
       const home = teamMap.get(game.home_team_id); const away = teamMap.get(game.away_team_id); const sport = sportMap.get(game.sport_id);
       if (!home || !away || !sport) continue;
 
-      // Challenge rules: Arsenal/Liverpool/Aston Villa when playing; otherwise college football only.
       if (sport === "Soccer") {
         if (!isChallengeSoccerTeam(home) && !isChallengeSoccerTeam(away)) continue;
         candidates.push({ game, home, away, sport, homeRank: null, awayRank: null, score: 2000, mandatory: true, reason: "Arsenal/Liverpool/Aston Villa" });
@@ -109,21 +111,14 @@ export async function POST(request: Request) {
 
       const homeRank = getRank(home, rankingMap); const awayRank = getRank(away, rankingMap);
       let score = 30; let mandatory = false; let worthy = false; let reason = "Best available college football game";
-
       if (isKentucky(home) || isKentucky(away)) { mandatory = true; worthy = true; score += 1800; reason = "Kentucky football"; }
       else if (isGeorgia(home) || isGeorgia(away)) { mandatory = true; worthy = true; score += 1750; reason = "Georgia football"; }
-
-      // Top 10 means exactly that: a game involving an AP #1-#10 team. Top 11-25 alone is NOT a selection rule.
       const topTen = (homeRank !== null && homeRank <= 10) || (awayRank !== null && awayRank <= 10);
       if (topTen) { worthy = true; score += 900; if (reason === "Best available college football game") { const rank = homeRank !== null && homeRank <= 10 ? homeRank : awayRank; reason = `AP Top 10 team (#${rank})`; } }
-
-      // A ranked-vs-ranked matchup is a genuinely big game even when one/both teams are #11-25.
       if (homeRank !== null && awayRank !== null) { worthy = true; score += 700 + Math.max(0, 80 - homeRank - awayRank); if (reason === "Best available college football game") reason = `Big ranked matchup: #${awayRank} vs #${homeRank}`; }
-
       const rivalryPairs = [["iowa","iowa state"],["missouri","kansas"],["ohio state","michigan"],["alabama","auburn"],["georgia","georgia tech"],["kentucky","louisville"],["texas","oklahoma"],["florida","georgia"],["usc","notre dame"]];
       const rivalry = rivalryPairs.some(([a,b]) => (normalize(home).startsWith(normalize(a)) && normalize(away).startsWith(normalize(b))) || (normalize(home).startsWith(normalize(b)) && normalize(away).startsWith(normalize(a))));
       if (rivalry) { worthy = true; score += 500; if (reason === "Best available college football game") reason = "Big rivalry game"; }
-
       const candidate = { game, home, away, sport, homeRank, awayRank, score, mandatory, reason };
       if (worthy) candidates.push(candidate); else fallbackCandidates.push(candidate);
     }
@@ -144,7 +139,7 @@ export async function POST(request: Request) {
     if (rowsToInsert.length) { const { error } = await supabase.from("challenge_games").insert(rowsToInsert); if (error) throw error; }
     if (reset) for (const row of selected) if (remainingExisting.has(row.game.id)) { const { error } = await supabase.from("challenge_games").update({ selection_source: "auto", selection_reason: row.reason }).eq("challenge_id", challenge.id).eq("game_id", row.game.id); if (error) throw error; }
 
-    return NextResponse.json({ success: true, mode: reset ? "reset" : "weekly", challenge: { id: challenge.id, name: challenge.name ?? challenge.title ?? "FamBam Challenge" }, target: TARGET_GAMES, selectedCount: selected.length, protectedCount: protectedIds.size, removedCount: removeIds.length, addedCount: rowsToInsert.length, importWarnings, selectedGames: selected.map((row) => ({ gameId: row.game.id, startsAt: row.game.starts_at, sport: row.sport, away: row.away, home: row.home, awayRank: row.awayRank, homeRank: row.homeRank, mandatory: row.mandatory, reason: row.reason })) });
+    return NextResponse.json({ success: true, mode: reset ? "reset" : "weekly", challenge: { id: challenge.id, name: challenge.name ?? challenge.title ?? "FamBam Challenge" }, target: TARGET_GAMES, selectedCount: selected.length, protectedCount: protectedIds.size, removedCount: removeIds.length, addedCount: rowsToInsert.length, importWarnings, selectionWindowEnd: selectionWindowEnd.toISOString(), selectedGames: selected.map((row) => ({ gameId: row.game.id, startsAt: row.game.starts_at, sport: row.sport, away: row.away, home: row.home, awayRank: row.awayRank, homeRank: row.homeRank, mandatory: row.mandatory, reason: row.reason })) });
   } catch (error) {
     console.error("Auto Challenge build error:", error);
     return NextResponse.json({ error: "Could not build the FamBam Challenge.", details: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });

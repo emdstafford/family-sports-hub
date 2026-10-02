@@ -255,11 +255,22 @@ export async function POST(request: Request) {
     }
 
     const existing = (existingResult.data ?? []) as ExistingRow[];
-    const picks = (picksResult.data ?? []) as { game_id: string }[];
+    let picks = (picksResult.data ?? []) as { game_id: string }[];
+    const resetRequested = new URL(request.url).searchParams.get("reset") === "true";
 
-    // The weekly card becomes immutable as soon as anyone makes a pick.
-    // This protects the shared family slate from the daily cron changing games
-    // after one person has already started.
+    // A manual reset is an explicit admin action used for the weekly Friday refresh.
+    // Clear this challenge's picks first so the card can be rebuilt to the fresh 10-game slate.
+    if (resetRequested && picks.length > 0) {
+      const { error: deletePicksError } = await supabase
+        .from("player_picks")
+        .delete()
+        .eq("challenge_id", challenge.id);
+      if (deletePicksError) throw deletePicksError;
+      picks = [];
+    }
+
+    // Outside an explicit reset, the weekly card becomes immutable as soon as
+    // anyone makes a pick. This protects the family slate from daily cron changes.
     if (picks.length > 0) {
       return NextResponse.json({
         success: true,
@@ -270,7 +281,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const reset = new URL(request.url).searchParams.get("reset") === "true" || picks.length === 0;
+    const reset = resetRequested || picks.length === 0;
 
     const teamMap = new Map((teamsResult.data ?? []).map((row) => [row.id, row.name]));
     const sportMap = new Map((sportsResult.data ?? []).map((row) => [row.id, row.name]));

@@ -36,3 +36,4 @@ jobs:
           test "$code" -ge 200 -a "$code" -lt 300
 
 # Triggered 2026-10-01 after full Challenge picks audit.
+# Triggered 2026-10-02 Friday reset after enabling pick clearing.

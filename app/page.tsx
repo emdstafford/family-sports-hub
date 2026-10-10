@@ -8664,6 +8664,11 @@ export default function Home() {
                                     </div>
                                     <div className="mt-1 text-[9px] font-semibold text-slate-400">{formatGameDate(game.startsAt)}</div>
                                   </button>
+                                  {signedInPlayer?.is_admin && challenge && game.liveData && !gameIsLocked(game, currentTime) && !challengeGameIds.includes(game.id) && challengeGameIds.length < 10 && (
+                                    <button type="button" onClick={() => openAdminAdd(game)} className="mt-2 w-full rounded-lg bg-amber-100 px-2 py-2 text-[10px] font-black text-amber-900">
+                                      + Add to weekly Challenge
+                                    </button>
+                                  )}
                                   <div className={`mt-2 grid gap-1.5 ${game.sport === "Soccer" ? "grid-cols-3" : "grid-cols-2"}`}>
                                     {([
                                       ["away", game.away],

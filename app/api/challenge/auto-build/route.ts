@@ -86,8 +86,11 @@ export async function POST(request: Request) {
     let picks = (picksResult.data ?? []) as { game_id: string }[];
     const resetRequested = new URL(request.url).searchParams.get("reset") === "true";
     if (resetRequested && picks.length > 0) { const { error } = await supabase.from("player_picks").delete().eq("challenge_id", challenge.id); if (error) throw error; picks = []; }
+    // Never rebuild a card after anyone has picked: doing so would invalidate their selections.
     if (picks.length > 0) return NextResponse.json({ success: true, locked: true, reason: "Challenge already has family picks.", challenge: { id: challenge.id, name: challenge.name ?? challenge.title ?? "FamBam Challenge" }, existingCount: existing.length });
-    const reset = resetRequested || picks.length === 0;
+    // Normal daily builds only fill vacancies. They never remove manual selections or
+    // previously published games, so a family's card cannot change under their feet.
+    const reset = resetRequested;
 
     const teamMap = new Map((teamsResult.data ?? []).map((row) => [row.id, row.name]));
     const sportMap = new Map((sportsResult.data ?? []).map((row) => [row.id, row.name]));
@@ -126,7 +129,7 @@ export async function POST(request: Request) {
     const sortCandidates = (a: Candidate, b: Candidate) => { if (a.mandatory !== b.mandatory) return a.mandatory ? -1 : 1; if (b.score !== a.score) return b.score - a.score; return new Date(a.game.starts_at).getTime() - new Date(b.game.starts_at).getTime(); };
     candidates.sort(sortCandidates); fallbackCandidates.sort(sortCandidates);
     const protectedIds = new Set<string>(picks.map((pick) => pick.game_id));
-    if (!reset) for (const row of existing) if (row.selection_source === "manual") protectedIds.add(row.game_id);
+    if (!reset) for (const row of existing) protectedIds.add(row.game_id);
     const selected: Candidate[] = [];
     const fillFrom = (pool: Candidate[]) => { for (const candidate of pool) { if (protectedIds.has(candidate.game.id) || selected.some((row) => row.game.id === candidate.game.id)) continue; if (protectedIds.size + selected.length >= TARGET_GAMES) break; selected.push(candidate); } };
     fillFrom(candidates); fillFrom(fallbackCandidates);

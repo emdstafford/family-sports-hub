@@ -65,7 +65,7 @@ export async function POST() {
     if (!gameRows.length) return NextResponse.json({ error: "ESPN returned no usable FBS games; existing Challenge data was left untouched." }, { status: 502 });
 
     const externalIds = gameRows.map((row) => String(row.external_id));
-    const { data: existingGames, error: existingGamesError } = await supabase.from("games").select("id,external_id").eq("external_provider", "espn-cfb").in("external_id", externalIds);
+    const { data: existingGames, error: existingGamesError } = await supabase.from("games").select("id,external_id").in("external_id", externalIds);
     if (existingGamesError) throw new Error(`Could not load existing FBS games: ${existingGamesError.message}`);
     const existingByExternal = new Map((existingGames ?? []).map((row) => [String(row.external_id), row.id]));
     const inserts = gameRows.filter((row) => !existingByExternal.has(String(row.external_id)));

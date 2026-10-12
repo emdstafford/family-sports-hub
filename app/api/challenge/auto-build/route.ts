@@ -69,9 +69,13 @@ export async function POST(request: Request) {
     // Search through the end of the current Monday-Sunday sports week plus a small overnight buffer,
     // rather than trusting an older challenge.ends_at timestamp that may cut off valid games.
     const selectionWindowEnd = new Date(weekEnd); selectionWindowEnd.setUTCHours(selectionWindowEnd.getUTCHours() + 8);
-    const footballSyncResponse = await fetch(new URL("/api/college-football/espn/import", request.url), { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store" });
     const importWarnings: string[] = [];
-    if (!footballSyncResponse.ok) importWarnings.push(`College football refresh failed: ${await footballSyncResponse.text()}`);
+    const imports = ["/api/college-football/espn/import", "/api/college-basketball/import"];
+    const importResults = await Promise.allSettled(imports.map(async (path) => {
+      const response = await fetch(new URL(path, request.url), { method: "POST", headers: { "Content-Type": "application/json", authorization: `Bearer ${cronSecret}` }, cache: "no-store" });
+      if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+    }));
+    importResults.forEach((result, index) => { if (result.status === "rejected") importWarnings.push(`${imports[index]} refresh failed: ${String(result.reason)}`); });
 
     const [gamesResult, teamsResult, sportsResult, rankingsResult, existingResult, picksResult] = await Promise.all([
       supabase.from("games").select("id,starts_at,start_time_tbd,status,home_team_id,away_team_id,sport_id,competition_id,external_provider,source_notes").gte("starts_at", now.toISOString()).lte("starts_at", selectionWindowEnd.toISOString()).order("starts_at", { ascending: true }),
@@ -108,6 +112,16 @@ export async function POST(request: Request) {
       if (sport === "Soccer") {
         if (!isChallengeSoccerTeam(home) && !isChallengeSoccerTeam(away)) continue;
         candidates.push({ game, home, away, sport, homeRank: null, awayRank: null, score: 2000, mandatory: true, reason: "Arsenal/Liverpool/Aston Villa" });
+        continue;
+      }
+      if (sport === "College Basketball" || sport === "College Basketball Men" || sport === "College Basketball Women" || sport === "Men's College Basketball" || sport === "Women's College Basketball") {
+        // Exhibition and scrimmage games may be watched, but are not eligible for family picks.
+        if (/exhibition|scrimmage|preseason/i.test(notes)) continue;
+        const kentucky = isKentucky(home) || isKentucky(away);
+        const georgia = isGeorgia(home) || isGeorgia(away);
+        candidates.push({ game, home, away, sport, homeRank: null, awayRank: null,
+          score: kentucky ? 1850 : georgia ? 1250 : 75,
+          mandatory: kentucky, reason: kentucky ? "Kentucky basketball" : georgia ? "Georgia basketball" : "College basketball matchup" });
         continue;
       }
       if (sport !== "College Football" || game.external_provider !== "espn-cfb") continue;

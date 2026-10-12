@@ -43,7 +43,7 @@ export async function POST() {
     if (gameRows.length) {
       const providerGroups = new Map<string, any[]>(); for (const row of gameRows) { const rows = providerGroups.get(row.external_provider) ?? []; rows.push(row); providerGroups.set(row.external_provider, rows); }
       for (const [provider, rows] of providerGroups) {
-        const ids = rows.map((row) => String(row.external_id)); const { data: existingGames, error: lookupError } = await supabase.from("games").select("id,external_id").eq("external_provider", provider).in("external_id", ids); if (lookupError) throw new Error(`Could not load existing ${provider} basketball games: ${lookupError.message}`);
+        const ids = rows.map((row) => String(row.external_id)); const { data: existingGames, error: lookupError } = await supabase.from("games").select("id,external_id").in("external_id", ids); if (lookupError) throw new Error(`Could not load existing ${provider} basketball games: ${lookupError.message}`);
         const existingByExternal = new Map((existingGames ?? []).map((row) => [String(row.external_id), row.id])); const inserts = rows.filter((row) => !existingByExternal.has(String(row.external_id)));
         for (const row of rows) { const id = existingByExternal.get(String(row.external_id)); if (!id) continue; const { external_id: _externalId, ...values } = row; const { error } = await supabase.from("games").update(values).eq("id", id); if (error) throw new Error(`Could not update basketball game ${row.external_id}: ${error.message}`); }
         if (inserts.length) { const { error } = await supabase.from("games").insert(inserts); if (error) throw new Error(`Could not insert ${provider} basketball games: ${error.message}`); }

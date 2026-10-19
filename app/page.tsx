@@ -5638,10 +5638,10 @@ export default function Home() {
       {activeSection === "Home" && (
       <div className="mx-auto max-w-5xl px-3 py-3">
         <WeeklyFaithPractice />
-        <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-3 grid grid-cols-2 gap-3">
           <MerriamWebsterWordOfDay />
           <NorthGeorgiaWeatherCard />
-          <TodaysFunHoliday />
+          <div className="col-span-2"><TodaysFunHoliday /></div>
         </div>
         {/* SIGN IN */}
         {!signedInPlayer && (

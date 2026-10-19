@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import StandingsHub from "@/components/standings-hub";
 import GiftManager from "@/components/gift-manager";
 
+type PackingItem = { id: string; label: string; repeatWeekly: boolean; checked: boolean };
+type DaisyFeedEvent = { id: string; fedAt: string; fedBy: string };
+
 type Player = {
   id: string;
   display_name: string;
@@ -1352,6 +1355,18 @@ export default function Home() {
   const [signedInPlayer, setSignedInPlayer] =
     useState<Player | null>(null);
 
+  const [packingItems, setPackingItems] = useState<PackingItem[]>([]);
+  const [packingInput, setPackingInput] = useState("");
+  const [packingRepeatWeekly, setPackingRepeatWeekly] = useState(true);
+  const [packingBusy, setPackingBusy] = useState(false);
+  const [packingError, setPackingError] = useState<string | null>(null);
+  const [editingPackingId, setEditingPackingId] = useState<string | null>(null);
+  const [editingPackingLabel, setEditingPackingLabel] = useState("");
+  const [daisyLatestFeed, setDaisyLatestFeed] = useState<DaisyFeedEvent | null>(null);
+  const [daisyTodayFeeds, setDaisyTodayFeeds] = useState<DaisyFeedEvent[]>([]);
+  const [daisyBusy, setDaisyBusy] = useState(false);
+  const [daisyError, setDaisyError] = useState<string | null>(null);
+
   const [pin, setPin] = useState("");
   const [pinEmojis, setPinEmojis] =
     useState(["🏈", "⚽", "🏀", "⚾"]);
@@ -1363,6 +1378,17 @@ export default function Home() {
 
   const [activeSport, setActiveSport] =
     useState<Sport>("All");
+
+  useEffect(() => {
+    if (!signedInPlayer) {
+      setPackingItems([]);
+      setDaisyLatestFeed(null);
+      setDaisyTodayFeeds([]);
+      return;
+    }
+    void loadFamilyTools();
+  }, [signedInPlayer?.id]);
+
 
   const [gamesPageView, setGamesPageView] =
     useState<"games" | "standings" | "results">("games");
@@ -5447,6 +5473,28 @@ export default function Home() {
   }
 
 
+  async function loadFamilyTools() {
+    if (!signedInPlayer) return;
+    const token = window.localStorage.getItem("fambam_session_token") ?? "";
+    try {
+      const headers = { "x-fambam-session": token };
+      const [packingResponse, daisyResponse] = await Promise.all([
+        fetch(`/api/family-packing-list?playerId=${encodeURIComponent(signedInPlayer.id)}`, { cache: "no-store", headers }),
+        fetch(`/api/daisy-feed?playerId=${encodeURIComponent(signedInPlayer.id)}`, { cache: "no-store", headers }),
+      ]);
+      const [packing, daisy] = await Promise.all([packingResponse.json(), daisyResponse.json()]);
+      if (!packingResponse.ok) throw new Error(packing.error ?? "Could not load the shared list.");
+      if (!daisyResponse.ok) throw new Error(daisy.error ?? "Could not load Daisy’s feeding log.");
+      setPackingItems(Array.isArray(packing.items) ? packing.items : []);
+      setDaisyLatestFeed(daisy.latest ?? null);
+      setDaisyTodayFeeds(Array.isArray(daisy.today) ? daisy.today : []);
+      setPackingError(null); setDaisyError(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not load family tools.";
+      setPackingError(message); setDaisyError(message);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#eef1f4] pb-24 text-[#10254a]">
       {/* DARK APP HEADER */}
@@ -5454,8 +5502,8 @@ export default function Home() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <img
-              src="/icon-512.png"
-              alt="FamBam Sports"
+              src="/fambam-hub-icon.svg"
+              alt="FamBam Hub"
               className="h-12 w-12 shrink-0 rounded-xl object-cover"
             />
 
@@ -5464,7 +5512,7 @@ export default function Home() {
                 FamBam
               </div>
               <div className="text-[8px] font-black uppercase tracking-[0.28em] text-[#f3c64f]">
-                Family · Sports · Fun
+                Our family, all in one place
               </div>
             </div>
           </div>
@@ -5651,6 +5699,97 @@ export default function Home() {
             </section>
           </>
         )}
+
+      {signedInPlayer && (
+        <section className="mb-4 grid gap-3 sm:grid-cols-2" aria-label="Family home tools">
+          <article className="rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family routine</div>
+                <h2 className="mt-1 text-lg font-black text-[#10254a]">What to Bring 🎒</h2>
+                <p className="text-xs font-medium text-slate-500">A shared list for the next handoff or activity.</p>
+              </div>
+              <span className="text-2xl" aria-hidden="true">🧳</span>
+            </div>
+            <form onSubmit={async (event) => {
+              event.preventDefault();
+              const label = packingInput.trim();
+              if (!label || !signedInPlayer) return;
+              setPackingBusy(true); setPackingError(null);
+              try {
+                const token = window.localStorage.getItem("fambam_session_token") ?? "";
+                const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "add", label, repeatWeekly: packingRepeatWeekly }) });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error ?? "Could not add that item.");
+                setPackingInput(""); await loadFamilyTools();
+              } catch (error) { setPackingError(error instanceof Error ? error.message : "Could not add that item."); }
+              finally { setPackingBusy(false); }
+            }} className="mt-3 flex gap-2">
+              <input value={packingInput} onChange={(event) => setPackingInput(event.target.value)} maxLength={100} placeholder="Add an item…" aria-label="New item to bring" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-[#b28a2e]" />
+              <button disabled={packingBusy || !packingInput.trim()} className="rounded-xl bg-[#10254a] px-3 py-2 text-sm font-black text-white disabled:opacity-40">Add</button>
+            </form>
+            <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <input type="checkbox" checked={packingRepeatWeekly} onChange={(event) => setPackingRepeatWeekly(event.target.checked)} />
+              Keep this on the list every week
+            </label>
+            {packingError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{packingError}</p>}
+            <div className="mt-3 space-y-2">
+              {packingItems.length === 0 ? <p className="rounded-xl bg-[#fffaf0] p-3 text-sm font-medium text-slate-500">Your shared list is empty. Add the recurring things the girls need to bring.</p> : packingItems.map((item) => (
+                <div key={item.id} className="flex items-center gap-2 rounded-xl bg-[#fffaf0] px-3 py-2">
+                  <input type="checkbox" checked={item.checked} aria-label={item.checked ? `Mark ${item.label} not packed` : `Mark ${item.label} packed`} onChange={async (event) => {
+                    if (!signedInPlayer) return;
+                    setPackingBusy(true); setPackingError(null);
+                    try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "toggle", itemId: item.id, checked: event.target.checked }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error ?? "Could not update the list."); await loadFamilyTools(); }
+                    catch (error) { setPackingError(error instanceof Error ? error.message : "Could not update the list."); }
+                    finally { setPackingBusy(false); }
+                  }} />
+                  {editingPackingId === item.id ? <form className="flex min-w-0 flex-1 gap-1" onSubmit={async (event) => {
+                    event.preventDefault(); if (!signedInPlayer) return;
+                    setPackingBusy(true); setPackingError(null);
+                    try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "edit", itemId: item.id, label: editingPackingLabel }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error ?? "Could not edit that item."); setEditingPackingId(null); await loadFamilyTools(); }
+                    catch (error) { setPackingError(error instanceof Error ? error.message : "Could not edit that item."); }
+                    finally { setPackingBusy(false); }
+                  }}><input autoFocus value={editingPackingLabel} onChange={(event) => setEditingPackingLabel(event.target.value)} className="min-w-0 flex-1 rounded border px-2 py-1 text-sm" /><button className="text-xs font-black text-[#164d9b]">Save</button></form> : <button onClick={() => { setEditingPackingId(item.id); setEditingPackingLabel(item.label); }} className={`min-w-0 flex-1 text-left text-sm font-bold ${item.checked ? "text-slate-400 line-through" : "text-[#10254a]"}`}>{item.label}<span className="ml-1 text-[10px] font-semibold text-slate-400">{item.repeatWeekly ? "weekly" : ""}</span></button>}
+                  <button aria-label={`Remove ${item.label}`} onClick={async () => {
+                    if (!signedInPlayer) return;
+                    setPackingBusy(true); setPackingError(null);
+                    try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "delete", itemId: item.id }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error ?? "Could not remove that item."); await loadFamilyTools(); }
+                    catch (error) { setPackingError(error instanceof Error ? error.message : "Could not remove that item."); }
+                    finally { setPackingBusy(false); }
+                  }} className="px-1 text-lg font-bold text-slate-400" title="Remove item">×</button>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Pet care</div>
+                <h2 className="mt-1 text-lg font-black text-[#10254a]">Daisy’s Feedings 🐾</h2>
+                <p className="text-xs font-medium text-slate-500">Tap after feeding so everyone can check.</p>
+              </div>
+              <span className="text-2xl" aria-hidden="true">🐶</span>
+            </div>
+            <div className="mt-3 rounded-xl bg-[#fffaf0] p-3">
+              <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Last fed</p>
+              {daisyLatestFeed ? <p className="mt-1 text-sm font-bold text-[#10254a]">{new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(daisyLatestFeed.fedAt))} <span className="font-medium text-slate-500">by {daisyLatestFeed.fedBy}</span></p> : <p className="mt-1 text-sm font-semibold text-slate-500">No feeding logged yet.</p>}
+            </div>
+            <button disabled={daisyBusy} onClick={async () => {
+              if (!signedInPlayer) return;
+              setDaisyBusy(true); setDaisyError(null);
+              try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/daisy-feed", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error ?? "Could not log the feeding."); await loadFamilyTools(); }
+              catch (error) { setDaisyError(error instanceof Error ? error.message : "Could not log Daisy’s feeding."); }
+              finally { setDaisyBusy(false); }
+            }} className="mt-3 w-full rounded-xl bg-[#10254a] px-3 py-3 text-sm font-black text-white disabled:opacity-50">{daisyBusy ? "Saving…" : "I fed Daisy"}</button>
+            {daisyError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{daisyError}</p>}
+            <div className="mt-3">
+              <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Today</p>
+              {daisyTodayFeeds.length ? <ul className="mt-1 space-y-1">{daisyTodayFeeds.map((event) => <li key={event.id} className="flex justify-between gap-2 text-xs"><span className="font-semibold text-[#10254a]">{event.fedBy}</span><time dateTime={event.fedAt} className="text-slate-500">{new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }).format(new Date(event.fedAt))}</time></li>)}</ul> : <p className="mt-1 text-xs font-medium text-slate-500">No feedings logged today.</p>}
+            </div>
+          </article>
+        </section>
+      )}
 
       {signedInPlayer && (
         <section

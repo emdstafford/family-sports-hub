@@ -1,5 +1,3 @@
-"use server";
-
 import { randomUUID } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";

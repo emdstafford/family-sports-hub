@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import StandingsHub from "@/components/standings-hub";
 import GiftManager from "@/components/gift-manager";
 import PantryManager from "@/components/pantry-manager";
+import DailyEncouragement from "@/components/daily-encouragement";
+import NorthGeorgiaWeatherCard from "@/components/north-georgia-weather-card";
 
 type PackingItem = { id: string; label: string; repeatWeekly: boolean; checked: boolean };
 type DaisyFeedEvent = { id: string; fedAt: string; fedBy: string };
@@ -5631,6 +5633,10 @@ export default function Home() {
 
       {activeSection === "Home" && (
       <div className="mx-auto max-w-5xl px-3 py-3">
+        <div className="mb-3 grid gap-3 sm:grid-cols-2">
+          <DailyEncouragement />
+          <NorthGeorgiaWeatherCard />
+        </div>
         {/* SIGN IN */}
         {!signedInPlayer && (
           <section

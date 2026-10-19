@@ -11,6 +11,12 @@ function field(xml: string, name: string) {
   return match ? decodeXml(match[1]) : "";
 }
 
+function getDefinition(shortDefinition: string, description: string) {
+  if (shortDefinition) return shortDefinition;
+  const match = description.match(/\b(?:noun|verb|adjective|adverb|interjection|preposition|conjunction|pronoun|abbreviation)\s+([\s\S]*?)(?=\s+\/\/\s+|\s+Examples?:|\s+Did you know\??|$)/i);
+  return match?.[1]?.trim() || description.slice(0, 320).trim();
+}
+
 export async function GET(request: Request) {
   try {
     // Reading the requested date keeps this live feed endpoint request-time rendered.
@@ -25,7 +31,7 @@ export async function GET(request: Request) {
       const word = titleText.match(/^[\p{L}][\p{L}'’-]*/u)?.[0];
       const shortDefinition = plainText(field(itemXml, "shortdef"));
       const description = plainText(field(itemXml, "description"));
-      const definition = shortDefinition || description;
+      const definition = getDefinition(shortDefinition, description);
       return { title, link: field(itemXml, "link"), date: field(itemXml, "pubDate"), word, definition };
     }).filter((item) => item.word);
     if (!items.length) throw new Error("The Merriam-Webster feed did not include a word.");

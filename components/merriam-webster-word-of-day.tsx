@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type Word = { word: string; definition: string; date: string; url: string };
+type Word = { word: string; definition: string; partOfSpeech?: string; example?: string; date: string; url: string };
 
 export default function MerriamWebsterWordOfWeek() {
   const [entry, setEntry] = useState<Word | null>(null);
@@ -24,7 +24,12 @@ export default function MerriamWebsterWordOfWeek() {
     <div>
       <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Merriam-Webster</div>
       <h2 className="mt-1 text-xl font-black text-[#10254a]">🔤 Word of the day</h2>
-      {entry ? <><p className="mt-2 text-2xl font-black text-[#10254a]">{entry.word}</p><p className="mt-1 text-sm font-medium leading-relaxed text-slate-700">{entry.definition}</p></> : <p className="mt-2 text-sm font-semibold text-slate-500">{loading ? "Loading today’s word…" : "Today’s word is temporarily unavailable."}</p>}
+      {entry ? <>
+        <p className="mt-2 text-2xl font-black text-[#10254a]">{entry.word}</p>
+        {entry.partOfSpeech && <p className="mt-0.5 text-xs font-bold italic capitalize text-slate-500">{entry.partOfSpeech}</p>}
+        <p className="mt-1 text-sm font-medium leading-relaxed text-slate-700">{entry.definition}</p>
+        {entry.example && <p className="mt-2 text-sm leading-relaxed text-slate-600"><span className="font-bold text-[#10254a]">Example: </span><span className="italic">{entry.example}</span></p>}
+      </> : <p className="mt-2 text-sm font-semibold text-slate-500">{loading ? "Loading today’s word…" : "Today’s word is temporarily unavailable."}</p>}
     </div>
   </article>;
 }

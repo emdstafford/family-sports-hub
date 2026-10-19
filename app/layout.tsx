@@ -14,8 +14,7 @@ export const metadata: Metadata = {
     default: "FamBam Hub",
     template: "%s | FamBam Hub",
   },
-  description:
-    "Our family hub for sports, gifts, birthdays, memories, and FamBam fun.",
+  description: "Our family, all in one place: plans, pets, sports, and memories.",
   applicationName: "FamBam Hub",
   appleWebApp: {
     capable: true,
@@ -28,6 +27,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
+      {
+        url: "/fambam-hub-icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+      },
       {
         url: "/icon-192.png",
         sizes: "192x192",

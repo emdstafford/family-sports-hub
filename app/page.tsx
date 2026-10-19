@@ -5721,7 +5721,7 @@ export default function Home() {
               </select>
             </label>
             <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
-              <input type="checkbox" checked={packingRepeatWeekly onChange={(event) => setPackingRepeatWeekly(event.target.checked)} />
+              <input type="checkbox" checked={packingRepeatWeekly} onChange={(event) => setPackingRepeatWeekly(event.target.checked)} />
               Repeat this item every week
             </label>
             {packingError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{packingError}</p>}

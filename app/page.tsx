@@ -1366,6 +1366,8 @@ export default function Home() {
   const [daisyTodayFeeds, setDaisyTodayFeeds] = useState<DaisyFeedEvent[]>([]);
   const [daisyBusy, setDaisyBusy] = useState(false);
   const [daisyError, setDaisyError] = useState<string | null>(null);
+  const [nfcFeedNotice, setNfcFeedNotice] = useState<string | null>(null);
+  const nfcFeedHandledRef = useRef(false);
 
   const [pin, setPin] = useState("");
   const [pinEmojis, setPinEmojis] =
@@ -5495,6 +5497,36 @@ export default function Home() {
     }
   }
 
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("action") !== "feed-daisy" || !signedInPlayer || nfcFeedHandledRef.current) return;
+    nfcFeedHandledRef.current = true;
+    url.searchParams.delete("action");
+    window.history.replaceState({}, "", url.toString());
+
+    void (async () => {
+      setDaisyBusy(true);
+      setDaisyError(null);
+      setNfcFeedNotice(null);
+      try {
+        const token = window.localStorage.getItem("fambam_session_token") ?? "";
+        const response = await fetch("/api/daisy-feed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-fambam-session": token },
+          body: JSON.stringify({ playerId: signedInPlayer.id }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error ?? "Could not log Daisy’s feeding.");
+        await loadFamilyTools();
+        setNfcFeedNotice(`Daisy’s feeding was logged for ${signedInPlayer.display_name}.`);
+      } catch (error) {
+        setDaisyError(error instanceof Error ? error.message : "Could not log Daisy’s feeding.");
+      } finally {
+        setDaisyBusy(false);
+      }
+    })();
+  }, [signedInPlayer?.id]);
+
   return (
     <main className="min-h-screen bg-[#eef1f4] pb-24 text-[#10254a]">
       {/* DARK APP HEADER */}
@@ -5783,6 +5815,8 @@ export default function Home() {
               finally { setDaisyBusy(false); }
             }} className="mt-3 w-full rounded-xl bg-[#10254a] px-3 py-3 text-sm font-black text-white disabled:opacity-50">{daisyBusy ? "Saving…" : "I fed Daisy"}</button>
             {daisyError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{daisyError}</p>}
+            {nfcFeedNotice && <p role="status" className="mt-2 text-xs font-bold text-emerald-700">{nfcFeedNotice}</p>}
+            <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut opens FamBam Hub and logs under the signed-in profile.</p>
             <div className="mt-3">
               <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Today</p>
               {daisyTodayFeeds.length ? <ul className="mt-1 space-y-1">{daisyTodayFeeds.map((event) => <li key={event.id} className="flex justify-between gap-2 text-xs"><span className="font-semibold text-[#10254a]">{event.fedBy}</span><time dateTime={event.fedAt} className="text-slate-500">{new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }).format(new Date(event.fedAt))}</time></li>)}</ul> : <p className="mt-1 text-xs font-medium text-slate-500">No feedings logged today.</p>}

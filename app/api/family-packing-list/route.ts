@@ -7,6 +7,7 @@ const BUCKET = "fambam-family-tools";
 type StoredItem = {
   id: string;
   label: string;
+  assignedPlayerId?: string | null;
   repeatWeekly: boolean;
   weekOf: string | null;
   checkedDate?: string | null;
@@ -123,6 +124,7 @@ export async function GET(request: Request) {
       .map((item) => ({
         id: item.id,
         label: item.label,
+        assignedPlayerId: item.assignedPlayerId ?? null,
         repeatWeekly: item.repeatWeekly,
         checked: (item.checkedDate ?? null) === today,
       }));
@@ -142,6 +144,7 @@ export async function POST(request: Request) {
       label?: string;
       checked?: boolean;
       repeatWeekly?: boolean;
+      assignedPlayerId?: string | null;
     } | null;
     const playerId = String(body?.playerId ?? "");
     const token = request.headers.get("x-fambam-session") ?? "";
@@ -163,6 +166,7 @@ export async function POST(request: Request) {
       store.items.push({
         id: randomUUID(),
         label,
+        assignedPlayerId: body?.assignedPlayerId ?? null,
         repeatWeekly,
         weekOf: repeatWeekly ? null : weekStart,
         checkedDate: null,
@@ -177,6 +181,8 @@ export async function POST(request: Request) {
         const label = String(body?.label ?? "").trim().slice(0, 100);
         if (!label) return NextResponse.json({ error: "Add an item name first." }, { status: 400 });
         item.label = label;
+      } else if (action === "assign") {
+        item.assignedPlayerId = body?.assignedPlayerId ?? null;
       } else if (action === "repeat") {
         item.repeatWeekly = body?.repeatWeekly === true;
         item.weekOf = item.repeatWeekly ? null : weekStart;

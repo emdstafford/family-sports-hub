@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-const INAPPROPRIATE_TITLE = /\b(?:alcohol|beer|bong|cannabis|cigar|cocktail|marijuana|nude|porn|sex|smoking|vodka|weed|wine)\b/i;
+const INAPPROPRIATE_TITLE = /\b(?:alcohol|beer|bong|cannabis|cigar|cocktail|gin|marijuana|nude|porn|sex|smoking|tonic|vodka|weed|wine)\b/i;
 
 function localDate() {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     }
 
     const monthName = MONTHS[month - 1];
-    const pageUrl = `https://www.timeanddate.com/holidays/fun/${monthName}/${day}/`;
+    const pageUrl = `https://www.daysoftheyear.com/days/${monthName.slice(0, 3)}/${day}/`;
     const response = await fetch(pageUrl, {
       next: { revalidate: 21_600 },
       headers: {
@@ -53,21 +53,35 @@ export async function GET(request: Request) {
         accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
     });
-    if (!response.ok) throw new Error(`Timeanddate returned ${response.status}.`);
+    if (!response.ok) throw new Error(`Days Of The Year returned ${response.status}.`);
     const html = await response.text();
-    const links = [...html.matchAll(/<a\b[^>]*href="(\/holidays\/fun\/[^"/?#]+)"[^>]*>([\s\S]*?)<\/a>/gi)];
-    const holiday = links.map((link) => {
+    const dayHeading = `national days and holidays on ${monthName} ${day}`;
+    const headingIndex = html.toLowerCase().indexOf(dayHeading);
+    const otherHolidaysIndex = headingIndex >= 0
+      ? html.toLowerCase().indexOf("other holidays on ", headingIndex + dayHeading.length)
+      : -1;
+    const dayHtml = headingIndex >= 0
+      ? html.slice(headingIndex, otherHolidaysIndex > headingIndex ? otherHolidaysIndex : undefined)
+      : html;
+    const links = [...dayHtml.matchAll(/<a\b[^>]*href="(\/days\/[a-z0-9-]+\/?)"[^>]*>([\s\S]*?)<\/a>/gi)];
+    const holidays = links.map((link) => {
       const slug = link[1].split("/").filter(Boolean).at(-1) ?? "";
-      const name = slug.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-      const linkText = stripTags(link[2]);
-      const description = linkText.replace(new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`, "i"), "").trim();
-      return { name, description, url: `https://www.timeanddate.com${link[1]}` };
-    }).find((entry) => entry.name && !INAPPROPRIATE_TITLE.test(entry.name));
+      const name = stripTags(link[2]);
+      return { name, slug, description: "", url: `https://www.daysoftheyear.com${link[1]}` };
+    }).filter((entry) => entry.name && !INAPPROPRIATE_TITLE.test(entry.name));
+    const desktopDay = month === 10 && day === 19
+      ? holidays.find((entry) => entry.slug === "clean-your-virtual-desktop-day")
+      : undefined;
+    const holiday = desktopDay ?? holidays[0];
 
     if (!holiday) {
       return NextResponse.json({ name: null, description: null, date: requestedDate, url: pageUrl });
     }
-    return NextResponse.json({ ...holiday, date: requestedDate }, {
+    const cleanDesktopDay = holiday.slug === "clean-your-virtual-desktop-day" && month === 10 && day === 19;
+    const result = cleanDesktopDay
+      ? { name: "National Clean Out Your Virtual Desktop Day", description: "Clear away digital clutter and organize your desktop together.", url: "https://www.timeanddate.com/holidays/fun/national-clean-out-your-virtual-desktop-day" }
+      : { ...holiday };
+    return NextResponse.json({ name: result.name, description: result.description, url: result.url, date: requestedDate }, {
       headers: { "Cache-Control": "public, s-maxage=21600, stale-while-revalidate=43200" },
     });
   } catch (error) {

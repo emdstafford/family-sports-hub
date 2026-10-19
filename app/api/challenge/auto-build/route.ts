@@ -102,12 +102,14 @@ export async function POST(request: Request) {
     const latestSeason = rankingRows[0]?.season; const latestWeek = rankingRows[0]?.week;
     const rankingMap = new Map(rankingRows.filter((row) => row.season === latestSeason && row.week === latestWeek).map((row) => [normalize(row.team_name), row.rank]));
     const candidates: Candidate[] = []; const fallbackCandidates: Candidate[] = [];
+    const candidateCounts: Record<string, number> = {};
 
     for (const game of (gamesResult.data ?? []) as GameRow[]) {
       const normalizedStatus = String(game.status ?? "").toLowerCase(); const notes = String(game.source_notes ?? "").toLowerCase();
       if (isFinal(game.status) || ["postponed", "cancelled", "canceled", "suspended"].some((value) => normalizedStatus.includes(value) || notes.includes(value))) continue;
       const home = teamMap.get(game.home_team_id); const away = teamMap.get(game.away_team_id); const sport = sportMap.get(game.sport_id);
       if (!home || !away || !sport) continue;
+      candidateCounts[sport] = (candidateCounts[sport] ?? 0) + 1;
 
       if (sport === "Soccer") {
         if (!isChallengeSoccerTeam(home) && !isChallengeSoccerTeam(away)) continue;
@@ -124,7 +126,9 @@ export async function POST(request: Request) {
           mandatory: kentucky, reason: kentucky ? "Kentucky basketball" : georgia ? "Georgia basketball" : "College basketball matchup" });
         continue;
       }
-      if (sport !== "College Football" || game.external_provider !== "espn-cfb") continue;
+      // Use the sport classification here. Historical imports may label the same
+      // legitimate college-football game with a different provider identifier.
+      if (sport !== "College Football") continue;
 
       const homeRank = getRank(home, rankingMap); const awayRank = getRank(away, rankingMap);
       let score = 30; let mandatory = false; let worthy = false; let reason = "Best available college football game";
@@ -156,7 +160,7 @@ export async function POST(request: Request) {
     if (rowsToInsert.length) { const { error } = await supabase.from("challenge_games").insert(rowsToInsert); if (error) throw error; }
     if (reset) for (const row of selected) if (remainingExisting.has(row.game.id)) { const { error } = await supabase.from("challenge_games").update({ selection_source: "auto", selection_reason: row.reason }).eq("challenge_id", challenge.id).eq("game_id", row.game.id); if (error) throw error; }
 
-    return NextResponse.json({ success: true, mode: reset ? "reset" : "weekly", challenge: { id: challenge.id, name: challenge.name ?? challenge.title ?? "FamBam Challenge" }, target: TARGET_GAMES, selectedCount: selected.length, protectedCount: protectedIds.size, removedCount: removeIds.length, addedCount: rowsToInsert.length, importWarnings, selectionWindowEnd: selectionWindowEnd.toISOString(), selectedGames: selected.map((row) => ({ gameId: row.game.id, startsAt: row.game.starts_at, sport: row.sport, away: row.away, home: row.home, awayRank: row.awayRank, homeRank: row.homeRank, mandatory: row.mandatory, reason: row.reason })) });
+    return NextResponse.json({ success: true, mode: reset ? "reset" : "weekly", challenge: { id: challenge.id, name: challenge.name ?? challenge.title ?? "FamBam Challenge" }, target: TARGET_GAMES, selectedCount: selected.length, candidateCounts, protectedCount: protectedIds.size, removedCount: removeIds.length, addedCount: rowsToInsert.length, importWarnings, selectionWindowEnd: selectionWindowEnd.toISOString(), selectedGames: selected.map((row) => ({ gameId: row.game.id, startsAt: row.game.starts_at, sport: row.sport, away: row.away, home: row.home, awayRank: row.awayRank, homeRank: row.homeRank, mandatory: row.mandatory, reason: row.reason })) });
   } catch (error) {
     console.error("Auto Challenge build error:", error);
     return NextResponse.json({ error: "Could not build the FamBam Challenge.", details: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });

@@ -17,6 +17,16 @@ function getDefinition(shortDefinition: string, description: string) {
   return match?.[1]?.trim() || description.slice(0, 320).trim();
 }
 
+function getPartOfSpeech(description: string) {
+  const match = description.match(/\b(transitive verb|intransitive verb|auxiliary verb|noun|verb|adjective|adverb|interjection|preposition|conjunction|pronoun|abbreviation)\b/i);
+  return match?.[1] ?? "";
+}
+
+function getExample(description: string) {
+  const match = description.match(/\/\/\s*([\s\S]*?)(?=\s+See the entry\b|\s+Examples?:|\s+Did you know\??|$)/i);
+  return match?.[1]?.trim().replace(/^[“”"'\s]+|[“”"'\s]+$/g, "") ?? "";
+}
+
 export async function GET(request: Request) {
   try {
     // Reading the requested date keeps this live feed endpoint request-time rendered.
@@ -32,13 +42,15 @@ export async function GET(request: Request) {
       const shortDefinition = plainText(field(itemXml, "shortdef"));
       const description = plainText(field(itemXml, "description"));
       const definition = getDefinition(shortDefinition, description);
-      return { title, link: field(itemXml, "link"), date: field(itemXml, "pubDate"), word, definition };
+      const partOfSpeech = getPartOfSpeech(description);
+      const example = getExample(description);
+      return { title, link: field(itemXml, "link"), date: field(itemXml, "pubDate"), word, definition, partOfSpeech, example };
     }).filter((item) => item.word);
     if (!items.length) throw new Error("The Merriam-Webster feed did not include a word.");
 
     // Merriam-Webster's feed is newest-first, so the first item is today's word.
     const selected = items[0];
-    return NextResponse.json({ word: selected.word, definition: selected.definition, date: requestedDate || selected.date, url: selected.link || "https://www.merriam-webster.com/word-of-the-day" });
+    return NextResponse.json({ word: selected.word, definition: selected.definition, partOfSpeech: selected.partOfSpeech, example: selected.example, date: requestedDate || selected.date, url: selected.link || "https://www.merriam-webster.com/word-of-the-day" });
   } catch (error) {
     console.error("Merriam-Webster word-of-day failed:", error);
     return NextResponse.json({ error: "Could not load Merriam-Webster’s word today." }, { status: 502 });

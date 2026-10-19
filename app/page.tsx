@@ -5681,9 +5681,11 @@ export default function Home() {
           </section>
         )}
 
-      {signedInPlayer && (
-        <section className="mb-4 grid gap-3 sm:grid-cols-2" aria-label="Family home tools">
-          <article className="rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+      {signedInPlayer ? (
+        <div className="mb-4 grid grid-cols-2 gap-3" aria-label="Family home tools">
+          <div className="order-1 min-w-0"><TodaysFunHoliday /></div>
+          <section className="contents" aria-label="Family checklist and Daisy care">
+          <article className="order-4 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family routine</div>
@@ -5743,7 +5745,7 @@ export default function Home() {
             </div>
           </article>
 
-          <article className="rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+          <article className="order-2 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Pet care</div>
@@ -5776,10 +5778,16 @@ export default function Home() {
             {nfcFeedNotice && <p role="status" className="mt-2 text-xs font-bold text-emerald-700">{nfcFeedNotice}</p>}
             <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut can update the feeding time under the signed-in profile.</p>
           </article>
-        </section>
-      )}
-
+                  </section>
+          <article className="order-3 min-w-0 rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 shadow-sm">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family meals</div>
+            <h2 className="mt-1 text-lg font-black text-[#10254a]">Meal Plans 🍽️</h2>
+            <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600">This week’s dinner plans will live here, alongside the family checklist.</p>
+          </article>
+        </div>
+      ) : (
         <div className="mb-4"><TodaysFunHoliday /></div>
+      )}
 
         {signedInPlayer && (
           <>

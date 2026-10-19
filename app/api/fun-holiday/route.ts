@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     const dayHtml = headingIndex >= 0
       ? html.slice(headingIndex, otherHolidaysIndex > headingIndex ? otherHolidaysIndex : undefined)
       : html;
-    const links = [...dayHtml.matchAll(/<a\b[^>]*href="(\/days\/[a-z0-9-]+\/?)"[^>]*>([\s\S]*?)<\/a>/gi)];
+    const links = [...dayHtml.matchAll(/<a\b[^>]*href="(?:https:\/\/www\.daysoftheyear\.com)?(\/days\/[a-z0-9-]+\/?)"[^>]*>([\s\S]*?)<\/a>/gi)];
     const holidays = links.map((link) => {
       const slug = link[1].split("/").filter(Boolean).at(-1) ?? "";
       const name = stripTags(link[2]);

@@ -41,6 +41,5 @@ export default function NorthGeorgiaWeatherCard() {
       {weather && <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-600"><span>H {weather.high}° / L {weather.low}°</span>{weather.rainChance !== null && <span>Rain {weather.rainChance}%</span>}<span>Wind {weather.wind} mph</span></div>}
       <p className="mt-2 text-[10px] font-medium text-slate-400">Quick snapshot from Open-Meteo</p>
     </div>
-    <a href="https://apps.apple.com/us/app/north-georgia-majestic-weather/id6759932925" target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#10254a] px-3 text-center text-xs font-black text-white">Open North Georgia Majestic Weather ↗</a>
   </article>;
 }

@@ -19,6 +19,7 @@ const WEEKLY_PRACTICE = [
 
 export default function WeeklyFaithPractice() {
   const [index, setIndex] = useState<number | null>(null);
+  const [firstLettersOnly, setFirstLettersOnly] = useState(false);
   useEffect(() => {
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
@@ -26,13 +27,17 @@ export default function WeeklyFaithPractice() {
     setIndex(week % WEEKLY_PRACTICE.length);
   }, []);
   const entry = index === null ? null : WEEKLY_PRACTICE[index];
+  const verseText = entry?.text.replace(/[\p{L}\p{N}][\p{L}\p{M}\p{N}'’\-]*/gu, (word) => word[0]) ?? "";
   return <section className="mb-4 rounded-3xl border border-amber-200 bg-[#fffaf0] p-4 shadow-sm">
     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#9a741f]">A weekly family practice</div>
     <h2 className="mt-1 text-xl font-black text-[#10254a]">📖 Verse of the week · ESV</h2>
     {entry ? <>
       <div className="mt-3 rounded-2xl bg-white p-4">
         <p className="text-xs font-black uppercase tracking-wide text-slate-400">{entry.reference}</p>
-        <blockquote className="mt-2 text-base font-semibold leading-relaxed text-[#10254a]">“{entry.text}”</blockquote>
+        <blockquote className="mt-2 text-base font-semibold leading-relaxed text-[#10254a]">“{firstLettersOnly ? verseText : entry.text}”</blockquote>
+        <button type="button" aria-pressed={firstLettersOnly} onClick={() => setFirstLettersOnly((current) => !current)} className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-[#10254a] px-3 text-xs font-black text-[#10254a]">
+          {firstLettersOnly ? "Show full verse" : "Practice with first letters"}
+        </button>
         <p className="mt-2 text-[10px] font-medium leading-relaxed text-slate-400">Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers. ESV Text Edition: 2025. Used by permission. All rights reserved.</p>
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">

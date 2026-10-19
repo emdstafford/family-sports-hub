@@ -5,8 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import StandingsHub from "@/components/standings-hub";
 import GiftManager from "@/components/gift-manager";
 import PantryManager from "@/components/pantry-manager";
-import DailyEncouragement from "@/components/daily-encouragement";
+import MerriamWebsterWordOfDay from "@/components/merriam-webster-word-of-day";
 import NorthGeorgiaWeatherCard from "@/components/north-georgia-weather-card";
+import HandmadeGiftPlanner from "@/components/handmade-gift-planner";
+import FamilyPrayerBoard from "@/components/family-prayer-board";
+import WeeklyFaithPractice from "@/components/weekly-faith-practice";
+import TodaysFunHoliday from "@/components/todays-fun-holiday";
 
 type PackingItem = { id: string; label: string; repeatWeekly: boolean; checked: boolean };
 type DaisyFeedEvent = { id: string; fedAt: string; fedBy: string };
@@ -1565,7 +1569,7 @@ export default function Home() {
   const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Pantry">("Home");
+    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Pantry" | "Prayer">("Home");
 
   useEffect(() => {
     if (new URL(window.location.href).searchParams.get("section") === "Pantry") setActiveSection("Pantry");
@@ -5633,9 +5637,11 @@ export default function Home() {
 
       {activeSection === "Home" && (
       <div className="mx-auto max-w-5xl px-3 py-3">
-        <div className="mb-3 grid gap-3 sm:grid-cols-2">
-          <DailyEncouragement />
+        <WeeklyFaithPractice />
+        <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <MerriamWebsterWordOfDay />
           <NorthGeorgiaWeatherCard />
+          <TodaysFunHoliday />
         </div>
         {/* SIGN IN */}
         {!signedInPlayer && (
@@ -7920,13 +7926,14 @@ export default function Home() {
             </p>
           </div>
           <GiftManager />
+          <HandmadeGiftPlanner />
         </section>
       )}
 
       {/* APP NAV */}
       <nav className={`fixed inset-x-0 bottom-0 ${profileOpen ? "z-[145]" : "z-50"} border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]`}>
         <div
-          className="mx-auto grid max-w-5xl grid-cols-4"
+          className="mx-auto grid max-w-5xl grid-cols-5"
           style={{
             paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
             paddingTop: "6px",
@@ -7937,6 +7944,7 @@ export default function Home() {
             ["🏟️", "Sports"],
             ["🧺", "Pantry"],
             ["🎁", "Gifts"],
+            ["🙏", "Prayer"],
           ].map(([icon, label]) => (
             <button
               key={label}
@@ -7957,6 +7965,10 @@ export default function Home() {
 
                 if (label === "Pantry") {
                   setActiveSection("Pantry");
+                }
+
+                if (label === "Prayer") {
+                  setActiveSection("Prayer");
                 }
               }}
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${
@@ -7988,6 +8000,9 @@ export default function Home() {
 
       {activeSection === "Pantry" && signedInPlayer && <PantryManager playerId={signedInPlayer.id} />}
       {activeSection === "Pantry" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🧺</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Pantry & Freezer</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to see and update the family food inventory.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => document.getElementById("signin")?.scrollIntoView({ behavior: "smooth" }), 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
+
+      {activeSection === "Prayer" && signedInPlayer && <FamilyPrayerBoard />}
+      {activeSection === "Prayer" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🙏</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Family Prayer</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to share prayer requests with the family.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => document.getElementById("signin")?.scrollIntoView({ behavior: "smooth" }), 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
 
       {selectedEventGuide && (
         <div className="fixed inset-0 z-[135] flex items-end justify-center bg-slate-950/60 backdrop-blur-sm sm:items-center sm:p-4">

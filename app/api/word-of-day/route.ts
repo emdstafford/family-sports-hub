@@ -4,7 +4,7 @@ function decodeXml(value: string) {
   return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").trim();
 }
 function plainText(value: string) {
-  return decodeXml(value).replace(/<[^>]*>/g, " ").replace(/&nbsp;|&#160;/gi, " ").replace(/\s+/g, " ").trim();
+  return decodeXml(value).replace(/<[^>]*>/g, " ").replace(/&nbsp;|&#160;|&#\d+;|&#x[\da-f]+;/gi, " ").replace(/\s+/g, " ").trim();
 }
 function field(xml: string, name: string) {
   const match = xml.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`, "i"));

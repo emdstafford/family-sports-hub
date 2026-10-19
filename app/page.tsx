@@ -5564,20 +5564,20 @@ export default function Home() {
             <h1 className="mt-1 text-3xl font-black">Your sports hub</h1>
             <p className="mt-2 text-sm font-semibold text-blue-100">Challenges, family events, favorite teams, and trophies in one place.</p>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <button type="button" onClick={() => openPicks()} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
-              <span className="text-2xl">🎯</span><span className="mt-2 block text-lg font-black">Family Challenge</span><span className="mt-1 block text-sm font-semibold text-slate-500">Make picks across this week’s games.</span>
+          <nav aria-label="Sports sections" className="mt-3 grid grid-cols-4 gap-2">
+            <button type="button" onClick={() => openPicks()} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
+              <span className="block text-lg">🎯</span><span className="mt-1 block text-[10px] font-black leading-tight">Challenge</span>
             </button>
-            <button type="button" onClick={() => setActiveSection("Events")} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
-              <span className="text-2xl">⭐</span><span className="mt-2 block text-lg font-black">Events</span><span className="mt-1 block text-sm font-semibold text-slate-500">Choose the special games and events to follow.</span>
+            <button type="button" onClick={() => setActiveSection("Events")} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
+              <span className="block text-lg">⭐</span><span className="mt-1 block text-[10px] font-black leading-tight">Events</span>
             </button>
-            <button type="button" onClick={() => { setActiveSection("Locker Room"); void loadLockerRoom(); }} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
-              <span className="text-2xl">👕</span><span className="mt-2 block text-lg font-black">Locker Room</span><span className="mt-1 block text-sm font-semibold text-slate-500">Manage each person’s favorite teams.</span>
+            <button type="button" onClick={() => { setActiveSection("Locker Room"); void loadLockerRoom(); }} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
+              <span className="block text-lg">👕</span><span className="mt-1 block text-[10px] font-black leading-tight">Locker Room</span>
             </button>
-            <button type="button" onClick={() => { setActiveSection("Trophy Room"); void loadLockerRoom(); void loadPassport(); }} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
-              <span className="text-2xl">🏆</span><span className="mt-2 block text-lg font-black">Trophy Room</span><span className="mt-1 block text-sm font-semibold text-slate-500">See records, achievements, and memories.</span>
+            <button type="button" onClick={() => { setActiveSection("Trophy Room"); void loadLockerRoom(); void loadPassport(); }} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
+              <span className="block text-lg">🏆</span><span className="mt-1 block text-[10px] font-black leading-tight">Trophy Room</span>
             </button>
-          </div>
+          </nav>
         </section>
       )}
 
@@ -5791,10 +5791,13 @@ export default function Home() {
         </section>
       )}
 
-      {signedInPlayer && (
+      </div>
+      )}
+
+      {activeSection === "Sports" && signedInPlayer && (
         <section
-          id="home-games"
-          className="scroll-mt-20 py-4"
+          id="sports-games"
+          className="mx-auto max-w-5xl scroll-mt-20 px-3 py-4"
           style={{
             paddingBottom:
               "calc(env(safe-area-inset-bottom, 0px) + 90px)",
@@ -6340,10 +6343,6 @@ export default function Home() {
           )}
 
         </section>
-      )}
-
-      </div>
-
       )}
 
       {passportPhotoViewer && (

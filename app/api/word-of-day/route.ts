@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 function decodeXml(value: string) {
   return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").trim();
 }
+function plainText(value: string) {
+  return decodeXml(value).replace(/<[^>]*>/g, " ").replace(/&nbsp;|&#160;/gi, " ").replace(/\s+/g, " ").trim();
+}
 function field(xml: string, name: string) {
   const match = xml.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`, "i"));
   return match ? decodeXml(match[1]) : "";
@@ -19,8 +22,8 @@ export async function GET(request: Request) {
       const itemXml = match[1];
       const title = field(itemXml, "title");
       const description = field(itemXml, "description");
-      const combined = `${title} ${description}`;
-      const word = combined.match(/\bis:\s*([^.;<]+?)(?:\s*\.|\s*<|$)/i)?.[1]?.trim();
+      const combined = plainText(`${title} ${description}`);
+      const word = combined.match(/\bis:\s*([^.;]+?)(?:\s*[.;]|$)/i)?.[1]?.trim();
       return { title, description, link: field(itemXml, "link"), date: field(itemXml, "pubDate"), word };
     }).filter((item) => item.word);
     if (!items.length) throw new Error("The Merriam-Webster feed did not include a word.");

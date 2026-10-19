@@ -9,7 +9,8 @@ type StoredItem = {
   label: string;
   repeatWeekly: boolean;
   weekOf: string | null;
-  checkedWeekStart: string | null;
+  checkedDate?: string | null;
+  checkedWeekStart?: string | null;
   createdAt: string;
 };
 
@@ -34,6 +35,17 @@ function currentWeekStart() {
   const daysSinceMonday = (date.getUTCDay() + 6) % 7;
   date.setUTCDate(date.getUTCDate() - daysSinceMonday);
   return date.toISOString().slice(0, 10);
+}
+
+function currentLocalDate() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 async function verifySession(db: ReturnType<typeof getAdminClient>, playerId: string, token: string) {
@@ -103,6 +115,7 @@ export async function GET(request: Request) {
     }
     const familyId = await getFamilyId(db);
     const weekStart = currentWeekStart();
+    const today = currentLocalDate();
     const store = await readStore(db, familyId);
     const items = store.items
       .filter((item) => visibleThisWeek(item, weekStart))
@@ -111,7 +124,7 @@ export async function GET(request: Request) {
         id: item.id,
         label: item.label,
         repeatWeekly: item.repeatWeekly,
-        checked: item.checkedWeekStart === weekStart,
+        checked: (item.checkedDate ?? null) === today,
       }));
     return NextResponse.json({ weekStart, items });
   } catch (error) {
@@ -139,6 +152,7 @@ export async function POST(request: Request) {
 
     const familyId = await getFamilyId(db);
     const weekStart = currentWeekStart();
+    const today = currentLocalDate();
     const store = await readStore(db, familyId);
     const action = String(body?.action ?? "");
 
@@ -151,14 +165,14 @@ export async function POST(request: Request) {
         label,
         repeatWeekly,
         weekOf: repeatWeekly ? null : weekStart,
-        checkedWeekStart: null,
+        checkedDate: null,
         createdAt: new Date().toISOString(),
       });
     } else {
       const item = store.items.find((row) => row.id === String(body?.itemId ?? ""));
       if (!item) return NextResponse.json({ error: "That list item could not be found." }, { status: 404 });
       if (action === "toggle") {
-        item.checkedWeekStart = body?.checked === true ? weekStart : null;
+        item.checkedDate = body?.checked === true ? today : null;
       } else if (action === "edit") {
         const label = String(body?.label ?? "").trim().slice(0, 100);
         if (!label) return NextResponse.json({ error: "Add an item name first." }, { status: 400 });

@@ -23,13 +23,16 @@ export async function GET(request: Request) {
       const title = field(itemXml, "title");
       const titleText = plainText(title).replace(/^(?:the\s+)?(?:merriam-webster'?s?\s+)?word of the day(?:\s+is)?\s*:?\s*/i, "");
       const word = titleText.match(/^[\p{L}][\p{L}'’-]*/u)?.[0];
-      return { title, link: field(itemXml, "link"), date: field(itemXml, "pubDate"), word };
+      const shortDefinition = plainText(field(itemXml, "shortdef"));
+      const description = plainText(field(itemXml, "description"));
+      const definition = shortDefinition || description;
+      return { title, link: field(itemXml, "link"), date: field(itemXml, "pubDate"), word, definition };
     }).filter((item) => item.word);
     if (!items.length) throw new Error("The Merriam-Webster feed did not include a word.");
 
     // Merriam-Webster's feed is newest-first, so the first item is today's word.
     const selected = items[0];
-    return NextResponse.json({ word: selected.word, date: requestedDate || selected.date, url: selected.link || "https://www.merriam-webster.com/word-of-the-day" });
+    return NextResponse.json({ word: selected.word, definition: selected.definition, date: requestedDate || selected.date, url: selected.link || "https://www.merriam-webster.com/word-of-the-day" });
   } catch (error) {
     console.error("Merriam-Webster word-of-day failed:", error);
     return NextResponse.json({ error: "Could not load Merriam-Webster’s word today." }, { status: 502 });

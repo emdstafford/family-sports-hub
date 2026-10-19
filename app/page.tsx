@@ -11,8 +11,9 @@ import HandmadeGiftPlanner from "@/components/handmade-gift-planner";
 import FamilyPrayerBoard from "@/components/family-prayer-board";
 import WeeklyFaithPractice from "@/components/weekly-faith-practice";
 import TodaysFunHoliday from "@/components/todays-fun-holiday";
+import FamilyMealPlanner from "@/components/family-meal-planner";
 
-type PackingItem = { id: string; label: string; repeatWeekly: boolean; checked: boolean };
+type PackingItem = { id: string; label: string; repeatWeekly: boolean; checked: boolean; assignedPlayerId?: string | null };
 type DaisyFeedEvent = { id: string; fedAt: string; fedBy: string };
 type DaisyWaterEvent = { id: string; changedAt: string; changedBy: string };
 
@@ -1375,6 +1376,7 @@ export default function Home() {
 
   const [packingItems, setPackingItems] = useState<PackingItem[]>([]);
   const [packingInput, setPackingInput] = useState("");
+  const [packingAssignedPlayerId, setPackingAssignedPlayerId] = useState("");
   const [packingRepeatWeekly, setPackingRepeatWeekly] = useState(true);
   const [packingBusy, setPackingBusy] = useState(false);
   const [packingError, setPackingError] = useState<string | null>(null);
@@ -5701,10 +5703,10 @@ export default function Home() {
               setPackingBusy(true); setPackingError(null);
               try {
                 const token = window.localStorage.getItem("fambam_session_token") ?? "";
-                const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "add", label, repeatWeekly: packingRepeatWeekly }) });
+                const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "add", label, repeatWeekly: packingRepeatWeekly, assignedPlayerId: packingAssignedPlayerId || null }) });
                 const data = await readApiResponse(response, "Shared list");
                 if (!response.ok) throw new Error(data.error ?? "Could not add that item.");
-                setPackingInput(""); await loadFamilyTools();
+                setPackingInput(""); setPackingAssignedPlayerId(""); await loadFamilyTools();
               } catch (error) { setPackingError(error instanceof Error ? error.message : "Could not add that item."); }
               finally { setPackingBusy(false); }
             }} className="mt-3 flex gap-2">
@@ -5712,7 +5714,14 @@ export default function Home() {
               <button disabled={packingBusy || !packingInput.trim()} className="rounded-xl bg-[#10254a] px-3 py-2 text-sm font-black text-white disabled:opacity-40">Add</button>
             </form>
             <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
-              <input type="checkbox" checked={packingRepeatWeekly} onChange={(event) => setPackingRepeatWeekly(event.target.checked)} />
+              <span className="shrink-0">For</span>
+              <select value={packingAssignedPlayerId} onChange={(event) => setPackingAssignedPlayerId(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-[#10254a]">
+                <option value="">Everyone</option>
+                {players.map((player) => <option key={player.id} value={player.id}>{player.display_name}</option>)}
+              </select>
+            </label>
+            <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <input type="checkbox" checked={packingRepeatWeekly onChange={(event) => setPackingRepeatWeekly(event.target.checked)} />
               Repeat this item every week
             </label>
             {packingError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{packingError}</p>}
@@ -5733,6 +5742,19 @@ export default function Home() {
                     catch (error) { setPackingError(error instanceof Error ? error.message : "Could not edit that item."); }
                     finally { setPackingBusy(false); }
                   }}><input autoFocus value={editingPackingLabel} onChange={(event) => setEditingPackingLabel(event.target.value)} className="min-w-0 flex-1 rounded border px-2 py-1 text-sm" /><button className="text-xs font-black text-[#164d9b]">Save</button></form> : <button onClick={() => { setEditingPackingId(item.id); setEditingPackingLabel(item.label); }} className={`min-w-0 flex-1 text-left text-sm font-bold ${item.checked ? "text-slate-400 line-through" : "text-[#10254a]"}`}>{item.label}<span className="ml-1 text-[10px] font-semibold text-slate-400">{item.repeatWeekly ? "weekly" : ""}</span></button>}
+                  <label className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-slate-500">
+                    <span className="sr-only">Assigned to</span>
+                    <select value={item.assignedPlayerId ?? ""} aria-label={`Who is ${item.label} for?`} onChange={async (event) => {
+                      if (!signedInPlayer) return;
+                      setPackingBusy(true); setPackingError(null);
+                      try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "assign", itemId: item.id, assignedPlayerId: event.target.value || null }) }); const data = await readApiResponse(response, "Shared list"); if (!response.ok) throw new Error(data.error ?? "Could not assign that item."); await loadFamilyTools(); }
+                      catch (error) { setPackingError(error instanceof Error ? error.message : "Could not assign that item."); }
+                      finally { setPackingBusy(false); }
+                    }} className="max-w-[92px] rounded border border-slate-200 bg-white px-1 py-1 text-[10px] text-slate-600">
+                      <option value="">Everyone</option>
+                      {players.map((player) => <option key={player.id} value={player.id}>{player.display_name}</option>)}
+                    </select>
+                  </label>
                   <button aria-label={`Remove ${item.label}`} onClick={async () => {
                     if (!signedInPlayer) return;
                     setPackingBusy(true); setPackingError(null);
@@ -5779,11 +5801,7 @@ export default function Home() {
             <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut can update the feeding time under the signed-in profile.</p>
           </article>
                   </section>
-          <article className="order-3 min-w-0 rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 shadow-sm">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family meals</div>
-            <h2 className="mt-1 text-lg font-black text-[#10254a]">Meal Plans 🍽️</h2>
-            <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600">This week’s dinner plans will live here, alongside the family checklist.</p>
-          </article>
+          <div className="order-3 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
         </div>
       ) : (
         <div className="mb-4"><TodaysFunHoliday /></div>

@@ -29,7 +29,6 @@ export default function WeeklyFaithPractice() {
   const entry = index === null ? null : WEEKLY_PRACTICE[index];
   const verseText = entry?.text.replace(/[\p{L}\p{N}][\p{L}\p{M}\p{N}'’\-]*/gu, (word) => word[0]) ?? "";
   return <section className="mb-4 rounded-3xl border border-amber-200 bg-[#fffaf0] p-4 shadow-sm">
-    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#9a741f]">A weekly family practice</div>
     <h2 className="mt-1 text-xl font-black text-[#10254a]">📖 Verse of the week · ESV</h2>
     {entry ? <>
       <div className="mt-3 rounded-2xl bg-white p-4">
@@ -38,13 +37,11 @@ export default function WeeklyFaithPractice() {
         <button type="button" aria-pressed={firstLettersOnly} onClick={() => setFirstLettersOnly((current) => !current)} className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-[#10254a] px-3 text-xs font-black text-[#10254a]">
           {firstLettersOnly ? "Show full verse" : "Practice with first letters"}
         </button>
-        <p className="mt-2 text-[10px] font-medium leading-relaxed text-slate-400">Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers. ESV Text Edition: 2025. Used by permission. All rights reserved.</p>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-slate-600">Family practice: read it aloud, then try saying it together from memory.</p>
-        <a className="inline-flex min-h-10 items-center rounded-xl bg-[#10254a] px-3 text-xs font-black text-white" href={`https://www.bible.com/bible/59/${entry.code}.ESV`} target="_blank" rel="noreferrer">Open in YouVersion ↗</a>
       </div>
     </> : <p className="mt-2 text-sm font-semibold text-slate-500">This week’s verse is on the way…</p>}
-    <a className="mt-3 inline-flex min-h-10 items-center text-xs font-black text-[#315f99] underline underline-offset-2" href="https://www.bible.com/app" target="_blank" rel="noreferrer">Get the YouVersion Bible App ↗</a>
+    <details className="mt-2 text-[10px] text-slate-400">
+      <summary className="w-fit cursor-pointer font-semibold">ESV copyright</summary>
+      <p className="mt-1 leading-relaxed">Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers. ESV Text Edition: 2025. Used by permission. All rights reserved.</p>
+    </details>
   </section>;
 }

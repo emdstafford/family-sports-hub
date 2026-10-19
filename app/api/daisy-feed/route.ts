@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
 
 const BUCKET = "fambam-family-tools";
 type FeedEvent = { id: string; fedAt: string; fedBy: string };
-type FeedStore = { events: FeedEvent[] };
+type WaterEvent = { id: string; changedAt: string; changedBy: string };
+type FeedStore = { latestFeed: FeedEvent | null; latestWater: WaterEvent | null };
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -33,24 +34,23 @@ async function ensureBucket(db: ReturnType<typeof getAdminClient>) {
 async function readStore(db: ReturnType<typeof getAdminClient>, familyId: string): Promise<FeedStore> {
   await ensureBucket(db);
   const { data, error } = await db.storage.from(BUCKET).download(familyId + "/daisy-feed.json");
-  if (error || !data) return { events: [] };
+  if (error || !data) return { latestFeed: null, latestWater: null };
   try {
     const parsed = JSON.parse(await data.text());
-    return { events: Array.isArray(parsed.events) ? parsed.events.filter((event: any) =>
-      event && typeof event.id === "string" && typeof event.fedAt === "string" && typeof event.fedBy === "string"
-    ) : [] };
-  } catch { return { events: [] }; }
+    const events = Array.isArray(parsed.events) ? parsed.events.filter((event: unknown): event is FeedEvent =>
+      typeof event === "object" && event !== null && "id" in event && typeof event.id === "string" && "fedAt" in event && typeof event.fedAt === "string" && "fedBy" in event && typeof event.fedBy === "string"
+    ).sort((a: FeedEvent, b: FeedEvent) => b.fedAt.localeCompare(a.fedAt)) : [];
+    return {
+      latestFeed: parsed.latestFeed && typeof parsed.latestFeed.fedAt === "string" ? parsed.latestFeed : (events[0] ?? null),
+      latestWater: parsed.latestWater && typeof parsed.latestWater.changedAt === "string" ? parsed.latestWater : null,
+    };
+  } catch { return { latestFeed: null, latestWater: null }; }
 }
 async function writeStore(db: ReturnType<typeof getAdminClient>, familyId: string, store: FeedStore) {
   await ensureBucket(db);
   const { error } = await db.storage.from(BUCKET).upload(familyId + "/daisy-feed.json",
-    JSON.stringify({ events: store.events.slice(-100) }), { contentType: "application/json", upsert: true });
+    JSON.stringify(store), { contentType: "application/json", upsert: true });
   if (error) throw error;
-}
-function dateInEastern(iso: string) {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(iso));
-  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
-  return values.year + "-" + values.month + "-" + values.day;
 }
 export async function GET(request: Request) {
   try {
@@ -61,9 +61,7 @@ export async function GET(request: Request) {
     if (!(await verifySession(db, playerId, token))) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
     const familyId = await getFamilyId(db);
     const store = await readStore(db, familyId);
-    const events = store.events.sort((a, b) => b.fedAt.localeCompare(a.fedAt));
-    const today = dateInEastern(new Date().toISOString());
-    return NextResponse.json({ latest: events[0] ?? null, today: events.filter(event => dateInEastern(event.fedAt) === today) });
+    return NextResponse.json({ latest: store.latestFeed, latestWater: store.latestWater });
   } catch (error) {
     console.error("Daisy feed GET failed:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not load Daisy's feeding log." }, { status: 500 });
@@ -71,7 +69,7 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => null) as { playerId?: string } | null;
+    const body = await request.json().catch(() => null) as { playerId?: string; action?: string } | null;
     const playerId = String(body?.playerId ?? "");
     const token = request.headers.get("x-fambam-session") ?? "";
     const db = getAdminClient();
@@ -81,10 +79,15 @@ export async function POST(request: Request) {
     if (!player?.display_name) return NextResponse.json({ error: "Could not identify who is logging the feeding." }, { status: 404 });
     const familyId = await getFamilyId(db);
     const store = await readStore(db, familyId);
-    const event: FeedEvent = { id: randomUUID(), fedAt: new Date().toISOString(), fedBy: String(player.display_name) };
-    store.events.push(event);
+    const now = new Date().toISOString();
+    const action = body?.action === "water" ? "water" : "feed";
+    if (action === "water") {
+      store.latestWater = { id: randomUUID(), changedAt: now, changedBy: String(player.display_name) };
+    } else {
+      store.latestFeed = { id: randomUUID(), fedAt: now, fedBy: String(player.display_name) };
+    }
     await writeStore(db, familyId, store);
-    return NextResponse.json({ ok: true, event });
+    return NextResponse.json({ ok: true, latest: store.latestFeed, latestWater: store.latestWater });
   } catch (error) {
     console.error("Daisy feed POST failed:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not log Daisy's feeding." }, { status: 500 });

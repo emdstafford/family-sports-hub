@@ -5509,7 +5509,7 @@ export default function Home() {
 
             <div className="min-w-0">
               <div className="truncate text-xl font-black tracking-tight">
-                FamBam
+                FamBam Hub
               </div>
               <div className="text-[8px] font-black uppercase tracking-[0.28em] text-[#f3c64f]">
                 Our family, all in one place

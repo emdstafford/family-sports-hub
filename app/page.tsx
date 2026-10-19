@@ -1523,7 +1523,7 @@ export default function Home() {
   const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts">("Home");
+    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts">("Home");
 
   useEffect(() => {
     window.scrollTo({
@@ -5509,6 +5509,30 @@ export default function Home() {
         </div>
       </header>
 
+      {activeSection === "Sports" && (
+        <section className="mx-auto max-w-3xl px-3 py-5 pb-8">
+          <div className="rounded-3xl bg-[#06284a] p-5 text-white shadow-sm">
+            <div className="text-xs font-black uppercase tracking-[0.22em] text-[#f3c64f]">FamBam Sports</div>
+            <h1 className="mt-1 text-3xl font-black">Your sports hub</h1>
+            <p className="mt-2 text-sm font-semibold text-blue-100">Challenges, family events, favorite teams, and trophies in one place.</p>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <button type="button" onClick={() => openPicks()} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
+              <span className="text-2xl">🎯</span><span className="mt-2 block text-lg font-black">Family Challenge</span><span className="mt-1 block text-sm font-semibold text-slate-500">Make picks across this week’s games.</span>
+            </button>
+            <button type="button" onClick={() => setActiveSection("Events")} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
+              <span className="text-2xl">⭐</span><span className="mt-2 block text-lg font-black">Events</span><span className="mt-1 block text-sm font-semibold text-slate-500">Choose the special games and events to follow.</span>
+            </button>
+            <button type="button" onClick={() => { setActiveSection("Locker Room"); void loadLockerRoom(); }} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
+              <span className="text-2xl">👕</span><span className="mt-2 block text-lg font-black">Locker Room</span><span className="mt-1 block text-sm font-semibold text-slate-500">Manage each person’s favorite teams.</span>
+            </button>
+            <button type="button" onClick={() => { setActiveSection("Trophy Room"); void loadLockerRoom(); void loadPassport(); }} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
+              <span className="text-2xl">🏆</span><span className="mt-2 block text-lg font-black">Trophy Room</span><span className="mt-1 block text-sm font-semibold text-slate-500">See records, achievements, and memories.</span>
+            </button>
+          </div>
+        </section>
+      )}
+
       {activeSection === "Home" && (
       <div className="mx-auto max-w-5xl px-3 py-3">
         {/* SIGN IN */}
@@ -7703,7 +7727,7 @@ export default function Home() {
       {/* APP NAV */}
       <nav className={`fixed inset-x-0 bottom-0 ${profileOpen ? "z-[145]" : "z-50"} border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]`}>
         <div
-          className="mx-auto grid max-w-5xl grid-cols-6"
+          className="mx-auto grid max-w-5xl grid-cols-3"
           style={{
             paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
             paddingTop: "6px",
@@ -7711,12 +7735,9 @@ export default function Home() {
         >
           {[
             ["🏠", "Home"],
-            ["🎯", "Challenge"],
-            ["⭐", "Events"],
-            ["👕", "Locker Room"],
-            ["🏆", "Trophy Room"],
+            ["🏟️", "Sports"],
             ["🎁", "Gifts"],
-          ].map(([icon, label], index) => (
+          ].map(([icon, label]) => (
             <button
               key={label}
               onClick={() => {
@@ -7726,23 +7747,8 @@ export default function Home() {
                   setActiveSport("All");
                 }
 
-                if (label === "Challenge") {
-                  openPicks();
-                }
-
-                if (label === "Events") {
-                  setActiveSection("Events");
-                }
-
-                if (label === "Locker Room") {
-                  setActiveSection("Locker Room");
-                  void loadLockerRoom();
-                }
-
-                if (label === "Trophy Room") {
-                  setActiveSection("Trophy Room");
-                  void loadLockerRoom();
-                  void loadPassport();
+                if (label === "Sports") {
+                  setActiveSection("Sports");
                 }
 
                 if (label === "Gifts") {
@@ -7750,7 +7756,9 @@ export default function Home() {
                 }
               }}
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${
-                activeSection === label
+                (label === "Sports"
+                  ? ["Sports", "Challenge", "Events", "Locker Room", "Trophy Room"].includes(activeSection)
+                  : activeSection === label)
                   ? "text-[#f3c64f]"
                   : "text-white"
               }`}
@@ -7763,7 +7771,9 @@ export default function Home() {
               </span>
 
               {(
-                activeSection === label
+                (label === "Sports"
+                  ? ["Sports", "Challenge", "Events", "Locker Room", "Trophy Room"].includes(activeSection)
+                  : activeSection === label)
               ) && (
                 <span className="absolute bottom-0 h-0.5 w-10 rounded-full bg-[#f3c64f]" />
               )}

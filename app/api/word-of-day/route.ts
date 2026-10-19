@@ -21,10 +21,9 @@ export async function GET(request: Request) {
     const items = [...xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/gi)].map((match) => {
       const itemXml = match[1];
       const title = field(itemXml, "title");
-      const description = field(itemXml, "description");
-      const combined = plainText(`${title} ${description}`);
-      const word = combined.match(/\bis:\s*([^.;]+?)(?:\s*[.;]|$)/i)?.[1]?.trim();
-      return { title, description, link: field(itemXml, "link"), date: field(itemXml, "pubDate"), word };
+      const titleText = plainText(title).replace(/^(?:the\s+)?(?:merriam-webster'?s?\s+)?word of the day(?:\s+is)?\s*:?\s*/i, "");
+      const word = titleText.match(/^[\p{L}][\p{L}'’-]*/u)?.[0];
+      return { title, link: field(itemXml, "link"), date: field(itemXml, "pubDate"), word };
     }).filter((item) => item.word);
     if (!items.length) throw new Error("The Merriam-Webster feed did not include a word.");
 

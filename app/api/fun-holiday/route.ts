@@ -48,7 +48,10 @@ export async function GET(request: Request) {
     const pageUrl = `https://www.timeanddate.com/holidays/fun/${monthName}/${day}/`;
     const response = await fetch(pageUrl, {
       next: { revalidate: 21_600 },
-      headers: { "user-agent": "FamBam Hub family fun card" },
+      headers: {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
     });
     if (!response.ok) throw new Error(`Timeanddate returned ${response.status}.`);
     const html = await response.text();

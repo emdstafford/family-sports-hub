@@ -30,7 +30,6 @@ export default function TodaysFunHoliday() {
       <h2 className="mt-1 text-xl font-black text-[#10254a]">🎉 Today’s fun holiday</h2>
       <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-slate-400">{dateLabel || "Today"}</p>
       <p className="mt-1 text-lg font-black text-[#10254a]">{loading ? "Finding today’s celebration…" : holiday?.name || "No kid-friendly holiday listed today"}</p>
-      <p className="mt-2 text-sm font-medium text-slate-600">{holiday?.name ? "Pick a simple, family-friendly way to celebrate together!" : "Browse today’s listings for a fun family idea."}</p>
     </div>
     <a className="mt-3 inline-flex min-h-10 items-center self-start rounded-xl bg-[#10254a] px-3 text-xs font-black text-white" href={fallbackUrl} target="_blank" rel="noreferrer">See it on Timeanddate ↗</a>
   </article>;

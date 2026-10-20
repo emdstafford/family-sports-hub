@@ -1,3 +1,4 @@
+import { trackingMode, trackingFactor } from "@/lib/inventory-tracking";
 import { randomUUID } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
@@ -11,6 +12,7 @@ type StorePrice = {
   packageUnit: string;
   purchasedAt: string;
   purchasedBy: string;
+  rating?: "not_tried" | "love" | "okay" | "no_thanks";
 };
 type PantryItem = {
   id: string;
@@ -20,7 +22,8 @@ type PantryItem = {
   quantity: number;
   unit: string;
   lowAt: number;
-  lowUnit?: "packages" | "count";
+  lowUnit?: "packages" | "count" | "lb";
+  trackingMode?: "packages" | "items" | "weight";
   expirationDate: string | null;
   frozenAt: string | null;
   packageSize: number;
@@ -65,13 +68,18 @@ async function ensureBucket(db: ReturnType<typeof getAdminClient>) {
 async function readStore(db: ReturnType<typeof getAdminClient>, familyId: string): Promise<PantryStore> {
   await ensureBucket(db);
   const { data, error } = await db.storage.from(BUCKET).download(familyId + "/pantry.json");
-  if (error || !data) return { items: [], groceries: [], canning: [] };
+  if (error) {
+    const status = Number((error as { statusCode?: number | string }).statusCode);
+    if ((status === 400 || status === 404) && /not found|not_found|does not exist/i.test(error.message)) return { items: [], groceries: [], canning: [] };
+    throw new Error("Could not read inventory. Please try again.");
+  }
+  if (!data) throw new Error("Could not read inventory. Please try again.");
   try {
     const parsed = JSON.parse(await data.text());
     return { locations: Array.isArray(parsed.locations) ? parsed.locations.filter((value: unknown) => typeof value === "string") : [], canningUsage: Array.isArray(parsed.canningUsage) ? parsed.canningUsage : [], imports: Array.isArray(parsed.imports) ? parsed.imports : [], canning: Array.isArray(parsed.canning) ? parsed.canning.filter((batch: unknown) => typeof batch === "object" && batch !== null && "id" in batch && "name" in batch) : [], items: Array.isArray(parsed.items) ? parsed.items.filter((item: unknown): item is PantryItem =>
       typeof item === "object" && item !== null && "id" in item && typeof item.id === "string" && "name" in item && typeof item.name === "string" && "quantity" in item && Number.isFinite(Number(item.quantity))
     ).map((item: PantryItem) => ({ ...item, lowAt: Number.isFinite(Number(item.lowAt)) ? Number(item.lowAt) : 1, expirationDate: typeof item.expirationDate === "string" ? item.expirationDate : null, frozenAt: typeof item.frozenAt === "string" ? item.frozenAt : null })) : [], groceries: Array.isArray(parsed.groceries) ? parsed.groceries : [] };
-  } catch { return { items: [], groceries: [], canning: [] }; }
+  } catch { throw new Error("Inventory data could not be read. Please try again."); }
 }
 async function writeStore(db: ReturnType<typeof getAdminClient>, familyId: string, store: PantryStore) {
   await ensureBucket(db);
@@ -189,7 +197,7 @@ export async function POST(request: Request) {
       const line = store.groceries.find((row) => row.id === String(body?.groceryId ?? ""));
       if (line && action === "grocery-bought" && line.pantryItemId) {
         const item = store.items.find((row) => row.id === line.pantryItemId);
-        if (item) { item.quantity = Math.round(item.quantity + 1); item.updatedAt = new Date().toISOString(); }
+        if (item) { item.quantity = Math.round((item.quantity + 1 / trackingFactor(item)) * 10000) / 10000; item.updatedAt = new Date().toISOString(); }
       }
       store.groceries = store.groceries.filter((row) => row.id !== String(body?.groceryId ?? ""));
     } else if (action === "grocery-price") {
@@ -209,7 +217,7 @@ export async function POST(request: Request) {
       const name = cleanText(body?.name);
       const category = cleanText(body?.category, 30) || "Freezer";
       const location = cleanText(body?.location, 80);
-      const packages = numberOrNull(body?.packages) ?? 0;
+      let packages = numberOrNull(body?.packages) ?? 0;
       const packageSize = numberOrNull(body?.packageSize) ?? 1;
       const packageUnit = cleanText(body?.packageUnit, 20) || "count";
       const expirationDate = cleanText(body?.expirationDate, 10) || null;
@@ -221,12 +229,21 @@ export async function POST(request: Request) {
         ? String(body?.rating) as PantryItem["rating"] : "not_tried";
       if (!name) return NextResponse.json({ error: "Enter a food name." }, { status: 400 });
       if (packages <= 0 || packageSize <= 0) return NextResponse.json({ error: "Enter a package count and package size greater than zero." }, { status: 400 });
+      const requestedMode = body?.trackingMode;
+      if (requestedMode !== undefined && !["packages", "items", "weight"].includes(String(requestedMode))) return NextResponse.json({ error: "Choose how to track this item." }, { status: 400 });
+      const mode = requestedMode as "packages" | "items" | "weight" | undefined;
+      if ((mode === "items" && !["count", "each"].includes(packageUnit)) || (mode === "weight" && !["lb", "oz"].includes(packageUnit))) return NextResponse.json({ error: "Use count for individual items, or lb/oz for weight." }, { status: 400 });
+      if (body?.addedQuantity !== undefined) {
+        const added = numberOrNull(body.addedQuantity);
+        if (added === null || added <= 0) return NextResponse.json({ error: "Enter an amount greater than zero." }, { status: 400 });
+        packages = added / trackingFactor({ quantity: 0, packageSize, packageUnit, trackingMode: mode ?? "packages" });
+      }
       const normalized = name.toLowerCase();
       let item = store.items.find((row) => row.name.toLowerCase() === normalized && (row.location ?? "").toLowerCase() === location.toLowerCase());
       const now = new Date().toISOString();
       if (!item) {
         item = {
-          id: randomUUID(), name, category, location, quantity: 0, unit: "packages", lowAt: 1, expirationDate, frozenAt, packageSize,
+          id: randomUUID(), name, category, location, quantity: 0, unit: "packages", lowAt: 1, trackingMode: mode, lowUnit: mode === "items" ? "count" : mode === "weight" ? "lb" : "packages", expirationDate, frozenAt, packageSize,
           packageUnit, store: storeName, lastPrice: null, stockUpPrice: null, stockUpUnitPrice, rating,
           notes: cleanText(body?.notes, 500), updatedAt: now, priceHistory: [],
         };
@@ -236,14 +253,26 @@ export async function POST(request: Request) {
       item.category = category;
       item.location = location;
       if (location && !(store.locations ?? []).some((value) => value.toLowerCase() === location.toLowerCase())) (store.locations ??= []).push(location);
-      item.quantity = Math.round(item.quantity + packages);
+      const oldMode = trackingMode(item);
+      const newMode = mode ?? oldMode;
+      // Preserve existing contents when the next store sells a different pack size.
+      if (item.quantity > 0 && (oldMode !== "packages" || newMode !== "packages")) {
+        const oldWeight = ["lb", "oz"].includes(item.packageUnit), newWeight = ["lb", "oz"].includes(packageUnit);
+        if (oldWeight !== newWeight) return NextResponse.json({ error: "Keep the same item measurement when recording another purchase." }, { status: 400 });
+        const oldFactor = oldWeight ? (item.packageUnit === "oz" ? item.packageSize / 16 : item.packageSize) : item.packageSize;
+        const newFactor = newWeight ? (packageUnit === "oz" ? packageSize / 16 : packageSize) : packageSize;
+        item.quantity = item.quantity * oldFactor / newFactor;
+      }
+      item.quantity = Math.round((item.quantity + packages) * 10000) / 10000;
+      item.trackingMode = newMode;
       item.packageSize = packageSize;
+      item.packageUnit = packageUnit;
       if (expirationDate) item.expirationDate = expirationDate;
       if (frozenAt) item.frozenAt = frozenAt;
       item.store = storeName;
       if (price !== null) {
         item.lastPrice = price;
-        item.priceHistory.unshift({ id: randomUUID(), store: storeName, price, packageSize, packageUnit, purchasedAt: now, purchasedBy: cleanText(player?.display_name, 60) || "Family" });
+        item.priceHistory.unshift({ id: randomUUID(), store: storeName, price, packageSize, packageUnit, rating, purchasedAt: now, purchasedBy: cleanText(player?.display_name, 60) || "Family" });
         item.priceHistory = item.priceHistory.slice(0, 30);
       }
       if (stockUpUnitPrice !== null) {
@@ -263,6 +292,7 @@ export async function POST(request: Request) {
       if (price === null) return NextResponse.json({ error: "Enter a cost of zero or more." }, { status: 400 });
       if (item.lastPrice === entry.price && item.store === entry.store && item.packageSize === entry.packageSize && item.packageUnit === entry.packageUnit) item.lastPrice = price;
       entry.price = price;
+      if (["not_tried", "love", "okay", "no_thanks"].includes(String(body?.rating))) entry.rating = String(body?.rating) as PantryItem["rating"];
       item.updatedAt = new Date().toISOString();
     } else if (action === "price-record") {
       const item = store.items.find((row) => row.id === String(body?.itemId ?? ""));
@@ -280,7 +310,7 @@ export async function POST(request: Request) {
       if (action === "adjust") {
         const delta = Number(body?.delta);
         if (!Number.isFinite(delta)) return NextResponse.json({ error: "Choose a valid quantity change." }, { status: 400 });
-        item.quantity = Math.max(0, Math.round((item.quantity + delta) * 100) / 100);
+        item.quantity = Math.max(0, Math.round((item.quantity + delta) * 10000) / 10000);
       } else if (action === "use") {
         const amount = Number(body?.amount);
         const quantityUnit = cleanText(body?.quantityUnit, 20);
@@ -306,6 +336,12 @@ export async function POST(request: Request) {
       } else if (action === "edit") {
         const name = cleanText(body?.name);
         if (!name) return NextResponse.json({ error: "Enter a food name." }, { status: 400 });
+        if (body?.trackingMode !== undefined) {
+          const mode = String(body.trackingMode);
+          const unit = cleanText(body.packageUnit, 20) || item.packageUnit;
+          if (!["packages", "items", "weight"].includes(mode) || (mode === "items" && !["count", "each"].includes(unit)) || (mode === "weight" && !["lb", "oz"].includes(unit))) return NextResponse.json({ error: "Choose packages, individual items with count/each, or weight with lb/oz." }, { status: 400 });
+          item.trackingMode = mode as "packages" | "items" | "weight";
+        }
         if (body?.quantity !== undefined) {
           const quantity = numberOrNull(body.quantity);
           if (quantity === null) return NextResponse.json({ error: "Enter a quantity of zero or more." }, { status: 400 });
@@ -334,8 +370,8 @@ export async function POST(request: Request) {
         item.stockUpPrice = null;
         const lowAt = numberOrNull(body?.lowAt);
         const lowUnit = body?.lowUnit === undefined ? item.lowUnit ?? "packages" : String(body.lowUnit);
-        if (lowAt === null || !["packages", "count"].includes(lowUnit) || (lowUnit === "count" && !["count", "each"].includes(item.packageUnit))) return NextResponse.json({ error: "Choose packages or individual items and enter a valid low-stock amount. Individual items need a count or each package unit." }, { status: 400 });
-        item.lowAt = lowAt; item.lowUnit = lowUnit as "packages" | "count";
+        if (lowAt === null || !["packages", "count", "lb"].includes(lowUnit) || ((lowUnit === "count" && !["count", "each"].includes(item.packageUnit)) || (lowUnit === "lb" && !["lb", "oz"].includes(item.packageUnit)))) return NextResponse.json({ error: "Choose packages or individual items and enter a valid low-stock amount. Individual items need a count or each package unit." }, { status: 400 });
+        item.lowAt = lowAt; item.lowUnit = lowUnit as "packages" | "count" | "lb";
         item.expirationDate = cleanText(body?.expirationDate, 10) || null;
         item.frozenAt = cleanText(body?.frozenAt, 10) || null;
         item.rating = ["not_tried", "love", "okay", "no_thanks"].includes(String(body?.rating)) ? String(body?.rating) as PantryItem["rating"] : item.rating;

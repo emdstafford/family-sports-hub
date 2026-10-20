@@ -5636,16 +5636,17 @@ export default function Home() {
       {activeSection === "Home" && (
       <div className="mx-auto max-w-5xl px-3 py-3">
         {signedInPlayer && (
-          <nav aria-label="Jump to a home card" className="-mx-3 mb-3 flex gap-2 overflow-x-auto px-3 pb-1">
+          <nav aria-label="Jump to a home card" className="-mx-3 mb-3 grid grid-cols-5 gap-1 px-3">
             {[
-              ["today-card", "☀️ Today"],
-              ["daisy-care", "🐾 Daisy"],
-              ["family-checklist", "🧳 Checklist"],
-              ["meal-plan", "🍽️ Meals"],
-              ["challenge-picks", "🏆 Challenge"],
-            ].map(([id, label]) => (
-              <button key={id} type="button" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="shrink-0 rounded-full border border-[#e6dfd0] bg-white px-3 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]">
-                {label}
+              ["today-card", "☀️", "Today"],
+              ["daisy-care", "🐾", "Daisy"],
+              ["family-checklist", "🧳", "List"],
+              ["meal-plan", "🍽️", "Meals"],
+              ["challenge-picks", "🏆", "Picks"],
+            ].map(([id, icon, label]) => (
+              <button key={id} type="button" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-[#e6dfd0] bg-white px-1 py-1 text-[10px] font-black leading-tight text-[#10254a] shadow-sm active:bg-[#fffaf0]">
+                <span aria-hidden="true" className="text-sm leading-none">{icon}</span>
+                <span>{label}</span>
               </button>
             ))}
           </nav>
@@ -5695,7 +5696,7 @@ export default function Home() {
         )}
 
       {signedInPlayer ? (
-        <div className="mb-4 grid grid-cols-2 gap-3" aria-label="Family home tools">
+        <div className="mb-4 grid grid-cols-2 gap-3 [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]" aria-label="Family home tools">
           <div id="today-card" className="order-1 scroll-mt-24 min-w-0"><TodaysFunHoliday /></div>
           <section className="contents" aria-label="Family checklist and Daisy care">
           <article id="family-checklist" className="order-4 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
@@ -5813,7 +5814,7 @@ export default function Home() {
         {signedInPlayer && (
           <>
             {/* CHALLENGE STRIP */}
-            <section id="challenge-picks" className="mb-2.5 scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
+            <section id="challenge-picks" className="mb-2.5 scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]">
               <div className="flex min-h-[92px] items-stretch">
                 <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
                   <div className="text-4xl">🏆</div>

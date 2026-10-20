@@ -81,7 +81,7 @@ export async function POST(request: Request) {
         if (!text) return NextResponse.json({ error: "Write a prayer request first." }, { status: 400 });
         item.whoFor = clean(body?.whoFor, 80); item.request = text; item.details = clean(body?.details);
       } else if (action === "answered") {
-        if (item.createdById !== playerId && !player?.is_admin) return NextResponse.json({ error: "Only the person who added this request can update its answer status." }, { status: 403 });
+        if (item.createdById !== playerId) return NextResponse.json({ error: "Only the person who added this request can update its answer status." }, { status: 403 });
         item.answered = Boolean(body?.answered); item.answeredAt = item.answered ? new Date().toISOString() : null;
       } else if (action === "delete") {
         if (item.createdById !== playerId && !player?.is_admin) return NextResponse.json({ error: "Only the person who added this request can remove it." }, { status: 403 });

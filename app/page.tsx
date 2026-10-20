@@ -5660,7 +5660,7 @@ export default function Home() {
           <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">Today at a glance</h2>
           <span className="h-px flex-1 bg-[#e6dfd0]" />
         </div>
-        <div className="mb-3 grid grid-cols-1 gap-3">
+        <div className="mb-3 grid grid-cols-2 items-start [&>*]:min-w-0 gap-3">
           <MerriamWebsterWordOfDay />
           <NorthGeorgiaWeatherCard />
         </div>

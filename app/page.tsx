@@ -5707,7 +5707,7 @@ export default function Home() {
         <div className="mb-4 grid grid-cols-1 gap-3 [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]" aria-label="Family home tools">
           <div className="order-1 min-w-0"><TodaysFunHoliday /></div>
           <section className="contents" aria-label="Family checklist and Daisy care">
-          <details id="family-checklist" className="group order-7 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+          <details id="family-checklist" className="group order-8 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family routine</div>
@@ -5815,15 +5815,7 @@ export default function Home() {
             <span className="h-px flex-1 bg-[#e6dfd0]" />
           </div>
           <div className="order-6 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
-        </div>
-      ) : (
-        <div className="mb-4"><TodaysFunHoliday /></div>
-      )}
-
-        {signedInPlayer && (
-          <>
-            {/* CHALLENGE STRIP */}
-            <details id="challenge-picks" className="group mb-2.5 scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
+            <details id="challenge-picks" className="group order-7 scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
               <summary className="flex min-h-[76px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
                 <span className="flex min-w-0 items-center gap-3"><span className="text-3xl" aria-hidden="true">🏆</span><span className="min-w-0"><span className="block text-[10px] font-black uppercase text-[#10254a]">This Week&apos;s Challenge</span><span className="mt-0.5 block text-sm font-black text-[#10254a]">{currentPlayerReady ? "You’re all set!" : challengeGames.length > 0 ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved` : "This week’s picks are coming soon."}</span></span></span>
                 <span aria-hidden="true" className="text-lg text-[#10254a] transition-transform group-open:rotate-180">⌄</span>
@@ -5849,8 +5841,12 @@ export default function Home() {
               </button>
               </div>
             </details>
-          </>
-        )}
+        </div>
+      ) : (
+        <div className="mb-4"><TodaysFunHoliday /></div>
+      )}
+
+
 
 
 

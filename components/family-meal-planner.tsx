@@ -200,11 +200,10 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
     return onHandItems.filter((item) => (item.name.toLowerCase().match(/[a-z0-9]+/g) ?? []).some((word) => words.has(word) || words.has(word.replace(/s$/, "")) || words.has(`${word}s`)));
   }
 
-  return <details id="meal-plan" className="group rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 shadow-sm sm:p-5">
-    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+  return <section id="meal-plan" className="group rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 shadow-sm sm:p-5">
+    <div className="flex items-center justify-between gap-3">
       <span><span className="block text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family meals</span><span className="mt-1 block text-base font-black text-[#10254a]">Meal Plan 🍽️</span><span className="mt-0.5 block text-xs font-semibold text-slate-600">{loading ? "Loading this week…" : weekLabel ? `Week starting Sunday · ${weekLabel}` : "Sunday–Saturday"}</span></span>
-      <span aria-hidden="true" className="text-lg text-[#10254a] transition-transform group-open:rotate-180">⌄</span>
-    </summary>
+    </div>
     <div className="mt-3 border-t border-[#e6dfd0] pt-3">
     <p className="text-sm text-slate-600">Choose any meals for any day, add dinner sides, and check what you already have.</p>
     <details className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
@@ -239,5 +238,5 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
     </div>
     {error && <p role="alert" className="mt-3 text-sm font-bold text-red-600">{error}</p>}
     </div>
-  </details>;
+  </section>;
 }

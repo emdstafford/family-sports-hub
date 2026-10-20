@@ -1569,7 +1569,7 @@ export default function Home() {
   const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist">("Home");
+    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist" | "Meal Plan">("Home");
 
   useEffect(() => {
     const section = new URL(window.location.href).searchParams.get("section");
@@ -5733,7 +5733,7 @@ export default function Home() {
             <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">This week</h2>
             <span className="h-px flex-1 bg-[#e6dfd0]" />
           </div>
-          <div className="order-6 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
+          <button id="meal-plan" type="button" onClick={() => { setActiveSection("Meal Plan"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="order-6 flex min-h-24 w-full scroll-mt-24 items-center justify-between gap-3 rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 text-left text-[#10254a] shadow-sm"><span><span className="block text-base font-black">Meal Plan 🍽️</span><span className="mt-1 block text-xs font-semibold text-slate-600">Sunday–Saturday · Breakfast, lunch & dinner</span></span><span className="shrink-0 text-xs font-black text-[#164d9b]">Open →</span></button>
           <div className="order-7 grid grid-cols-2 items-stretch gap-3 [&>*]:min-w-0">
             <div id="challenge-picks" className="scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
               <button type="button" onClick={openPicks} className="block min-h-32 w-full p-4 text-left text-[#10254a]">
@@ -5761,6 +5761,13 @@ export default function Home() {
 
 
       </div>
+      )}
+
+      {activeSection === "Meal Plan" && signedInPlayer && (
+        <section className="mx-auto max-w-4xl px-3 py-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 100px)" }}>
+          <button type="button" onClick={() => setActiveSection("Home")} className="mb-3 min-h-11 text-sm font-black text-[#164d9b]">← Back to Hub</button>
+          <FamilyMealPlanner playerId={signedInPlayer.id} players={players} />
+        </section>
       )}
 
       {activeSection === "Checklist" && signedInPlayer && (
@@ -7960,7 +7967,7 @@ export default function Home() {
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${
                 (label === "Sports"
                   ? ["Sports", "Challenge", "Events", "Locker Room", "Trophy Room"].includes(activeSection)
-                  : (label === "Hub" ? ["Home", "Checklist"].includes(activeSection) : activeSection === label))
+                  : (label === "Hub" ? ["Home", "Checklist", "Meal Plan"].includes(activeSection) : activeSection === label))
                   ? "text-[#f3c64f]"
                   : "text-white"
               }`}
@@ -7975,7 +7982,7 @@ export default function Home() {
               {(
                 (label === "Sports"
                   ? ["Sports", "Challenge", "Events", "Locker Room", "Trophy Room"].includes(activeSection)
-                  : (label === "Hub" ? ["Home", "Checklist"].includes(activeSection) : activeSection === label))
+                  : (label === "Hub" ? ["Home", "Checklist", "Meal Plan"].includes(activeSection) : activeSection === label))
               ) && (
                 <span className="absolute bottom-0 h-0.5 w-10 rounded-full bg-[#f3c64f]" />
               )}

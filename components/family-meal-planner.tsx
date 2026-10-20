@@ -87,17 +87,14 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
       <span aria-hidden="true" className="text-lg text-[#10254a] transition-transform group-open:rotate-180">⌄</span>
     </summary>
     <div className="mt-3 border-t border-[#e6dfd0] pt-3">
-    <p className="text-sm text-slate-600">Tap a day to add or edit breakfast, lunch, dinner, or a meal theme.</p>
+    <p className="text-sm text-slate-600">Plan breakfast, lunch, and dinner. Add a theme for dinner if you like.</p>
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {days.map((day) => <details key={day.date} className="rounded-xl border border-[#e5dccb] bg-white p-4">
-          <summary className="flex min-h-12 cursor-pointer items-center text-base font-black text-[#10254a]">
-            {new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" }).format(dateOnly(day.date))}
-            {day.theme && <span className="ml-2 text-sm font-semibold text-[#b28a2e]">{day.theme}</span>}
+          <summary className="flex min-h-12 cursor-pointer flex-col items-start justify-center text-base font-black text-[#10254a]">
+            <span>{new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" }).format(dateOnly(day.date))}</span>
+            {day.theme && <span className="mt-0.5 text-xs font-bold text-[#b28a2e]">Dinner theme: {day.theme}</span>}
           </summary>
           <div className="mt-3 space-y-3">
-            <label className="block text-sm font-bold text-slate-700">Theme
-              <input value={day.theme} onChange={(event) => updateDay(day.date, { theme: event.target.value })} maxLength={60} placeholder="Taco Tuesday, soup night…" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-[#10254a]" />
-            </label>
             <label className="block text-sm font-bold text-slate-700">Meal choice
               <select value={day.chosenByPlayerId ?? ""} onChange={(event) => updateDay(day.date, { chosenByPlayerId: event.target.value || null })} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base font-medium text-[#10254a]">
                 <option value="">Anyone can choose</option>
@@ -107,6 +104,9 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
             {(["breakfast", "lunch", "dinner"] as const).map((meal) => <label key={meal} className="block text-sm font-bold capitalize text-slate-700">{meal}
               <input value={day[meal]} onChange={(event) => updateDay(day.date, { [meal]: event.target.value })} maxLength={120} placeholder={meal === "dinner" ? "What’s for dinner?" : "Optional"} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-[#10254a]" />
             </label>)}
+            <label className="block text-sm font-bold text-slate-700">Dinner theme (optional)
+              <input value={day.theme} onChange={(event) => updateDay(day.date, { theme: event.target.value })} maxLength={60} placeholder="Taco Tuesday, soup night…" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-[#10254a]" />
+            </label>
             <div className="flex items-center gap-2 pt-1">
               <button type="button" disabled={busyDate === day.date} onClick={() => void saveDay(day)} className="min-h-11 rounded-lg bg-[#10254a] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">{busyDate === day.date ? "Saving…" : "Save day"}</button>
               {savedDate === day.date && <span role="status" className="text-sm font-bold text-emerald-700">Saved</span>}

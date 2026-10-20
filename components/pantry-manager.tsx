@@ -54,6 +54,7 @@ export default function PantryManager({ playerId }: { playerId: string }) {
   const [editing, setEditing] = useState<PantryItem | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [groceryName, setGroceryName] = useState("");
+  const [tagCopied, setTagCopied] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -89,10 +90,21 @@ export default function PantryManager({ playerId }: { playerId: string }) {
     setName(food); setCategory("Meat"); setPackageUnit("lb"); setPackageSize("1"); setPackages("1"); setFormOpen(true);
     window.setTimeout(() => document.getElementById("pantry-food-name")?.focus(), 0);
   }
+  async function copyNfcLink(item: PantryItem) {
+    const url = new URL("/pantry/use", window.location.origin);
+    url.searchParams.set("item", item.id);
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setTagCopied(item.id);
+      window.setTimeout(() => setTagCopied(null), 2500);
+    } catch {
+      window.prompt("Copy this link into your NFC tag setup:", url.toString());
+    }
+  }
   const visibleItems = useMemo(() => filter === "All" ? items : items.filter((item) => item.category === filter), [items, filter]);
   const lowStockCount = items.filter((item) => item.quantity <= (item.lowAt ?? 1)).length;
 
-  return <section className="mx-auto max-w-5xl px-3 py-4">
+  return <section className="fambam-light-forms mx-auto max-w-5xl px-3 py-4">
     <header className="mb-4 rounded-3xl bg-[#06284a] p-5 text-white shadow-sm">
       <div className="text-xs font-black uppercase tracking-[0.22em] text-[#f3c64f]">FamBam Hub</div>
       <h1 className="mt-1 text-3xl font-black">🧺 Pantry & Freezer</h1>
@@ -161,15 +173,21 @@ export default function PantryManager({ playerId }: { playerId: string }) {
           const isListed = groceries.some((line) => line.pantryItemId === item.id);
           const today = new Date(); today.setHours(0, 0, 0, 0);
           const daysUntilExpiry = item.expirationDate ? Math.ceil((new Date(`${item.expirationDate}T00:00:00`).getTime() - today.getTime()) / 86400000) : null;
+          const weightUnit = item.packageUnit === "lb" || item.packageUnit === "oz";
+          const totalWeight = item.quantity * item.packageSize;
+          const quantityLabel = weightUnit
+            ? `${totalWeight.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${item.packageUnit} left`
+            : `${item.quantity.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${item.quantity === 1 ? "package" : "packages"}`;
           return <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3"><div><span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-blue-800">{item.category}</span><h2 className="mt-2 text-lg font-black">{item.name}</h2></div><button disabled={busy} onClick={() => setEditing(item)} aria-label={`Edit ${item.name}`} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-black text-slate-700">Edit</button></div>
-            <div className="mt-3 rounded-xl bg-[#f7f8fa] p-3"><div className="mb-2 flex items-center justify-between"><div className="text-[10px] font-black uppercase text-slate-500">On hand</div>{isLow && <span className="rounded-full bg-red-100 px-2 py-1 text-[10px] font-black text-red-700">Low / out</span>}</div><div className="flex flex-wrap items-center justify-between gap-2"><div className="text-xl font-black">{Math.round(item.quantity)} {item.quantity === 1 ? "package" : "packages"}</div><div className="flex gap-2"><button disabled={busy || item.quantity < step} onClick={() => void submit({ action: "adjust", itemId: item.id, delta: -step })} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-[#10254a] disabled:opacity-40">− Used 1</button><button disabled={busy} onClick={() => void submit({ action: "adjust", itemId: item.id, delta: step })} className="min-h-11 rounded-xl bg-[#10254a] px-3 text-xs font-black text-white">+ Add 1</button></div></div><p className="mt-2 text-[10px] font-medium text-slate-500">Typical package: {item.packageSize} {item.packageUnit}.</p><button disabled={busy || isListed} onClick={() => void submit({ action: "grocery-add", name: item.name })} className="mt-2 min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-xs font-black text-amber-900 disabled:opacity-60">{isListed ? "✓ On grocery list" : "+ Add to grocery list"}</button></div>
+            <div className="mt-3 rounded-xl bg-[#f7f8fa] p-3"><div className="mb-2 flex items-center justify-between"><div className="text-[10px] font-black uppercase text-slate-500">On hand</div>{isLow && <span className="rounded-full bg-red-100 px-2 py-1 text-[10px] font-black text-red-700">Low / out</span>}</div><div className="flex flex-wrap items-center justify-between gap-2"><div className="text-xl font-black">{quantityLabel}</div><div className="flex gap-2"><button disabled={busy || item.quantity < step} onClick={() => void submit({ action: "adjust", itemId: item.id, delta: -step })} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-[#10254a] disabled:opacity-40">− Used 1 package</button><button disabled={busy} onClick={() => void submit({ action: "adjust", itemId: item.id, delta: step })} className="min-h-11 rounded-xl bg-[#10254a] px-3 text-xs font-black text-white">+ Add 1 package</button></div></div><p className="mt-2 text-[10px] font-medium text-slate-500">Typical package: {item.packageSize} {item.packageUnit}.</p><button disabled={busy || isListed} onClick={() => void submit({ action: "grocery-add", name: item.name })} className="mt-2 min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-xs font-black text-amber-900 disabled:opacity-60">{isListed ? "✓ On grocery list" : "+ Add to grocery list"}</button></div>
             {(item.expirationDate || item.frozenAt) && <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">{item.expirationDate && <span className={`rounded-lg px-2.5 py-1.5 ${daysUntilExpiry !== null && daysUntilExpiry < 0 ? "bg-red-100 text-red-800" : daysUntilExpiry !== null && daysUntilExpiry <= 14 ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-700"}`}>{daysUntilExpiry !== null && daysUntilExpiry < 0 ? "Expired" : daysUntilExpiry !== null && daysUntilExpiry <= 14 ? "Use soon · " : "Expires · "}{item.expirationDate}</span>}{item.frozenAt && <span className="rounded-lg bg-blue-50 px-2.5 py-1.5 text-blue-800">❄ Frozen · {item.frozenAt}</span>}</div>}
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs"><div className="rounded-xl bg-amber-50 p-2.5"><div className="font-bold text-slate-500">Last bought</div><div className="mt-0.5 font-black text-[#10254a]">{item.store}{item.lastPrice !== null ? ` • ${money(item.lastPrice)}/${item.packageSize}${item.packageUnit}` : ""}</div></div><div className="rounded-xl bg-amber-50 p-2.5"><div className="font-bold text-slate-500">Family verdict</div><div className="mt-0.5 font-black text-[#10254a]">{ratingText}</div></div></div>
             {item.stockUpPrice !== null && <p className={`mt-2 rounded-lg px-3 py-2 text-xs font-black ${isStockUp ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}`}>{isStockUp ? "🎉 Stock-up price! " : "Stock up at "}{money(item.stockUpPrice)} or less per package{item.lastPrice !== null && ` • last paid ${money(item.lastPrice)}`}</p>}
             {best && <p className="mt-2 text-xs font-semibold text-slate-600">Best saved unit price: <span className="font-black">{money(unitPrice(best.price, best.packageSize))}/{best.packageUnit}</span> at {best.store}</p>}
             {item.notes && <p className="mt-2 text-xs text-slate-600">{item.notes}</p>}
             <a href={search.toString()} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-[#10254a]">Search current online prices ↗</a>
+            <button type="button" onClick={() => void copyNfcLink(item)} className="ml-2 mt-3 inline-flex rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-900">{tagCopied === item.id ? "NFC link copied ✓" : "Set up NFC tag"}</button>
           </article>;
         })}</div>}
 

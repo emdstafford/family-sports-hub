@@ -66,3 +66,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+.fambam-light-forms input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+.fambam-light-forms select,
+.fambam-light-forms textarea {
+  background-color: #fff !important;
+  color: #10254a !important;
+  color-scheme: light;
+}
+
+.fambam-light-forms input::placeholder,
+.fambam-light-forms textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}

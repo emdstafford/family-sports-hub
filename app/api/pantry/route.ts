@@ -181,6 +181,26 @@ export async function POST(request: Request) {
         const delta = Number(body?.delta);
         if (!Number.isFinite(delta)) return NextResponse.json({ error: "Choose a valid quantity change." }, { status: 400 });
         item.quantity = Math.max(0, Math.round((item.quantity + delta) * 100) / 100);
+      } else if (action === "use") {
+        const amount = Number(body?.amount);
+        const quantityUnit = cleanText(body?.quantityUnit, 20);
+        if (!Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "Enter an amount greater than zero." }, { status: 400 });
+        let packagesUsed = amount;
+        if (quantityUnit === "lb") {
+          const poundsPerPackage = item.packageUnit === "lb"
+            ? item.packageSize
+            : item.packageUnit === "oz" ? item.packageSize / 16 : null;
+          if (!poundsPerPackage || poundsPerPackage <= 0) {
+            return NextResponse.json({ error: "This food is tracked by packages. Edit its package size and choose lb or oz to subtract by weight." }, { status: 400 });
+          }
+          packagesUsed = amount / poundsPerPackage;
+        } else if (quantityUnit !== "packages") {
+          return NextResponse.json({ error: "Choose packages or pounds." }, { status: 400 });
+        }
+        if (packagesUsed > item.quantity + 0.0001) {
+          return NextResponse.json({ error: `There isn’t that much ${item.name} recorded. Please choose a smaller amount.` }, { status: 400 });
+        }
+        item.quantity = Math.max(0, Math.round((item.quantity - packagesUsed) * 10000) / 10000);
       } else if (action === "edit") {
         const name = cleanText(body?.name);
         if (!name) return NextResponse.json({ error: "Enter a food name." }, { status: 400 });

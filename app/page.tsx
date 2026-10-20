@@ -1569,7 +1569,7 @@ export default function Home() {
   const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House">("Home");
+    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist">("Home");
 
   useEffect(() => {
     const section = new URL(window.location.href).searchParams.get("section");
@@ -5727,16 +5727,49 @@ export default function Home() {
 
       {signedInPlayer ? (
         <div className="mb-4 grid grid-cols-1 gap-3 [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]" aria-label="Family home tools">
-          <section className="contents" aria-label="Family checklist">
-          <details id="family-checklist" className="group order-8 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family routine</div>
-                <h2 className="mt-1 text-lg font-black text-[#10254a]">Family Checklist ✅</h2>
-                <p className="text-xs font-medium text-slate-500">{packingItems.filter((item) => !item.checked).length} items to remember · tap to open</p>
-              </div>
-              <span className="text-2xl" aria-hidden="true">🧳 <span className="inline-block text-base transition-transform group-open:rotate-180">⌄</span></span>
-            </summary>
+
+          <div className="order-5 mt-1 flex items-center gap-2 px-1">
+            <span className="text-lg">📅</span>
+            <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">This week</h2>
+            <span className="h-px flex-1 bg-[#e6dfd0]" />
+          </div>
+          <div className="order-6 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
+          <div className="order-7 grid grid-cols-2 items-stretch gap-3 [&>*]:min-w-0">
+            <div id="challenge-picks" className="scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
+              <button type="button" onClick={openPicks} className="block min-h-32 w-full p-4 text-left text-[#10254a]">
+                <span className="text-2xl" aria-hidden="true">🏆</span>
+                <span className="mt-2 block text-sm font-black">This Week’s Challenge</span>
+                <span className="mt-1 block text-xs font-semibold">{currentPlayerReady ? "You’re all set!" : challengeGames.length > 0 ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved` : "Picks coming soon"}</span>
+                <span className="mt-2 block text-xs font-black text-[#164d9b]">{currentPlayerReady ? "Review picks →" : "Make picks →"}</span>
+              </button>
+              <button type="button" onClick={() => setActiveSection("Events")} className="min-h-11 w-full border-t border-[#e6dfd0] px-3 py-2 text-left text-[11px] font-bold text-[#164d9b]">Event picks{!eventPicksChecking && !eventPicksCheckFailed ? `: ${eventPicksRemaining} to make` : ""} →</button>
+            </div>
+            <button id="family-checklist" type="button" onClick={() => { setActiveSection("Checklist"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="scroll-mt-24 rounded-2xl border border-[#e6dfd0] bg-white p-4 text-left text-[#10254a] shadow-sm">
+              <span className="text-2xl" aria-hidden="true">✅</span>
+              <span className="mt-2 block text-sm font-black">Family Checklist</span>
+              <span className="mt-1 block text-xs font-semibold">{packingItems.filter((item) => !item.checked).length} items to remember</span>
+              <span className="mt-2 block text-xs font-black text-[#164d9b]">Open checklist →</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        null
+      )}
+
+
+
+
+
+      </div>
+      )}
+
+      {activeSection === "Checklist" && signedInPlayer && (
+        <section className="mx-auto max-w-3xl px-3 py-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 100px)" }}>
+          <button type="button" onClick={() => setActiveSection("Home")} className="mb-3 min-h-11 text-sm font-black text-[#164d9b]">← Back to Hub</button>
+          <div className="rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+            <h1 className="text-xl font-black text-[#10254a]">Family Checklist ✅</h1>
+            <p className="mt-1 text-sm text-slate-500">{packingItems.filter((item) => !item.checked).length} items to remember</p>
+            
             <form onSubmit={async (event) => {
               event.preventDefault();
               const label = packingInput.trim();
@@ -5806,52 +5839,9 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </details>
-
-
-                  </section>
-          <div className="order-5 mt-1 flex items-center gap-2 px-1">
-            <span className="text-lg">📅</span>
-            <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">This week</h2>
-            <span className="h-px flex-1 bg-[#e6dfd0]" />
+          
           </div>
-          <div className="order-6 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
-            <details id="challenge-picks" className="group order-7 scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
-              <summary className="flex min-h-[76px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-                <span className="flex min-w-0 items-center gap-3"><span className="text-3xl" aria-hidden="true">🏆</span><span className="min-w-0"><span className="block text-[10px] font-black uppercase text-[#10254a]">This Week&apos;s Challenge</span><span className="mt-0.5 block text-sm font-black text-[#10254a]">{currentPlayerReady ? "You’re all set!" : challengeGames.length > 0 ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved` : "This week’s picks are coming soon."}</span></span></span>
-                <span aria-hidden="true" className="text-lg text-[#10254a] transition-transform group-open:rotate-180">⌄</span>
-              </summary>
-              <div className="border-t border-[#e6dfd0]">
-              <button type="button" onClick={openPicks} className="flex min-h-12 w-full items-center justify-between bg-[#06284a] px-4 py-3 text-left text-sm font-black text-white active:bg-[#0a365f]">
-                <span>{currentPlayerReady ? "Challenge picks complete" : `${Math.max(0, challengeGames.length - challengeGamesWithSavedPick)} picks left · Every game locks at kickoff`}</span>
-                <span className="shrink-0 text-[#f3c64f]">{currentPlayerReady ? "Review picks →" : "Make picks →"}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveSection("Events")}
-                className="flex w-full items-center justify-between gap-2 border-t border-[#e6dfd0] px-3 py-2.5 text-left text-[11px] font-black text-[#10254a]"
-              >
-                <span>🏟️ Event picks: {eventPicksChecking
-                  ? "checking…"
-                  : eventPicksCheckFailed
-                    ? "couldn’t check all events"
-                    : eventPicksRemaining > 0
-                      ? `${eventPicksRemaining} to make`
-                      : "0 to make · all caught up!"}</span>
-                <span className="shrink-0 text-[#164d9b]">Events →</span>
-              </button>
-              </div>
-            </details>
-        </div>
-      ) : (
-        null
-      )}
-
-
-
-
-
-      </div>
+        </section>
       )}
 
       {activeSection === "Sports" && signedInPlayer && (
@@ -7970,7 +7960,7 @@ export default function Home() {
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${
                 (label === "Sports"
                   ? ["Sports", "Challenge", "Events", "Locker Room", "Trophy Room"].includes(activeSection)
-                  : activeSection === (label === "Hub" ? "Home" : label))
+                  : (label === "Hub" ? ["Home", "Checklist"].includes(activeSection) : activeSection === label))
                   ? "text-[#f3c64f]"
                   : "text-white"
               }`}
@@ -7985,7 +7975,7 @@ export default function Home() {
               {(
                 (label === "Sports"
                   ? ["Sports", "Challenge", "Events", "Locker Room", "Trophy Room"].includes(activeSection)
-                  : activeSection === (label === "Hub" ? "Home" : label))
+                  : (label === "Hub" ? ["Home", "Checklist"].includes(activeSection) : activeSection === label))
               ) && (
                 <span className="absolute bottom-0 h-0.5 w-10 rounded-full bg-[#f3c64f]" />
               )}

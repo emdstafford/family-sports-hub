@@ -5639,19 +5639,10 @@ export default function Home() {
       {activeSection === "Home" && (
       <div className="mx-auto max-w-5xl px-3 py-3">
         {signedInPlayer && (
-          <nav aria-label="Jump to a home card" className="-mx-3 mb-3 grid grid-cols-5 gap-1 px-3">
-            {[
-              ["today-card", "☀️", "Today"],
-              ["daisy-care", "🐾", "Daisy"],
-              ["family-checklist", "🧳", "List"],
-              ["meal-plan", "🍽️", "Meals"],
-              ["challenge-picks", "🏆", "Picks"],
-            ].map(([id, icon, label]) => (
-              <button key={id} type="button" onClick={() => { const card = document.getElementById(id); if (card instanceof HTMLDetailsElement) card.open = true; card?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-[#e6dfd0] bg-white px-1 py-1 text-[10px] font-black leading-tight text-[#10254a] shadow-sm active:bg-[#fffaf0]">
-                <span aria-hidden="true" className="text-sm leading-none">{icon}</span>
-                <span>{label}</span>
-              </button>
-            ))}
+          <nav aria-label="Hub shortcuts" className="mb-3 grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => { setActiveSection("Meal Plan"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-20 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🍽️</span><span>Meals</span><span className="text-[10px] font-semibold text-slate-500">Plan the week</span></button>
+            <button type="button" onClick={openPicks} className="flex min-h-20 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🏆</span><span>Picks</span><span className={`text-[10px] font-semibold ${challengeGames.length > 0 && currentPlayerReady ? "text-emerald-700" : "text-slate-500"}`}>{challengeGames.length > 0 ? currentPlayerReady ? "✓ Picks are in!" : `${challengeGamesWithSavedPick}/${challengeGames.length} saved` : "Coming soon"}</span></button>
+            <button type="button" onClick={() => { setActiveSection("Checklist"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-20 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">✅</span><span>List</span><span className="text-[10px] font-semibold text-slate-500">{packingItems.filter((item) => !item.checked).length} to remember</span></button>
           </nav>
         )}
         <WeeklyFaithPractice />
@@ -5725,36 +5716,7 @@ export default function Home() {
           </section>
         )}
 
-      {signedInPlayer ? (
-        <div className="mb-4 grid grid-cols-1 gap-3 [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]" aria-label="Family home tools">
 
-          <div className="order-5 mt-1 flex items-center gap-2 px-1">
-            <span className="text-lg">📅</span>
-            <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">This week</h2>
-            <span className="h-px flex-1 bg-[#e6dfd0]" />
-          </div>
-          <button id="meal-plan" type="button" onClick={() => { setActiveSection("Meal Plan"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="order-6 flex min-h-24 w-full scroll-mt-24 items-center justify-between gap-3 rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 text-left text-[#10254a] shadow-sm"><span><span className="block text-base font-black">Meal Plan 🍽️</span><span className="mt-1 block text-xs font-semibold text-slate-600">Sunday–Saturday · Breakfast, lunch & dinner</span></span><span className="shrink-0 text-xs font-black text-[#164d9b]">Open →</span></button>
-          <div className="order-7 grid grid-cols-2 items-stretch gap-3 [&>*]:min-w-0">
-            <div id="challenge-picks" className="scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
-              <button type="button" onClick={openPicks} className="block min-h-32 w-full p-4 text-left text-[#10254a]">
-                <span className="text-2xl" aria-hidden="true">🏆</span>
-                <span className="mt-2 block text-sm font-black">This Week’s Challenge</span>
-                <span className="mt-1 block text-xs font-semibold">{currentPlayerReady ? "You’re all set!" : challengeGames.length > 0 ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved` : "Picks coming soon"}</span>
-                <span className="mt-2 block text-xs font-black text-[#164d9b]">{currentPlayerReady ? "Review picks →" : "Make picks →"}</span>
-              </button>
-              <button type="button" onClick={() => setActiveSection("Events")} className="min-h-11 w-full border-t border-[#e6dfd0] px-3 py-2 text-left text-[11px] font-bold text-[#164d9b]">Event picks{!eventPicksChecking && !eventPicksCheckFailed ? `: ${eventPicksRemaining} to make` : ""} →</button>
-            </div>
-            <button id="family-checklist" type="button" onClick={() => { setActiveSection("Checklist"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="scroll-mt-24 rounded-2xl border border-[#e6dfd0] bg-white p-4 text-left text-[#10254a] shadow-sm">
-              <span className="text-2xl" aria-hidden="true">✅</span>
-              <span className="mt-2 block text-sm font-black">Family Checklist</span>
-              <span className="mt-1 block text-xs font-semibold">{packingItems.filter((item) => !item.checked).length} items to remember</span>
-              <span className="mt-2 block text-xs font-black text-[#164d9b]">Open checklist →</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        null
-      )}
 
 
 

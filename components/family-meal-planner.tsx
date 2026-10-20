@@ -11,6 +11,8 @@ type DayPlan = {
   dinnerSides: string;
 };
 type PantryItem = { id: string; name: string; category: string; quantity: number; unit: string; packageSize: number; packageUnit: string };
+type OptionKind = "breakfast" | "lunch" | "dinner" | "sides";
+type CustomMealOptions = Record<OptionKind, string[]>;
 
 const MEAL_OPTIONS = {
   breakfast: ["Cereal", "Waffles", "Pancakes", "Biscuits", "Sausage rolls", "Yogurt", "Eggs", "Toast", "Oatmeal", "Breakfast sandwiches", "Breakfast burritos", "French toast", "Bagels", "Muffins", "Smoothies", "Fruit and yogurt"],
@@ -21,9 +23,19 @@ const MEAL_OPTIONS = {
 
 type MealKind = keyof typeof MEAL_OPTIONS;
 
-function MealPicker({ kind, value, onChange }: { kind: MealKind; value: string; onChange: (value: string) => void }) {
+function MealPicker({ kind, value, options, onChange, onAddOption }: { kind: MealKind; value: string; options: string[]; onChange: (value: string) => void; onAddOption: (kind: OptionKind, value: string) => Promise<boolean> }) {
   const [customMode, setCustomMode] = useState(false);
-  const isCustom = customMode || (value !== "" && !(MEAL_OPTIONS[kind] as readonly string[]).includes(value));
+  const [savingOption, setSavingOption] = useState(false);
+  const isCustom = customMode || (value !== "" && !options.includes(value));
+
+  async function saveCustomOption() {
+    const option = value.trim();
+    if (!option) return;
+    setSavingOption(true);
+    const saved = await onAddOption(kind, option);
+    if (saved) { onChange(option); setCustomMode(false); }
+    setSavingOption(false);
+  }
 
   return <>
     <select value={isCustom ? "__custom" : value} onChange={(event) => {
@@ -36,24 +48,25 @@ function MealPicker({ kind, value, onChange }: { kind: MealKind; value: string; 
       }
     }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base font-medium text-[#10254a]">
       <option value="">Choose an idea…</option>
-      {MEAL_OPTIONS[kind].map((option) => <option key={option} value={option}>{option}</option>)}
+      {options.map((option) => <option key={option} value={option}>{option}</option>)}
       <option value="__custom">Add a different meal…</option>
     </select>
-    {isCustom && <input autoFocus value={value} onChange={(event) => onChange(event.target.value)} maxLength={120} placeholder="Type your meal idea" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-[#10254a]" />}
+    {isCustom && <><input autoFocus value={value} onChange={(event) => onChange(event.target.value)} maxLength={120} placeholder="Type your meal idea" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-[#10254a]" /><button type="button" onClick={() => void saveCustomOption()} disabled={!value.trim() || savingOption} className="mt-2 min-h-10 rounded-lg bg-emerald-100 px-3 py-2 text-xs font-black text-emerald-900 disabled:opacity-50">{savingOption ? "Adding…" : "Add to choices"}</button></>}
   </>;
 }
 
-function SidePicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function SidePicker({ value, options, onChange, onAddOption }: { value: string; options: string[]; onChange: (value: string) => void; onAddOption: (kind: OptionKind, value: string) => Promise<boolean> }) {
   const selected = value ? value.split(",").map((side) => side.trim()).filter(Boolean) : [];
   const [customSide, setCustomSide] = useState("");
   function toggle(side: string) {
     const next = selected.includes(side) ? selected.filter((item) => item !== side) : [...selected, side];
     onChange(next.join(", "));
   }
-  function addCustom(event: React.FormEvent<HTMLFormElement>) {
+  async function addCustom(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const side = customSide.trim();
     if (!side || selected.some((item) => item.toLowerCase() === side.toLowerCase())) return;
+    if (!(await onAddOption("sides", side))) return;
     onChange([...selected, side].join(", "));
     setCustomSide("");
   }
@@ -64,14 +77,14 @@ function SidePicker({ value, onChange }: { value: string; onChange: (value: stri
     </summary>
     <div className="mt-1 rounded-lg border border-slate-200 bg-white p-2 shadow-md">
       <p className="mb-1 px-2 text-xs font-medium text-slate-500">Check all that apply.</p>
-      <div className="grid max-h-56 gap-1 overflow-y-auto sm:grid-cols-2">{MEAL_OPTIONS.sides.map((side) => <label key={side} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-[#10254a] hover:bg-slate-50">
+      <div className="grid max-h-56 gap-1 overflow-y-auto sm:grid-cols-2">{options.map((side) => <label key={side} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-[#10254a] hover:bg-slate-50">
         <input type="checkbox" checked={selected.includes(side)} onChange={() => toggle(side)} className="h-4 w-4 accent-emerald-800" />{side}
       </label>)}</div>
       <form onSubmit={addCustom} className="mt-2 flex gap-2 border-t border-slate-100 pt-2">
         <input value={customSide} onChange={(event) => setCustomSide(event.target.value)} maxLength={60} placeholder="Add another side" aria-label="Custom dinner side" className="min-h-10 min-w-0 flex-1 rounded-lg border border-slate-300 px-3 text-sm font-medium text-[#10254a]" />
         <button type="submit" disabled={!customSide.trim()} className="min-h-10 rounded-lg bg-slate-100 px-3 text-sm font-black text-[#10254a] disabled:opacity-50">Add</button>
       </form>
-      {selected.filter((side) => !(MEAL_OPTIONS.sides as readonly string[]).includes(side)).map((side) => <label key={side} className="mt-1 flex items-center gap-2 px-2 text-sm font-medium text-[#10254a]"><input type="checkbox" checked onChange={() => toggle(side)} className="h-4 w-4 accent-emerald-800" />{side}</label>)}
+      {selected.filter((side) => !options.includes(side)).map((side) => <label key={side} className="mt-1 flex items-center gap-2 px-2 text-sm font-medium text-[#10254a]"><input type="checkbox" checked onChange={() => toggle(side)} className="h-4 w-4 accent-emerald-800" />{side}</label>)}
     </div>
   </details>;
 }
@@ -82,6 +95,7 @@ function dateOnly(value: string) {
 
 export default function FamilyMealPlanner({ playerId, players }: { playerId: string; players: PlayerOption[] }) {
   const [days, setDays] = useState<DayPlan[]>([]);
+  const [customOptions, setCustomOptions] = useState<CustomMealOptions>({ breakfast: [], lunch: [], dinner: [], sides: [] });
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
   const [pantryError, setPantryError] = useState("");
   const [weekStart, setWeekStart] = useState("");
@@ -97,12 +111,13 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error ?? "Could not load the meal plan.");
-        return data as { weekStart: string; days: DayPlan[] };
+        return data as { weekStart: string; days: DayPlan[]; options?: CustomMealOptions };
       })
       .then((data) => {
         if (cancelled) return;
         setWeekStart(data.weekStart);
         setDays(Array.isArray(data.days) ? data.days : []);
+        if (data.options) setCustomOptions(data.options);
       })
       .catch((caught) => { if (!cancelled) setError(caught instanceof Error ? caught.message : "Could not load the meal plan."); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -126,6 +141,25 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
   function updateDay(date: string, patch: Partial<DayPlan>) {
     setDays((current) => current.map((day) => day.date === date ? { ...day, ...patch } : day));
     setSavedDate(null);
+  }
+
+  async function addOption(kind: OptionKind, option: string) {
+    setError("");
+    try {
+      const token = window.localStorage.getItem("fambam_session_token") ?? "";
+      const response = await fetch("/api/family-meal-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-fambam-session": token },
+        body: JSON.stringify({ playerId, action: "add-option", optionKind: kind, option }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Could not add this choice.");
+      if (data.options) setCustomOptions(data.options);
+      return true;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not add this choice.");
+      return false;
+    }
   }
 
   async function saveDay(day: DayPlan) {
@@ -180,13 +214,16 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
         {days.map((day) => <details key={day.date} className="rounded-xl border border-[#e5dccb] bg-white p-4">
           <summary className="flex min-h-12 cursor-pointer flex-col items-start justify-center text-base font-black text-[#10254a]">
             <span>{new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" }).format(dateOnly(day.date))}</span>
+            {(day.breakfast || day.lunch || day.dinner || day.dinnerSides) && <span className="mt-1 line-clamp-2 text-left text-xs font-semibold leading-5 text-slate-600">
+              {[day.breakfast && `Breakfast: ${day.breakfast}`, day.lunch && `Lunch: ${day.lunch}`, day.dinner && `Dinner: ${day.dinner}${day.dinnerSides ? ` · Sides: ${day.dinnerSides}` : ""}`, !day.dinner && day.dinnerSides && `Sides: ${day.dinnerSides}`].filter(Boolean).join(" · ")}
+            </span>}
           </summary>
           <div className="mt-3 space-y-3">
             {(["breakfast", "lunch", "dinner"] as const).map((meal) => <label key={meal} className="block text-sm font-bold capitalize text-slate-700">{meal}
-              <MealPicker kind={meal} value={day[meal]} onChange={(value) => updateDay(day.date, { [meal]: value })} />
+              <MealPicker kind={meal} value={day[meal]} options={[...MEAL_OPTIONS[meal], ...customOptions[meal]]} onChange={(value) => updateDay(day.date, { [meal]: value })} onAddOption={addOption} />
             </label>)}
             <label className="block text-sm font-bold text-slate-700">Dinner sides
-              <SidePicker value={day.dinnerSides} onChange={(value) => updateDay(day.date, { dinnerSides: value })} />
+              <SidePicker value={day.dinnerSides} options={[...MEAL_OPTIONS.sides, ...customOptions.sides]} onChange={(value) => updateDay(day.date, { dinnerSides: value })} onAddOption={addOption} />
             </label>
             {(day.dinner || day.dinnerSides) && <div className="rounded-xl bg-emerald-50 p-3">
               <p className="text-xs font-black text-emerald-900">Possible matches in your pantry/freezer</p>

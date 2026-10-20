@@ -4,8 +4,11 @@ import { NextResponse } from "next/server";
 const BUCKET = "fambam-family-tools";
 const MEALS = ["breakfast", "lunch", "dinner"] as const;
 type MealName = (typeof MEALS)[number];
+const OPTION_KINDS = ["breakfast", "lunch", "dinner", "sides"] as const;
+type OptionKind = (typeof OPTION_KINDS)[number];
 type DayPlan = { breakfast: string; lunch: string; dinner: string; dinnerSides: string };
-type MealStore = { days: Record<string, DayPlan> };
+type MealStore = { days: Record<string, DayPlan>; options: Record<OptionKind, string[]> };
+const emptyOptions = (): Record<OptionKind, string[]> => ({ breakfast: [], lunch: [], dinner: [], sides: [] });
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -50,12 +53,15 @@ async function ensureBucket(db: ReturnType<typeof getAdminClient>) {
 async function readStore(db: ReturnType<typeof getAdminClient>, familyId: string): Promise<MealStore> {
   await ensureBucket(db);
   const { data, error } = await db.storage.from(BUCKET).download(`${familyId}/meal-plan.json`);
-  if (error || !data) return { days: {} };
+  if (error || !data) return { days: {}, options: emptyOptions() };
   try {
     const parsed = JSON.parse(await data.text());
-    return parsed && typeof parsed.days === "object" && parsed.days ? { days: parsed.days } : { days: {} };
+    return {
+      days: parsed && typeof parsed.days === "object" && parsed.days ? parsed.days : {},
+      options: Object.fromEntries(OPTION_KINDS.map((kind) => [kind, Array.isArray(parsed?.options?.[kind]) ? parsed.options[kind].filter((value: unknown) => typeof value === "string") : []])) as Record<OptionKind, string[]>,
+    };
   } catch {
-    return { days: {} };
+    return { days: {}, options: emptyOptions() };
   }
 }
 
@@ -89,7 +95,7 @@ export async function GET(request: Request) {
       const key = date.toISOString().slice(0, 10);
       return { date: key, ...blankDay(), ...(store.days[key] ?? {}) };
     });
-    return NextResponse.json({ weekStart, days });
+    return NextResponse.json({ weekStart, days, options: store.options });
   } catch (error) {
     console.error("Family meal plan GET failed:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not load the meal plan." }, { status: 500 });
@@ -100,6 +106,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => null) as {
       playerId?: string;
+      action?: string;
+      optionKind?: string;
+      option?: string;
       date?: string;
       dinnerSides?: string;
       meals?: Partial<Record<MealName, string>>;
@@ -108,6 +117,20 @@ export async function POST(request: Request) {
     const token = request.headers.get("x-fambam-session") ?? "";
     const db = getAdminClient();
     if (!(await verifySession(db, playerId, token))) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
+
+    const familyId = await getFamilyId(db);
+    const store = await readStore(db, familyId);
+    if (body?.action === "add-option") {
+      const kind = String(body.optionKind ?? "") as OptionKind;
+      const option = String(body.option ?? "").trim().slice(0, 120);
+      if (!OPTION_KINDS.includes(kind) || !option) return NextResponse.json({ error: "Choose a meal category and enter an option." }, { status: 400 });
+      if (!store.options[kind].some((value) => value.toLocaleLowerCase() === option.toLocaleLowerCase())) {
+        if (store.options[kind].length >= 100) return NextResponse.json({ error: "That dropdown has reached its 100 custom option limit." }, { status: 400 });
+        store.options[kind].push(option);
+      }
+      await writeStore(db, familyId, store);
+      return NextResponse.json({ ok: true, options: store.options });
+    }
 
     const date = String(body?.date ?? "");
     const start = currentSunday();
@@ -119,8 +142,6 @@ export async function POST(request: Request) {
     }
     const meals = Object.fromEntries(MEALS.map((meal) => [meal, String(body?.meals?.[meal] ?? "").trim().slice(0, 120)])) as Pick<DayPlan, MealName>;
     const dinnerSides = String(body?.dinnerSides ?? "").trim().slice(0, 240);
-    const familyId = await getFamilyId(db);
-    const store = await readStore(db, familyId);
     store.days[date] = { ...meals, dinnerSides };
     await writeStore(db, familyId, store);
     return NextResponse.json({ ok: true, date });

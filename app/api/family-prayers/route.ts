@@ -30,9 +30,15 @@ async function ensureBucket(db: ReturnType<typeof admin>) {
 async function read(db: ReturnType<typeof admin>, id: string): Promise<Store> {
   await ensureBucket(db);
   const { data, error } = await db.storage.from(BUCKET).download(`${id}/family-prayers.json`);
-  if (error || !data) return { requests: [] };
-  try { const parsed = JSON.parse(await data.text()); return { requests: Array.isArray(parsed.requests) ? parsed.requests : [] }; }
-  catch { return { requests: [] }; }
+  if (error) {
+    const status = Number((error as { statusCode?: number | string }).statusCode);
+    if ((status === 400 || status === 404) && /not found|not_found|does not exist/i.test(error.message)) return { requests: [] };
+    throw new Error("Could not read prayer requests. Please try again.");
+  }
+  if (!data) throw new Error("Could not read prayer requests. Please try again.");
+  const parsed = JSON.parse(await data.text());
+  if (!Array.isArray(parsed.requests)) throw new Error("Prayer data could not be read. Please try again.");
+  return { requests: parsed.requests };
 }
 async function write(db: ReturnType<typeof admin>, id: string, store: Store) {
   await ensureBucket(db);
@@ -69,6 +75,11 @@ export async function POST(request: Request) {
         const name = clean(player?.display_name, 60) || "Family";
         const current = Array.isArray(item.prayingBy) ? item.prayingBy.filter((person) => person && typeof person === "object" && typeof person.playerId === "string") : [];
         item.prayingBy = current.some((person) => person.playerId === playerId) ? current.filter((person) => person.playerId !== playerId) : [...current, { playerId, name }];
+      } else if (action === "edit") {
+        if (item.createdById !== playerId && !player?.is_admin) return NextResponse.json({ error: "Only the person who added this request can edit it." }, { status: 403 });
+        const text = clean(body?.request);
+        if (!text) return NextResponse.json({ error: "Write a prayer request first." }, { status: 400 });
+        item.whoFor = clean(body?.whoFor, 80); item.request = text; item.details = clean(body?.details);
       } else if (action === "answered") {
         if (item.createdById !== playerId && !player?.is_admin) return NextResponse.json({ error: "Only the person who added this request can update its answer status." }, { status: 403 });
         item.answered = Boolean(body?.answered); item.answeredAt = item.answered ? new Date().toISOString() : null;

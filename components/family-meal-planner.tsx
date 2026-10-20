@@ -81,11 +81,13 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
     ? `${new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(new Date(`${weekStart}T12:00:00Z`))}–${new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(weekEnd)}`
     : "";
 
-  return <article className="rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-5 shadow-sm sm:p-6">
-    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family meals</div>
-    <h2 className="mt-1 text-xl font-black text-[#10254a]">Meal Plan 🍽️</h2>
-    <p className="mt-1 text-sm font-semibold text-slate-600">{loading ? "Loading this week…" : weekLabel ? `Week starting Sunday · ${weekLabel}` : "Sunday–Saturday"}</p>
-    <p className="mt-2 text-sm text-slate-600">Tap a day to add or edit breakfast, lunch, dinner, or a meal theme.</p>
+  return <details id="meal-plan" className="group rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 shadow-sm sm:p-5">
+    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+      <span><span className="block text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family meals</span><span className="mt-1 block text-base font-black text-[#10254a]">Meal Plan 🍽️</span><span className="mt-0.5 block text-xs font-semibold text-slate-600">{loading ? "Loading this week…" : weekLabel ? `Week starting Sunday · ${weekLabel}` : "Sunday–Saturday"}</span></span>
+      <span aria-hidden="true" className="text-lg text-[#10254a] transition-transform group-open:rotate-180">⌄</span>
+    </summary>
+    <div className="mt-3 border-t border-[#e6dfd0] pt-3">
+    <p className="text-sm text-slate-600">Tap a day to add or edit breakfast, lunch, dinner, or a meal theme.</p>
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {days.map((day) => <details key={day.date} className="rounded-xl border border-[#e5dccb] bg-white p-4">
           <summary className="flex min-h-12 cursor-pointer items-center text-base font-black text-[#10254a]">
@@ -113,5 +115,6 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
         </details>)}
     </div>
     {error && <p role="alert" className="mt-3 text-sm font-bold text-red-600">{error}</p>}
-  </article>;
+    </div>
+  </details>;
 }

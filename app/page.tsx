@@ -5644,7 +5644,7 @@ export default function Home() {
               ["meal-plan", "🍽️", "Meals"],
               ["challenge-picks", "🏆", "Picks"],
             ].map(([id, icon, label]) => (
-              <button key={id} type="button" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-[#e6dfd0] bg-white px-1 py-1 text-[10px] font-black leading-tight text-[#10254a] shadow-sm active:bg-[#fffaf0]">
+              <button key={id} type="button" onClick={() => { const card = document.getElementById(id); if (card instanceof HTMLDetailsElement) card.open = true; card?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-[#e6dfd0] bg-white px-1 py-1 text-[10px] font-black leading-tight text-[#10254a] shadow-sm active:bg-[#fffaf0]">
                 <span aria-hidden="true" className="text-sm leading-none">{icon}</span>
                 <span>{label}</span>
               </button>
@@ -5697,17 +5697,17 @@ export default function Home() {
 
       {signedInPlayer ? (
         <div className="mb-4 grid grid-cols-1 gap-3 [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]" aria-label="Family home tools">
-          <div id="today-card" className="order-1 scroll-mt-24 min-w-0"><TodaysFunHoliday /></div>
+          <div className="order-1 min-w-0"><TodaysFunHoliday /></div>
           <section className="contents" aria-label="Family checklist and Daisy care">
-          <article id="family-checklist" className="order-4 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
+          <details id="family-checklist" className="group order-4 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family routine</div>
                 <h2 className="mt-1 text-lg font-black text-[#10254a]">Family Checklist ✅</h2>
-                <p className="text-xs font-medium text-slate-500">For sports, activities, school, trips, and handoffs.</p>
+                <p className="text-xs font-medium text-slate-500">{packingItems.filter((item) => !item.checked).length} items to remember · tap to open</p>
               </div>
-              <span className="text-2xl" aria-hidden="true">🧳</span>
-            </div>
+              <span className="text-2xl" aria-hidden="true">🧳 <span className="inline-block text-base transition-transform group-open:rotate-180">⌄</span></span>
+            </summary>
             <form onSubmit={async (event) => {
               event.preventDefault();
               const label = packingInput.trim();
@@ -5777,20 +5777,16 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </article>
+          </details>
 
-          <article id="daisy-care" className="order-2 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
+          <details id="daisy-care" className="group order-2 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Pet care</div>
-                <h2 className="mt-1 text-lg font-black text-[#10254a]">Daisy’s Care 🐾</h2>
-                <p className="text-xs font-medium text-slate-500">See when Daisy was last fed.</p>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">🐾 Daisy’s care</div>
+                {daisyLatestFeed ? <p className="mt-1 text-sm font-bold text-[#10254a]">Last fed {new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(daisyLatestFeed.fedAt))} by {daisyLatestFeed.fedBy}</p> : <p className="mt-1 text-sm font-semibold text-slate-500">{daisyBusy ? "Saving…" : "Not recorded yet · tap to open"}</p>}
               </div>
-              <span className="text-2xl" aria-hidden="true">🐶</span>
-            </div>
-            <div className="mt-3 grid gap-2">
-              <div className="rounded-xl bg-[#fffaf0] p-3"><p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Last fed</p>{daisyLatestFeed ? <p className="mt-1 text-sm font-bold text-[#10254a]">{new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(daisyLatestFeed.fedAt))}<span className="font-medium text-slate-500"> by {daisyLatestFeed.fedBy}</span></p> : <p className="mt-1 text-sm font-semibold text-slate-500">Not recorded yet.</p>}</div>
-            </div>
+              <span className="text-2xl" aria-hidden="true">🐶 <span className="inline-block text-base transition-transform group-open:rotate-180">⌄</span></span>
+            </summary>
             <div className="mt-3 grid grid-cols-1 gap-2">
             <button disabled={daisyBusy} onClick={async () => {
               if (!signedInPlayer) return;
@@ -5803,9 +5799,9 @@ export default function Home() {
             {daisyError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{daisyError}</p>}
             {nfcFeedNotice && <p role="status" className="mt-2 text-xs font-bold text-emerald-700">{nfcFeedNotice}</p>}
             <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut can update the feeding time under the signed-in profile.</p>
-          </article>
+          </details>
                   </section>
-          <div id="meal-plan" className="order-3 scroll-mt-24 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
+          <div className="order-3 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
         </div>
       ) : (
         <div className="mb-4"><TodaysFunHoliday /></div>
@@ -5814,63 +5810,16 @@ export default function Home() {
         {signedInPlayer && (
           <>
             {/* CHALLENGE STRIP */}
-            <section id="challenge-picks" className="mb-2.5 scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]">
-              <div className="flex min-h-[92px] items-stretch">
-                <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
-                  <div className="text-4xl">🏆</div>
-
-                  <div className="min-w-0">
-                    <div className="text-sm font-black uppercase text-[#10254a]">
-                      This Week&apos;s Challenge
-                    </div>
-                    <div className="mt-0.5 text-sm font-black text-[#10254a]">
-                      {currentPlayerReady
-                        ? "You’re all set!"
-                        : challengeGames.length > 0
-                          ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved`
-                          : "This week’s picks are coming soon."}
-                    </div>
-                    <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
-                      Every game locks at kickoff.
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={openPicks}
-                  className="flex w-[42%] max-w-[180px] shrink-0 flex-col items-center justify-center bg-[#06284a] px-2 text-center text-white active:bg-[#0a365f]"
-                >
-                  {currentPlayerReady ? (
-                    <>
-                      <div className="text-[10px] font-bold text-blue-100">
-                        You&apos;re all set
-                      </div>
-                      <div className="text-2xl font-black text-[#f3c64f]">
-                        {challengeGamesWithSavedPick}/{challengeGames.length}
-                      </div>
-                      <div className="text-[10px] font-black">
-                        picks complete ✓
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-[10px] font-bold text-blue-100">
-                        You have
-                      </div>
-                      <div className="text-xl font-black text-[#f3c64f]">
-                        {Math.max(
-                          0,
-                          challengeGames.length -
-                            challengeGamesWithSavedPick,
-                        )} picks left
-                      </div>
-                      <div className="mt-0.5 text-[10px] font-black">
-                        Finish My Picks ›
-                      </div>
-                    </>
-                  )}
-                </button>
-              </div>
+            <details id="challenge-picks" className="group mb-2.5 scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
+              <summary className="flex min-h-[76px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="flex min-w-0 items-center gap-3"><span className="text-3xl" aria-hidden="true">🏆</span><span className="min-w-0"><span className="block text-[10px] font-black uppercase text-[#10254a]">This Week&apos;s Challenge</span><span className="mt-0.5 block text-sm font-black text-[#10254a]">{currentPlayerReady ? "You’re all set!" : challengeGames.length > 0 ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved` : "This week’s picks are coming soon."}</span></span></span>
+                <span aria-hidden="true" className="text-lg text-[#10254a] transition-transform group-open:rotate-180">⌄</span>
+              </summary>
+              <div className="border-t border-[#e6dfd0]">
+              <button type="button" onClick={openPicks} className="flex min-h-12 w-full items-center justify-between bg-[#06284a] px-4 py-3 text-left text-sm font-black text-white active:bg-[#0a365f]">
+                <span>{currentPlayerReady ? "Challenge picks complete" : `${Math.max(0, challengeGames.length - challengeGamesWithSavedPick)} picks left · Every game locks at kickoff`}</span>
+                <span className="shrink-0 text-[#f3c64f]">{currentPlayerReady ? "Review picks →" : "Make picks →"}</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setActiveSection("Events")}
@@ -5885,7 +5834,8 @@ export default function Home() {
                       : "0 to make · all caught up!"}</span>
                 <span className="shrink-0 text-[#164d9b]">Events →</span>
               </button>
-            </section>
+              </div>
+            </details>
           </>
         )}
 

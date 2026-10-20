@@ -23,12 +23,13 @@ export default function TodaysFunHoliday() {
       .catch(() => setHoliday(null))
       .finally(() => setLoading(false));
   }, []);
-  return <article className="flex flex-col justify-between rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 shadow-sm">
-    <div>
-      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">A little family fun</div>
-      <h2 className="mt-1 text-xl font-black text-[#10254a]">🎉 Today’s fun holiday</h2>
-      <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-slate-400">{dateLabel || "Today"}</p>
-      <p className="mt-1 text-lg font-black text-[#10254a]">{loading ? "Finding today’s celebration…" : holiday?.name || "No kid-friendly holiday listed today"}</p>
-    </div>
-  </article>;
+  return <details id="today-card" className="group scroll-mt-24 rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 shadow-sm">
+    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+      <span className="min-w-0"><span className="block text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">🎉 Today’s fun holiday · {dateLabel || "Today"}</span>
+        <span className="mt-1 block text-base font-black text-[#10254a]">{loading ? "Finding today’s celebration…" : holiday?.name || "No kid-friendly holiday listed today"}</span>
+      </span>
+      <span aria-hidden="true" className="text-lg text-[#10254a] transition-transform group-open:rotate-180">⌄</span>
+    </summary>
+    {holiday?.description && <p className="mt-3 border-t border-[#e6dfd0] pt-3 text-sm font-medium leading-relaxed text-slate-600">{holiday.description}</p>}
+  </details>;
 }

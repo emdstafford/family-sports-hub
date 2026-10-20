@@ -31,3 +31,17 @@ export function houseTrendValues(records: HouseRecord[], year: string, metric: H
     return { month, value };
   });
 }
+export type MaintenanceReminder = {
+  id: string; title: string; dueDate: string | null; repeatMonths: number; notes: string;
+  completedAt: string | null; completions: string[]; updatedAt: string;
+};
+export function houseDateToday(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const part = (name: string) => parts.find((row) => row.type === name)?.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+export function nextMaintenanceDate(date: string, months: number) {
+  const [year, month, day] = date.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, month - 1 + months + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month - 1 + months, Math.min(day, lastDay))).toISOString().slice(0, 10);
+}

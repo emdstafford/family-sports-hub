@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { houseMonthlyTotals, type HouseKind, type HouseRecord } from "@/lib/house-records";
+import { houseMonthlyTotals, type HouseKind, type HouseRecord, type MaintenanceReminder } from "@/lib/house-records";
+import MaintenanceReminders from "@/components/maintenance-reminders";
 import HouseTrends from "@/components/house-trends";
 const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 const kinds: { value: HouseKind; label: string }[] = [{ value: "filter", label: "Filter change" }, { value: "propane", label: "Propane" }, { value: "electricity", label: "Electricity" }];
@@ -8,6 +9,7 @@ function today() { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "A
 const blank = () => ({ id: "", kind: "filter" as HouseKind, date: today(), label: "", cost: "", percentage: "", gallons: "", kwh: "", nextDue: "", notes: "" });
 async function json(response: Response) { const text = await response.text(); try { return JSON.parse(text); } catch { throw new Error("House returned an unreadable response. Please refresh and try again."); } }
 export default function HouseManager({ playerId }: { playerId: string }) {
+  const [reminders, setReminders] = useState<MaintenanceReminder[]>([]);
   const [records, setRecords] = useState<HouseRecord[]>([]), [error, setError] = useState<string | null>(null), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true);
   const [form, setForm] = useState(blank), [open, setOpen] = useState(false), [year, setYear] = useState(today().slice(0, 4)), [kindFilter, setKindFilter] = useState("All");
   const headers = () => ({ "Content-Type": "application/json", "x-fambam-session": window.localStorage.getItem("fambam_session_token") ?? "" });
@@ -18,7 +20,7 @@ export default function HouseManager({ playerId }: { playerId: string }) {
       if (!imported.ok) throw new Error((await json(imported)).error ?? "Could not load your House history.");
       const response = await fetch(`/api/house?playerId=${encodeURIComponent(playerId)}`, { headers, cache: "no-store" }); const data = await json(response);
       if (!response.ok) throw new Error(data.error ?? "Could not load House.");
-      setRecords(Array.isArray(data.records) ? data.records : []); setError(null);
+      setRecords(Array.isArray(data.records) ? data.records : []); setReminders(Array.isArray(data.reminders) ? data.reminders : []); setError(null);
     } catch (error) { setError(error instanceof Error ? error.message : "Could not load House."); } finally { setLoading(false); }
   }, [playerId]);
   useEffect(() => { void load(); }, [load]);
@@ -46,6 +48,7 @@ export default function HouseManager({ playerId }: { playerId: string }) {
   return <section className="fambam-light-forms mx-auto max-w-5xl px-3 py-4 text-[#10254a]">
     <div className="mb-4 flex items-center justify-between gap-3"><div><h1 className="text-2xl font-black">🏡 House</h1><p className="text-sm text-slate-500">Maintenance, propane & electricity</p></div><button type="button" onClick={() => { setForm(blank()); setOpen(true); }} className="min-h-11 rounded-xl bg-[#10254a] px-4 text-sm font-black text-white">＋ Add record</button></div>
     {error && <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
+    <MaintenanceReminders reminders={reminders} busy={busy} onSave={save} />
     {dueFilters.length > 0 && <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3"><h2 className="font-black">Filters due for a change</h2>{dueFilters.map((row) => <p key={row.id} className="mt-1 text-sm">{row.label} · due {row.nextDue}</p>)}</div>}
     <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3"><article className="rounded-xl border border-slate-200 bg-white p-3"><h2 className="text-xs font-bold text-slate-500">Latest tank reading</h2><p className="mt-1 text-xl font-black">{lastPropane ? `${lastPropane.percentage}%` : "Not recorded"}</p>{lastPropane && <p className="text-xs text-slate-500">{lastPropane.date} · {lastPropane.label || "Propane"}</p>}</article><article className="rounded-xl border border-slate-200 bg-white p-3"><h2 className="text-xs font-bold text-slate-500">{year} electricity</h2><p className="mt-1 text-xl font-black">{money(selectedAnnual.electricity)}</p><p className="text-xs text-slate-500">{selectedAnnual.averageBill === null ? "No bills recorded" : `${money(selectedAnnual.averageBill)} average / recorded month · ${selectedAnnual.billMonths} months`}</p></article><article className="rounded-xl border border-slate-200 bg-white p-3"><h2 className="text-xs font-bold text-slate-500">{year} propane purchases</h2><p className="mt-1 text-xl font-black">{money(selectedAnnual.propane)}</p><p className="text-xs text-slate-500">{selectedAnnual.averagePurchase === null ? "No purchases recorded" : `${money(selectedAnnual.averagePurchase)} average / purchase · ${selectedAnnual.purchases} purchases`}</p></article></div>
     {open && <form id="house-record-form" className="mb-4 scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4" onSubmit={async (event) => { event.preventDefault(); if (await save({ action: "save", ...form, id: form.id || undefined })) { setYear(form.date.slice(0, 4)); setOpen(false); setForm(blank()); } }}>

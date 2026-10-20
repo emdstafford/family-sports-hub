@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { validHouseDate, type HouseRecord } from "@/lib/house-records";
+import { validHouseDate, houseDateToday, nextMaintenanceDate, type MaintenanceReminder, type HouseRecord } from "@/lib/house-records";
 import { HOUSE_HISTORY } from "@/lib/house-history";
-type HouseStore = { records: HouseRecord[]; imports: string[] };
+type HouseStore = { records: HouseRecord[]; imports: string[]; reminders: MaintenanceReminder[] };
 const BUCKET = "fambam-family-tools";
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.SUPABASE_SECRET_KEY;
@@ -29,13 +29,13 @@ async function read(db: ReturnType<typeof admin>, familyId: string): Promise<Hou
   }
   const { data, error } = await db.storage.from(BUCKET).download(`${familyId}/house.json`);
   if (error) {
-    if (["404", "400"].includes(String(error.statusCode)) && /not found|does not exist/i.test(error.message)) return { records: [], imports: [] };
+    if (["404", "400"].includes(String(error.statusCode)) && /not found|does not exist/i.test(error.message)) return { records: [], imports: [], reminders: [] };
     throw new Error("Could not read House records. Please try again.");
   }
   if (!data) throw new Error("House records could not be read.");
   const parsed = JSON.parse(await data.text());
   if (!Array.isArray(parsed.records)) throw new Error("House records could not be read.");
-  return { records: parsed.records, imports: Array.isArray(parsed.imports) ? parsed.imports : [] };
+  return { records: parsed.records, imports: Array.isArray(parsed.imports) ? parsed.imports : [], reminders: Array.isArray(parsed.reminders) ? parsed.reminders : [] };
 }
 const clean = (value: unknown, max = 100) => String(value ?? "").trim().slice(0, max);
 function number(value: unknown) {
@@ -48,7 +48,8 @@ export async function GET(request: Request) {
   try {
     const db = admin(), playerId = new URL(request.url).searchParams.get("playerId") ?? "";
     if (!await session(db, playerId, request.headers.get("x-fambam-session") ?? "")) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
-    return NextResponse.json({ records: (await read(db, await family(db))).records });
+    const store = await read(db, await family(db));
+    return NextResponse.json({ records: store.records, reminders: store.reminders });
   } catch (error) { console.error("House GET failed", error); return NextResponse.json({ error: error instanceof Error ? error.message : "Could not load House." }, { status: 500 }); }
 }
 export async function POST(request: Request) {
@@ -57,11 +58,40 @@ export async function POST(request: Request) {
     if (!await session(db, playerId, request.headers.get("x-fambam-session") ?? "")) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
     const familyId = await family(db), store = await read(db, familyId), records = store.records;
     if (body.action === "import-history") {
-      const marker = "google-house-history-2026-10-20-v1";
-      if (store.imports.includes(marker)) return NextResponse.json({ ok: true });
+      const marker = "google-house-history-2026-10-20-v1", reminderMarker = "fall-hvac-call-2026";
+      if (store.imports.includes(marker) && store.imports.includes(reminderMarker)) return NextResponse.json({ ok: true });
       const now = new Date().toISOString();
-      for (const entry of HOUSE_HISTORY) if (!records.some((row) => row.id === entry.id)) records.push({ ...entry, createdAt: now, updatedAt: now });
-      store.imports.push(marker);
+      if (!store.imports.includes(marker)) {
+        for (const entry of HOUSE_HISTORY) if (!records.some((row) => row.id === entry.id)) records.push({ ...entry, createdAt: now, updatedAt: now });
+        store.imports.push(marker);
+      }
+      if (!store.imports.includes(reminderMarker)) {
+        if (!store.reminders.some((row) => row.id === reminderMarker)) store.reminders.push({ id: reminderMarker, title: "Call HVAC company to schedule seasonal service", dueDate: null, repeatMonths: 6, notes: "Call to schedule fall 2026 service. Expected spring and fall visits; confirm the schedule with your HVAC provider.", completedAt: null, completions: [], updatedAt: now });
+        store.imports.push(reminderMarker);
+      }
+    } else if (body.action === "reminder-save") {
+      const title = clean(body.title, 150), dueDate = clean(body.dueDate, 10) || null;
+      const repeatMonths = Number(body.repeatMonths ?? 0);
+      if (!title || (dueDate && (dueDate.length !== 10 || !validHouseDate(dueDate))) || !Number.isInteger(repeatMonths) || repeatMonths < 0 || repeatMonths > 120) return NextResponse.json({ error: "Add a reminder title, a valid date, and a repeat interval between 0 and 120 months." }, { status: 400 });
+      const existing = body.id ? store.reminders.find((row) => row.id === body.id) : null;
+      if (body.id && !existing) return NextResponse.json({ error: "That reminder could not be found." }, { status: 404 });
+      const reminder: MaintenanceReminder = { id: existing?.id ?? randomUUID(), title, dueDate, repeatMonths, notes: clean(body.notes, 1000), completedAt: existing?.completedAt ?? null, completions: existing?.completions ?? [], updatedAt: new Date().toISOString() };
+      if (existing) store.reminders.splice(store.reminders.indexOf(existing), 1, reminder); else store.reminders.push(reminder);
+    } else if (["reminder-complete", "reminder-reopen", "reminder-delete"].includes(body.action)) {
+      const reminder = store.reminders.find((row) => row.id === body.id);
+      if (!reminder) return NextResponse.json({ error: "That reminder could not be found." }, { status: 404 });
+      if (body.action === "reminder-delete") store.reminders = store.reminders.filter((row) => row.id !== reminder.id);
+      else {
+        if (body.expectedUpdatedAt && body.expectedUpdatedAt !== reminder.updatedAt) return NextResponse.json({ error: "This reminder changed. Refresh House and try again." }, { status: 409 });
+        const now = new Date().toISOString();
+        if (body.action === "reminder-reopen") reminder.completedAt = null;
+        else if (!reminder.completedAt) {
+          reminder.completions.push(now);
+          reminder.completedAt = reminder.repeatMonths ? null : now;
+          if (reminder.repeatMonths) reminder.dueDate = nextMaintenanceDate(houseDateToday(new Date(now)), reminder.repeatMonths);
+        }
+        reminder.updatedAt = now;
+      }
     } else if (body.action === "delete") {
       const index = records.findIndex((record) => record.id === body.id);
       if (index === -1) return NextResponse.json({ error: "That record could not be found." }, { status: 404 });

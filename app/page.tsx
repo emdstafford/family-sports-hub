@@ -7936,7 +7936,7 @@ export default function Home() {
           }}
         >
           {[
-            ["🏠", "Home"],
+            ["🏠", "Hub"],
             ["🙏", "Prayer"],
             ["🧺", "Food"],
             ["🏟️", "Sports"],
@@ -7947,7 +7947,7 @@ export default function Home() {
               key={label}
               onClick={() => {
                 setProfileOpen(false);
-                if (label === "Home") {
+                if (label === "Hub") {
                   setActiveSection("Home");
                   setActiveSport("All");
                 }
@@ -7973,7 +7973,7 @@ export default function Home() {
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${
                 (label === "Sports"
                   ? ["Sports", "Challenge", "Events", "Locker Room", "Trophy Room"].includes(activeSection)
-                  : activeSection === label)
+                  : activeSection === (label === "Hub" ? "Home" : label))
                   ? "text-[#f3c64f]"
                   : "text-white"
               }`}
@@ -7988,7 +7988,7 @@ export default function Home() {
               {(
                 (label === "Sports"
                   ? ["Sports", "Challenge", "Events", "Locker Room", "Trophy Room"].includes(activeSection)
-                  : activeSection === label)
+                  : activeSection === (label === "Hub" ? "Home" : label))
               ) && (
                 <span className="absolute bottom-0 h-0.5 w-10 rounded-full bg-[#f3c64f]" />
               )}
@@ -9285,7 +9285,7 @@ export default function Home() {
                         onClick={() => setActiveSection("Home")}
                         className="mt-5 rounded-xl bg-[#06284a] px-6 py-3 text-sm font-black text-white"
                       >
-                        Back to Home
+                        Back to Hub
                       </button>
                     </div>
                   )}

@@ -5635,6 +5635,21 @@ export default function Home() {
 
       {activeSection === "Home" && (
       <div className="mx-auto max-w-5xl px-3 py-3">
+        {signedInPlayer && (
+          <nav aria-label="Jump to a home card" className="-mx-3 mb-3 flex gap-2 overflow-x-auto px-3 pb-1">
+            {[
+              ["today-card", "☀️ Today"],
+              ["daisy-care", "🐾 Daisy"],
+              ["family-checklist", "🧳 Checklist"],
+              ["meal-plan", "🍽️ Meals"],
+              ["challenge-picks", "🏆 Challenge"],
+            ].map(([id, label]) => (
+              <button key={id} type="button" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="shrink-0 rounded-full border border-[#e6dfd0] bg-white px-3 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]">
+                {label}
+              </button>
+            ))}
+          </nav>
+        )}
         <WeeklyFaithPractice />
         <div className="mb-3 grid grid-cols-2 gap-3">
           <MerriamWebsterWordOfDay />
@@ -5681,9 +5696,9 @@ export default function Home() {
 
       {signedInPlayer ? (
         <div className="mb-4 grid grid-cols-2 gap-3" aria-label="Family home tools">
-          <div className="order-1 min-w-0"><TodaysFunHoliday /></div>
+          <div id="today-card" className="order-1 scroll-mt-24 min-w-0"><TodaysFunHoliday /></div>
           <section className="contents" aria-label="Family checklist and Daisy care">
-          <article className="order-4 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+          <article id="family-checklist" className="order-4 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family routine</div>
@@ -5763,7 +5778,7 @@ export default function Home() {
             </div>
           </article>
 
-          <article className="order-2 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+          <article id="daisy-care" className="order-2 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Pet care</div>
@@ -5789,7 +5804,7 @@ export default function Home() {
             <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut can update the feeding time under the signed-in profile.</p>
           </article>
                   </section>
-          <div className="order-3 col-span-2 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
+          <div id="meal-plan" className="order-3 col-span-2 scroll-mt-24 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
         </div>
       ) : (
         <div className="mb-4"><TodaysFunHoliday /></div>
@@ -5798,7 +5813,7 @@ export default function Home() {
         {signedInPlayer && (
           <>
             {/* CHALLENGE STRIP */}
-            <section className="mb-2.5 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
+            <section id="challenge-picks" className="mb-2.5 scroll-mt-24 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
               <div className="flex min-h-[92px] items-stretch">
                 <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
                   <div className="text-4xl">🏆</div>

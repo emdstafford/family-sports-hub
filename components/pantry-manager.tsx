@@ -12,7 +12,7 @@ type PantryItem = {
   rating: Rating; notes: string; updatedAt: string; priceHistory: PriceRow[];
 };
 type GroceryLine = { id: string; name: string; pantryItemId: string | null; addedAt: string; addedBy: string };
-type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number; notes?: string; needsCount?: boolean; costYield?: number; costUnknown?: boolean };
+type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number; notes?: string; needsCount?: boolean; costYield?: number; costUnknown?: boolean; lastUpdatedAt?: string; reminderBaselineAt?: string };
 const LOCATIONS = ["Garage Deep Freezer", "Garage Fridge/Freezer", "Kitchen Fridge/Freezer", "Pantry", "Basement"];
 const STORES = ["Costco", "Aldi", "Walmart", "Ingles", "Save A Lot", "Other"];
 const CATEGORIES = ["Meat", "Freezer", "Canned Goods", "Pantry", "Fridge", "Other"];
@@ -40,6 +40,24 @@ async function responseJson(response: Response) {
   }
 }
 
+function canningCountDue(batch: CanningBatch, now: Date) {
+  if (batch.needsCount) return true;
+  const recorded = batch.lastUpdatedAt ?? batch.reminderBaselineAt;
+  if (!recorded) return false;
+  const updated = new Date(recorded);
+  if (!Number.isFinite(updated.getTime())) return false;
+  // Compare calendar dates in the family’s timezone, clamping month ends.
+  const localDate = (date: Date) => {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "numeric", day: "numeric" }).formatToParts(date);
+    return Object.fromEntries(parts.map((part) => [part.type, Number(part.value)]));
+  };
+  const date = localDate(updated);
+  const endOfNextMonth = new Date(Date.UTC(date.year, date.month + 1, 0)).getUTCDate();
+  const due = Date.UTC(date.year, date.month, Math.min(date.day, endOfNextMonth));
+  const today = localDate(now);
+  return Date.UTC(today.year, today.month - 1, today.day) >= due;
+}
+
 function FoodLocation({ value, options, onChange }: { value: string; options: string[]; onChange: (value: string) => void }) {
   const [adding, setAdding] = useState(false);
   return <label className="block text-xs font-bold text-slate-600">Storage location
@@ -51,6 +69,8 @@ function FoodLocation({ value, options, onChange }: { value: string; options: st
 }
 
 export default function PantryManager({ playerId }: { playerId: string }) {
+  const [reminderNow, setReminderNow] = useState(() => new Date());
+  useEffect(() => { const timer = window.setInterval(() => setReminderNow(new Date()), 60000); return () => window.clearInterval(timer); }, []);
   const [items, setItems] = useState<PantryItem[]>([]);
   const [groceries, setGroceries] = useState<GroceryLine[]>([]);
   const [usage, setUsage] = useState<{ batchId: string; name: string; jarSize: string; amount: number; usedAt: string }[]>([]);
@@ -297,11 +317,12 @@ export default function PantryManager({ playerId }: { playerId: string }) {
       {Object.keys(yearlyStats).length > 0 ? <div className="mt-2 grid gap-2 sm:grid-cols-2">{Object.entries(yearlyStats).map(([product, stats]) => {
         const batches = yearBatches.filter((batch) => `${batch.name} · ${batch.jarSize}` === product);
         const nextBatch = [...batches].sort((a, b) => a.cannedAt.localeCompare(b.cannedAt)).find((batch) => batch.jarsUsed < batch.jarsMade);
+        const countDue = batches.some((batch) => canningCountDue(batch, reminderNow));
         return <article key={product} className="rounded-xl border border-slate-200 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-black text-[#10254a]">{product}</p>{batches.some((batch) => batch.needsCount) && <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">Needs updating</span>}</div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-black text-[#10254a]">{product}</p>{countDue && <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">{batches.some((batch) => batch.needsCount) ? "Needs updating" : "Check count · 1 month"}</span>}</div>
           <p className="mt-1 text-sm text-slate-600">{stats.made} jars canned · {stats.used} used · {stats.made - stats.used} remaining · {stats.batches} {stats.batches === 1 ? "batch" : "batches"}</p>
           <div className="mt-2 flex flex-wrap items-start gap-2"><button type="button" disabled={busy || !nextBatch} onClick={() => { if (nextBatch) void submit({ action: "canning-use", batchId: nextBatch.id, amount: 1 }); }} className="min-h-11 rounded-lg bg-emerald-100 px-3 text-sm font-black text-emerald-900 disabled:opacity-50">Ate 1 jar</button>
-          <details className="min-w-0 flex-1"><summary className="flex min-h-11 cursor-pointer items-center rounded-lg bg-slate-100 px-3 text-sm font-bold text-slate-700">Update count</summary>{batches.map((batch) => <form key={batch.id} className="mt-2 flex flex-wrap items-end gap-2" onSubmit={async (event) => { event.preventDefault(); const remaining = Number(new FormData(event.currentTarget).get("remaining")); const editor = event.currentTarget.closest("details"); if (await submit({ action: "canning-count", batchId: batch.id, remaining }) && editor) editor.open = false; }}>
+          <details className="min-w-0 flex-1"><summary className={`flex min-h-11 cursor-pointer items-center rounded-lg px-3 text-sm font-bold ${countDue ? "bg-amber-100 text-amber-900" : "text-slate-500"}`}>{countDue ? "Update count" : "Edit count"}</summary>{batches.map((batch) => <form key={batch.id} className="mt-2 flex flex-wrap items-end gap-2" onSubmit={async (event) => { event.preventDefault(); const remaining = Number(new FormData(event.currentTarget).get("remaining")); const editor = event.currentTarget.closest("details"); if (await submit({ action: "canning-count", batchId: batch.id, remaining }) && editor) editor.open = false; }}>
             <label className="text-xs font-bold text-slate-600">{batches.length > 1 ? `Jars left · ${batch.cannedAt}` : "Jars left"}<input key={`${batch.id}-${batch.jarsUsed}`} name="remaining" aria-label={`Jars of ${batch.name} left${batches.length > 1 ? ` from ${batch.cannedAt}` : ""}`} type="number" min="0" max={batch.jarsMade} step="1" required defaultValue={batch.jarsMade - batch.jarsUsed} className="mt-1 block w-24 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-[#10254a]" /></label>
             <button disabled={busy} className="min-h-10 rounded-lg bg-[#10254a] px-3 text-xs font-black text-white disabled:opacity-50">Save count</button>
           </form>)}</details></div>

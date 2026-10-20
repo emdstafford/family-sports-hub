@@ -34,7 +34,7 @@ type PantryItem = {
   priceHistory: StorePrice[];
 };
 type GroceryLine = { id: string; name: string; pantryItemId: string | null; addedAt: string; addedBy: string };
-type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number; notes?: string; needsCount?: boolean; costYield?: number; costUnknown?: boolean };
+type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number; notes?: string; needsCount?: boolean; costYield?: number; costUnknown?: boolean; lastUpdatedAt?: string; reminderBaselineAt?: string };
 type PantryStore = { items: PantryItem[]; groceries: GroceryLine[]; canning: CanningBatch[]; locations?: string[]; imports?: string[]; canningUsage?: { batchId: string; name: string; jarSize: string; amount: number; usedAt: string }[] };
 
 function getAdminClient() {
@@ -116,7 +116,15 @@ export async function POST(request: Request) {
 
     if (action === "canning-import-2025") {
       const importId = "emily-canning-notes-2025-v1";
-      if (store.imports?.includes(importId)) return NextResponse.json({ ok: true });
+      if (store.imports?.includes(importId)) {
+        const missingBaseline = store.canning.filter((batch) => !batch.lastUpdatedAt && !batch.reminderBaselineAt);
+        if (missingBaseline.length) {
+          const baseline = new Date().toISOString();
+          for (const batch of missingBaseline) batch.reminderBaselineAt = baseline;
+          await writeStore(db, familyId, store);
+        }
+        return NextResponse.json({ ok: true });
+      }
       const rows: [string, string, number, number, number | null, number | null, { name: string; cost: number }[], string][] = [
         ["Green beans", "quart", 70, 24, 80, 50, [{ name: "Green beans — 2 bushels", cost: 80 }], "2025 annual total: 70 quarts. Cost note covers a separate 50-quart yield, not all 70 jars."],
         ["Vegetable soup", "quart", 39, 5, 89.50, 38, [{ name: "Corn", cost: 16 }, { name: "Okra (quantity recorded as 12)", cost: 10 }, { name: "Canning tomatoes — 2 boxes", cost: 32 }, { name: "Green beans", cost: 15 }, { name: "Carrots — Costco and Ingles", cost: 10 }, { name: "Potatoes — Costco", cost: 4 }, { name: "Onion — Costco", cost: 2.50 }], "Annual total says 39 quarts; cost note says 38-quart yield. Corn note also lists an alternative 3 dozen for $25; saved cost uses the recorded $89.50 total."],
@@ -141,6 +149,7 @@ export async function POST(request: Request) {
       if (remaining === null || !Number.isInteger(remaining) || remaining > batch.jarsMade) return NextResponse.json({ error: "Enter whole jars left between zero and the number made." }, { status: 400 });
       batch.jarsUsed = batch.jarsMade - remaining;
       batch.needsCount = false;
+      batch.lastUpdatedAt = new Date().toISOString();
     } else if (action === "canning-add") {
       const name = cleanText(body?.name, 100);
       const jarsMade = numberOrNull(body?.jarsMade) ?? 0;
@@ -152,7 +161,7 @@ export async function POST(request: Request) {
       }).filter((entry) => entry.name && entry.cost >= 0) : [];
       if (!name || !jarSize || !Number.isInteger(jarsMade) || jarsMade < 1 || !ingredients.length) return NextResponse.json({ error: "Add a name, jar size, number of jars, and ingredient costs." }, { status: 400 });
       const totalCost = Math.round(ingredients.reduce((sum, entry) => sum + entry.cost, 0) * 100) / 100;
-      store.canning.unshift({ id: randomUUID(), name, cannedAt, jarSize, jarsMade, jarsUsed: 0, ingredients, totalCost, costPerJar: Math.round(totalCost / jarsMade * 100) / 100 });
+      store.canning.unshift({ id: randomUUID(), name, cannedAt, jarSize, jarsMade, jarsUsed: 0, lastUpdatedAt: new Date().toISOString(), ingredients, totalCost, costPerJar: Math.round(totalCost / jarsMade * 100) / 100 });
     } else if (action === "canning-use" || action === "canning-delete") {
       const batch = store.canning.find((entry) => entry.id === String(body?.batchId ?? ""));
       if (!batch) return NextResponse.json({ error: "That canning batch could not be found." }, { status: 404 });
@@ -160,6 +169,7 @@ export async function POST(request: Request) {
         const amount = numberOrNull(body?.amount) ?? 0;
         if (!Number.isInteger(amount) || amount < 1 || batch.jarsUsed + amount > batch.jarsMade) return NextResponse.json({ error: "Enter a valid number of jars used." }, { status: 400 });
         batch.jarsUsed += amount;
+        batch.lastUpdatedAt = new Date().toISOString();
         (store.canningUsage ??= []).push({ batchId: batch.id, name: batch.name, jarSize: batch.jarSize, amount, usedAt: new Date().toISOString() });
       } else store.canning = store.canning.filter((entry) => entry.id !== batch.id);
     } else if (action === "grocery-add") {

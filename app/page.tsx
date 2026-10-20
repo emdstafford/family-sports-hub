@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import StandingsHub from "@/components/standings-hub";
 import GiftManager from "@/components/gift-manager";
 import PantryManager from "@/components/pantry-manager";
+import HouseManager from "@/components/house-manager";
 import MerriamWebsterWordOfDay from "@/components/merriam-webster-word-of-day";
 import NorthGeorgiaWeatherCard from "@/components/north-georgia-weather-card";
 import HandmadeGiftPlanner from "@/components/handmade-gift-planner";
@@ -1568,10 +1569,12 @@ export default function Home() {
   const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Pantry" | "Prayer">("Home");
+    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House">("Home");
 
   useEffect(() => {
-    if (new URL(window.location.href).searchParams.get("section") === "Pantry") setActiveSection("Pantry");
+    const section = new URL(window.location.href).searchParams.get("section");
+    if (section === "Food" || section === "Pantry") setActiveSection("Food");
+    if (section === "House") setActiveSection("House");
   }, []);
 
   useEffect(() => {
@@ -7926,7 +7929,7 @@ export default function Home() {
       {/* APP NAV */}
       <nav className={`fixed inset-x-0 bottom-0 ${profileOpen ? "z-[145]" : "z-50"} border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]`}>
         <div
-          className="mx-auto grid max-w-5xl grid-cols-5"
+          className="mx-auto grid max-w-5xl grid-cols-6"
           style={{
             paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
             paddingTop: "6px",
@@ -7934,10 +7937,11 @@ export default function Home() {
         >
           {[
             ["🏠", "Home"],
-            ["🏟️", "Sports"],
-            ["🧺", "Pantry"],
-            ["🎁", "Gifts"],
             ["🙏", "Prayer"],
+            ["🧺", "Food"],
+            ["🏟️", "Sports"],
+            ["🎁", "Gifts"],
+            ["🏡", "House"],
           ].map(([icon, label]) => (
             <button
               key={label}
@@ -7956,9 +7960,11 @@ export default function Home() {
                   setActiveSection("Gifts");
                 }
 
-                if (label === "Pantry") {
-                  setActiveSection("Pantry");
+                if (label === "Food") {
+                  setActiveSection("Food");
                 }
+
+                if (label === "House") { setActiveSection("House"); }
 
                 if (label === "Prayer") {
                   setActiveSection("Prayer");
@@ -7991,8 +7997,11 @@ export default function Home() {
         </div>
       </nav>
 
-      {activeSection === "Pantry" && signedInPlayer && <PantryManager playerId={signedInPlayer.id} />}
-      {activeSection === "Pantry" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🧺</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Pantry & Freezer</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to see and update the family food inventory.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => document.getElementById("signin")?.scrollIntoView({ behavior: "smooth" }), 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
+      {activeSection === "Food" && signedInPlayer && <PantryManager playerId={signedInPlayer.id} />}
+      {activeSection === "Food" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🧺</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Food & Canning</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to see and update the family food inventory.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => document.getElementById("signin")?.scrollIntoView({ behavior: "smooth" }), 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
+
+      {activeSection === "House" && signedInPlayer && <HouseManager playerId={signedInPlayer.id} />}
+      {activeSection === "House" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><h1 className="text-2xl font-black text-[#10254a]">🏡 House</h1><p className="mt-2 text-sm text-slate-600">Sign in to see maintenance and utility history.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => document.getElementById("signin")?.scrollIntoView({ behavior: "smooth" }), 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
 
       {activeSection === "Prayer" && signedInPlayer && <FamilyPrayerBoard />}
       {activeSection === "Prayer" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🙏</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Family Prayer</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to share prayer requests with the family.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => document.getElementById("signin")?.scrollIntoView({ behavior: "smooth" }), 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}

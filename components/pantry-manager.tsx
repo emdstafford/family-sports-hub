@@ -193,7 +193,7 @@ export default function PantryManager({ playerId }: { playerId: string }) {
   return <section className="fambam-light-forms mx-auto max-w-5xl px-3 py-4">
     <header className="mb-4 rounded-3xl bg-[#06284a] p-5 text-white shadow-sm">
       <div className="text-xs font-black uppercase tracking-[0.22em] text-[#f3c64f]">FamBam Hub</div>
-      <h1 className="mt-1 text-3xl font-black">🧺 Pantry & Freezer</h1>
+      <h1 className="mt-1 text-3xl font-black">🧺 Food & Canning</h1>
       <p className="mt-2 text-sm font-semibold text-blue-100">Track what’s on hand, what it cost, where you bought it, and what’s worth buying again.</p>
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
         <span className="rounded-full bg-white/10 px-3 py-1.5">{items.length} items tracked</span>

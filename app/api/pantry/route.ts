@@ -16,6 +16,7 @@ type PantryItem = {
   id: string;
   name: string;
   category: string;
+  location?: string;
   quantity: number;
   unit: string;
   lowAt: number;
@@ -34,7 +35,7 @@ type PantryItem = {
 };
 type GroceryLine = { id: string; name: string; pantryItemId: string | null; addedAt: string; addedBy: string };
 type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number; notes?: string; needsCount?: boolean; costYield?: number; costUnknown?: boolean };
-type PantryStore = { items: PantryItem[]; groceries: GroceryLine[]; canning: CanningBatch[]; imports?: string[]; canningUsage?: { batchId: string; name: string; jarSize: string; amount: number; usedAt: string }[] };
+type PantryStore = { items: PantryItem[]; groceries: GroceryLine[]; canning: CanningBatch[]; locations?: string[]; imports?: string[]; canningUsage?: { batchId: string; name: string; jarSize: string; amount: number; usedAt: string }[] };
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -66,7 +67,7 @@ async function readStore(db: ReturnType<typeof getAdminClient>, familyId: string
   if (error || !data) return { items: [], groceries: [], canning: [] };
   try {
     const parsed = JSON.parse(await data.text());
-    return { canningUsage: Array.isArray(parsed.canningUsage) ? parsed.canningUsage : [], imports: Array.isArray(parsed.imports) ? parsed.imports : [], canning: Array.isArray(parsed.canning) ? parsed.canning.filter((batch: unknown) => typeof batch === "object" && batch !== null && "id" in batch && "name" in batch) : [], items: Array.isArray(parsed.items) ? parsed.items.filter((item: unknown): item is PantryItem =>
+    return { locations: Array.isArray(parsed.locations) ? parsed.locations.filter((value: unknown) => typeof value === "string") : [], canningUsage: Array.isArray(parsed.canningUsage) ? parsed.canningUsage : [], imports: Array.isArray(parsed.imports) ? parsed.imports : [], canning: Array.isArray(parsed.canning) ? parsed.canning.filter((batch: unknown) => typeof batch === "object" && batch !== null && "id" in batch && "name" in batch) : [], items: Array.isArray(parsed.items) ? parsed.items.filter((item: unknown): item is PantryItem =>
       typeof item === "object" && item !== null && "id" in item && typeof item.id === "string" && "name" in item && typeof item.name === "string" && "quantity" in item && Number.isFinite(Number(item.quantity))
     ).map((item: PantryItem) => ({ ...item, lowAt: Number.isFinite(Number(item.lowAt)) ? Number(item.lowAt) : 1, expirationDate: typeof item.expirationDate === "string" ? item.expirationDate : null, frozenAt: typeof item.frozenAt === "string" ? item.frozenAt : null })) : [], groceries: Array.isArray(parsed.groceries) ? parsed.groceries : [] };
   } catch { return { items: [], groceries: [], canning: [] }; }
@@ -93,7 +94,7 @@ export async function GET(request: Request) {
     if (!(await verifySession(db, playerId, token))) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
     const familyId = await getFamilyId(db);
     const store = await readStore(db, familyId);
-    return NextResponse.json({ items: store.items.sort((a, b) => a.name.localeCompare(b.name)), groceries: store.groceries, canning: store.canning, canningUsage: store.canningUsage ?? [] });
+    return NextResponse.json({ items: store.items.sort((a, b) => a.name.localeCompare(b.name)), groceries: store.groceries, canning: store.canning, canningUsage: store.canningUsage ?? [], locations: store.locations ?? [] });
   } catch (error) {
     console.error("Pantry GET failed:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not load the pantry." }, { status: 500 });
@@ -183,6 +184,7 @@ export async function POST(request: Request) {
     } else if (action === "purchase") {
       const name = cleanText(body?.name);
       const category = cleanText(body?.category, 30) || "Freezer";
+      const location = cleanText(body?.location, 80);
       const packages = numberOrNull(body?.packages) ?? 0;
       const packageSize = numberOrNull(body?.packageSize) ?? 1;
       const packageUnit = cleanText(body?.packageUnit, 20) || "count";
@@ -196,11 +198,11 @@ export async function POST(request: Request) {
       if (!name) return NextResponse.json({ error: "Enter a food name." }, { status: 400 });
       if (packages <= 0 || packageSize <= 0) return NextResponse.json({ error: "Enter a package count and package size greater than zero." }, { status: 400 });
       const normalized = name.toLowerCase();
-      let item = store.items.find((row) => row.name.toLowerCase() === normalized);
+      let item = store.items.find((row) => row.name.toLowerCase() === normalized && (row.location ?? "").toLowerCase() === location.toLowerCase());
       const now = new Date().toISOString();
       if (!item) {
         item = {
-          id: randomUUID(), name, category, quantity: 0, unit: "packages", lowAt: 1, expirationDate, frozenAt, packageSize,
+          id: randomUUID(), name, category, location, quantity: 0, unit: "packages", lowAt: 1, expirationDate, frozenAt, packageSize,
           packageUnit, store: storeName, lastPrice: null, stockUpPrice: null, stockUpUnitPrice, rating,
           notes: cleanText(body?.notes, 500), updatedAt: now, priceHistory: [],
         };
@@ -208,6 +210,8 @@ export async function POST(request: Request) {
       }
       item.name = name;
       item.category = category;
+      item.location = location;
+      if (location && !(store.locations ?? []).some((value) => value.toLowerCase() === location.toLowerCase())) (store.locations ??= []).push(location);
       item.quantity = Math.round(item.quantity + packages);
       item.packageSize = packageSize;
       if (expirationDate) item.expirationDate = expirationDate;
@@ -269,6 +273,8 @@ export async function POST(request: Request) {
         if (!name) return NextResponse.json({ error: "Enter a food name." }, { status: 400 });
         item.name = name;
         item.category = cleanText(body?.category, 30) || item.category;
+        item.location = cleanText(body?.location, 80);
+        if (item.location && !(store.locations ?? []).some((value) => value.toLowerCase() === item.location!.toLowerCase())) (store.locations ??= []).push(item.location);
         item.stockUpUnitPrice = numberOrNull(body?.stockUpUnitPrice);
         item.stockUpPrice = null;
         item.lowAt = Math.max(0, Math.round(numberOrNull(body?.lowAt) ?? 1));

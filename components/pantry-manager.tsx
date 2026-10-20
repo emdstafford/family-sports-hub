@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 type Rating = "not_tried" | "love" | "okay" | "no_thanks";
 type PriceRow = { id: string; store: string; price: number; packageSize: number; packageUnit: string; purchasedAt: string; purchasedBy: string };
 type PantryItem = {
-  id: string; name: string; category: string; quantity: number; unit: string; packageSize: number;
+  id: string; name: string; category: string; location?: string; quantity: number; unit: string; packageSize: number;
   lowAt: number;
   expirationDate: string | null; frozenAt: string | null;
   packageUnit: string; store: string; lastPrice: number | null; stockUpPrice: number | null; stockUpUnitPrice?: number | null;
@@ -13,6 +13,7 @@ type PantryItem = {
 };
 type GroceryLine = { id: string; name: string; pantryItemId: string | null; addedAt: string; addedBy: string };
 type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number; notes?: string; needsCount?: boolean; costYield?: number; costUnknown?: boolean };
+const LOCATIONS = ["Garage Deep Freezer", "Garage Fridge/Freezer", "Kitchen Fridge/Freezer", "Pantry", "Basement"];
 const STORES = ["Costco", "Aldi", "Walmart", "Ingles", "Save A Lot", "Other"];
 const CATEGORIES = ["Meat", "Freezer", "Canned Goods", "Pantry", "Fridge", "Other"];
 const RATINGS: { value: Rating; label: string }[] = [
@@ -39,6 +40,16 @@ async function responseJson(response: Response) {
   }
 }
 
+function FoodLocation({ value, options, onChange }: { value: string; options: string[]; onChange: (value: string) => void }) {
+  const [adding, setAdding] = useState(false);
+  return <label className="block text-xs font-bold text-slate-600">Storage location
+    <select value={adding ? "__custom" : value} onChange={(event) => { if (event.target.value === "__custom") { setAdding(true); onChange(""); } else { setAdding(false); onChange(event.target.value); } }} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-sm text-[#10254a]">
+      <option value="">Not recorded</option>{options.map((location) => <option key={location} value={location}>{location}</option>)}<option value="__custom">＋ Add another location</option>
+    </select>
+    {adding && <input autoFocus required maxLength={80} value={value} onChange={(event) => onChange(event.target.value)} aria-label="New storage location" placeholder="Name the location" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-[#10254a]" />}
+  </label>;
+}
+
 export default function PantryManager({ playerId }: { playerId: string }) {
   const [items, setItems] = useState<PantryItem[]>([]);
   const [groceries, setGroceries] = useState<GroceryLine[]>([]);
@@ -55,6 +66,9 @@ export default function PantryManager({ playerId }: { playerId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
+  const [locations, setLocations] = useState<string[]>(LOCATIONS);
+  const [locationFilter, setLocationFilter] = useState("All locations");
   const [category, setCategory] = useState("Meat");
   const [store, setStore] = useState("");
   const [packages, setPackages] = useState("1");
@@ -87,6 +101,7 @@ export default function PantryManager({ playerId }: { playerId: string }) {
       const data = await responseJson(response);
       if (!response.ok) throw new Error(data.error ?? "Could not load pantry items.");
       setItems(Array.isArray(data.items) ? data.items : []);
+      setLocations([...new Set([...LOCATIONS, ...(Array.isArray(data.locations) ? data.locations : []), ...(Array.isArray(data.items) ? data.items.map((item: PantryItem) => item.location).filter(Boolean) : [])])] as string[]);
       setGroceries(Array.isArray(data.groceries) ? data.groceries : []);
       setCanning(Array.isArray(data.canning) ? data.canning : []);
       setUsage(Array.isArray(data.canningUsage) ? data.canningUsage : []);
@@ -109,8 +124,8 @@ export default function PantryManager({ playerId }: { playerId: string }) {
   }
   async function addPurchase(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const ok = await submit({ action: "purchase", name, category, store, packages: Number(packages), packageSize: Number(packageSize), packageUnit, expirationDate: expirationDate || null, frozenAt: frozenAt || null, price: price ? Number(price) : null, stockUpUnitPrice: stockUpPrice ? Number(stockUpPrice) : null, rating, notes });
-    if (ok) { setName(""); setPackages("1"); setPrice(""); setStockUpPrice(""); setRating("not_tried"); setNotes(""); setStore(""); setExpirationDate(""); setFrozenAt(""); setFormOpen(false); }
+    const ok = await submit({ action: "purchase", name, category, location, store, packages: Number(packages), packageSize: Number(packageSize), packageUnit, expirationDate: expirationDate || null, frozenAt: frozenAt || null, price: price ? Number(price) : null, stockUpUnitPrice: stockUpPrice ? Number(stockUpPrice) : null, rating, notes });
+    if (ok) { setName(""); setPackages("1"); setPrice(""); setStockUpPrice(""); setRating("not_tried"); setNotes(""); setStore(""); setExpirationDate(""); setFrozenAt(""); setFormOpen(false); setLocation(""); }
   }
   async function addCanningBatch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,7 +152,7 @@ export default function PantryManager({ playerId }: { playerId: string }) {
       window.prompt("Copy this link into your NFC tag setup:", url.toString());
     }
   }
-  const visibleItems = useMemo(() => filter === "All" ? items : items.filter((item) => item.category === filter), [items, filter]);
+  const visibleItems = useMemo(() => items.filter((item) => (filter === "All" || item.category === filter) && (locationFilter === "All locations" || (locationFilter === "Not recorded" ? !item.location : item.location === locationFilter))), [items, filter, locationFilter]);
   const lowStockCount = items.filter((item) => item.quantity <= (item.lowAt ?? 1)).length;
   const canningYears = [...new Set([String(new Date().getFullYear()), ...canning.map((batch) => batch.cannedAt.slice(0, 4))])].sort().reverse();
   const yearBatches = canning.filter((batch) => batch.cannedAt.startsWith(canningYear));
@@ -237,6 +252,7 @@ export default function PantryManager({ playerId }: { playerId: string }) {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <label className="col-span-2 text-xs font-bold text-slate-600 sm:col-span-2">Food name<input id="pantry-food-name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Ground beef" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#10254a]" /></label>
         <label className="text-xs font-bold text-slate-600">Section<select value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-sm text-[#10254a]">{CATEGORIES.map((option) => <option key={option}>{option}</option>)}</select></label>
+        <FoodLocation value={location} options={locations} onChange={setLocation} />
         <label className="text-xs font-bold text-slate-600">Packages bought<input required min="1" step="1" type="number" value={packages} onChange={(e) => setPackages(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#10254a]" /></label>
         <label className="text-xs font-bold text-slate-600">Amount per package<input required min="0.01" step="0.01" type="number" value={packageSize} onChange={(e) => setPackageSize(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#10254a]" /></label>
         <label className="text-xs font-bold text-slate-600">Measured in<select value={packageUnit} onChange={(e) => setPackageUnit(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-sm text-[#10254a]">{["lb", "oz", "count", "each", "bags", "boxes"].map((option) => <option key={option}>{option}</option>)}</select></label>
@@ -256,6 +272,8 @@ export default function PantryManager({ playerId }: { playerId: string }) {
 
     {error && <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</div>}
     <div className="mb-3 flex gap-2 overflow-x-auto pb-1">{["All", ...CATEGORIES].map((option) => <button key={option} onClick={() => setFilter(option)} className={`shrink-0 rounded-full px-3 py-2 text-xs font-black ${filter === option ? "bg-[#10254a] text-white" : "bg-white text-slate-600 shadow-sm"}`}>{option}</button>)}</div>
+
+    <label className="mb-3 block text-xs font-bold text-slate-600">Show storage location<select aria-label="Filter food by storage location" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-[#10254a]">{["All locations", ...locations, "Not recorded"].map((value) => <option key={value}>{value}</option>)}</select></label>
 
     {loading ? <p className="rounded-2xl bg-white p-5 text-center text-sm font-semibold text-slate-500">Loading your food list…</p>
       : visibleItems.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-7 text-center"><div className="text-3xl">🧊</div><h2 className="mt-2 font-black">Nothing here yet</h2><p className="mt-1 text-sm text-slate-500">Add a Costco, Aldi, Walmart, Ingles, or Save A Lot purchase above.</p></div>
@@ -286,6 +304,7 @@ export default function PantryManager({ playerId }: { playerId: string }) {
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs"><div className="rounded-xl bg-amber-50 p-2.5"><div className="font-bold text-slate-500">Last bought</div><div className="mt-0.5 font-black text-[#10254a]">{item.store}{item.lastPrice !== null ? ` • ${money(item.lastPrice)}/${item.packageSize}${item.packageUnit}` : ""}</div></div><div className="rounded-xl bg-amber-50 p-2.5"><div className="font-bold text-slate-500">Family verdict</div><div className="mt-0.5 font-black text-[#10254a]">{ratingText}</div></div></div>
             {stockUpUnitPrice !== null && <p className={`mt-2 rounded-lg px-3 py-2 text-xs font-black ${isStockUp ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}`}>{isStockUp ? "🎉 Stock-up price! " : "Stock up at "}{money(stockUpUnitPrice)} or less per {primaryUnit}{lastNormalized && ` • last paid ${money(lastNormalized.value)}/${lastNormalized.unit}`}</p>}
             {best && <p className="mt-2 text-xs font-semibold text-slate-600">Best tracked deal: <span className="font-black">{money(best.normalized.value)}/{best.normalized.unit}</span> at <span className="font-black">{best.store}</span></p>}
+            <p className="mt-2 text-sm font-semibold text-slate-600">📍 {item.location || "Location not recorded"}</p>
             {item.notes && <p className="mt-2 text-xs text-slate-600">{item.notes}</p>}
             <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <summary onClick={() => { if (priceItemId !== item.id) { setPriceItemId(item.id); setCompareStore("Costco"); setCompareOtherStore(""); setComparePrice(""); setComparePackageSize(String(item.packageSize || 1)); setComparePackageUnit(item.packageUnit || "lb"); } }} className="cursor-pointer text-sm font-black text-[#10254a]">Compare prices in FamBam ({prices.length})</summary>
@@ -306,6 +325,6 @@ export default function PantryManager({ playerId }: { playerId: string }) {
           </article>;
         })}</div>}
 
-    {editing && <div className="fixed inset-0 z-[160] flex items-end justify-center bg-black/40 p-3 sm:items-center"><form onSubmit={async (e) => { e.preventDefault(); if (await submit({ action: "edit", itemId: editing.id, name: editing.name, category: editing.category, stockUpUnitPrice: editing.stockUpUnitPrice, lowAt: editing.lowAt, expirationDate: editing.expirationDate, frozenAt: editing.frozenAt, rating: editing.rating, notes: editing.notes })) setEditing(null); }} className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"><div className="flex items-start justify-between"><h2 className="text-xl font-black">Edit {editing.name}</h2><button type="button" onClick={() => setEditing(null)} className="px-2 text-2xl">×</button></div><label className="mt-4 block text-xs font-bold text-slate-600">Food name<input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="mt-3 block text-xs font-bold text-slate-600">Section<select value={editing.category} onChange={(e) => setEditing({ ...editing, category: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">{CATEGORIES.map((option) => <option key={option}>{option}</option>)}</select></label><label className="mt-3 block text-xs font-bold text-slate-600">Mark low at this many packages<input type="number" min="0" step="1" value={editing.lowAt ?? 1} onChange={(e) => setEditing({ ...editing, lowAt: Number(e.target.value) })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="mt-3 block text-xs font-bold text-slate-600">Expires on<input type="date" value={editing.expirationDate ?? ""} onChange={(e) => setEditing({ ...editing, expirationDate: e.target.value || null })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="mt-3 block text-xs font-bold text-slate-600">Put in freezer<input type="date" value={editing.frozenAt ?? ""} onChange={(e) => setEditing({ ...editing, frozenAt: e.target.value || null })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="mt-3 block text-xs font-bold text-slate-600">Stock-up target ($ per {editing.category === "Meat" || editing.packageUnit === "lb" || editing.packageUnit === "oz" ? "lb" : editing.packageUnit})<input type="number" min="0" step="0.01" value={editing.stockUpUnitPrice ?? ""} onChange={(e) => setEditing({ ...editing, stockUpUnitPrice: e.target.value === "" ? null : Number(e.target.value) })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="mt-3 block text-xs font-bold text-slate-600">Family verdict<select value={editing.rating} onChange={(e) => setEditing({ ...editing, rating: e.target.value as Rating })} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">{RATINGS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="mt-3 block text-xs font-bold text-slate-600">Notes<input value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><button disabled={busy} className="mt-4 w-full rounded-xl bg-[#10254a] px-4 py-3 text-sm font-black text-white">Save changes</button><button type="button" disabled={busy} onClick={async () => { if (window.confirm(`Remove ${editing.name} from the pantry?`) && await submit({ action: "delete", itemId: editing.id })) setEditing(null); }} className="mt-2 w-full rounded-xl px-4 py-2 text-sm font-bold text-red-700">Remove item</button></form></div>}
+    {editing && <div className="fixed inset-0 z-[160] flex items-end justify-center bg-black/40 p-3 sm:items-center"><form onSubmit={async (e) => { e.preventDefault(); if (await submit({ action: "edit", itemId: editing.id, name: editing.name, category: editing.category, location: editing.location ?? "", stockUpUnitPrice: editing.stockUpUnitPrice, lowAt: editing.lowAt, expirationDate: editing.expirationDate, frozenAt: editing.frozenAt, rating: editing.rating, notes: editing.notes })) setEditing(null); }} className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"><div className="flex items-start justify-between"><h2 className="text-xl font-black">Edit {editing.name}</h2><button type="button" onClick={() => setEditing(null)} className="px-2 text-2xl">×</button></div><label className="mt-4 block text-xs font-bold text-slate-600">Food name<input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="mt-3 block text-xs font-bold text-slate-600">Section<select value={editing.category} onChange={(e) => setEditing({ ...editing, category: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">{CATEGORIES.map((option) => <option key={option}>{option}</option>)}</select></label><div className="mt-3"><FoodLocation value={editing.location ?? ""} options={locations} onChange={(location) => setEditing({ ...editing, location })} /></div><label className="mt-3 block text-xs font-bold text-slate-600">Mark low at this many packages<input type="number" min="0" step="1" value={editing.lowAt ?? 1} onChange={(e) => setEditing({ ...editing, lowAt: Number(e.target.value) })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="mt-3 block text-xs font-bold text-slate-600">Expires on<input type="date" value={editing.expirationDate ?? ""} onChange={(e) => setEditing({ ...editing, expirationDate: e.target.value || null })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="mt-3 block text-xs font-bold text-slate-600">Put in freezer<input type="date" value={editing.frozenAt ?? ""} onChange={(e) => setEditing({ ...editing, frozenAt: e.target.value || null })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="mt-3 block text-xs font-bold text-slate-600">Stock-up target ($ per {editing.category === "Meat" || editing.packageUnit === "lb" || editing.packageUnit === "oz" ? "lb" : editing.packageUnit})<input type="number" min="0" step="0.01" value={editing.stockUpUnitPrice ?? ""} onChange={(e) => setEditing({ ...editing, stockUpUnitPrice: e.target.value === "" ? null : Number(e.target.value) })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="mt-3 block text-xs font-bold text-slate-600">Family verdict<select value={editing.rating} onChange={(e) => setEditing({ ...editing, rating: e.target.value as Rating })} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">{RATINGS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label className="mt-3 block text-xs font-bold text-slate-600">Notes<input value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><button disabled={busy} className="mt-4 w-full rounded-xl bg-[#10254a] px-4 py-3 text-sm font-black text-white">Save changes</button><button type="button" disabled={busy} onClick={async () => { if (window.confirm(`Remove ${editing.name} from the pantry?`) && await submit({ action: "delete", itemId: editing.id })) setEditing(null); }} className="mt-2 w-full rounded-xl px-4 py-2 text-sm font-bold text-red-700">Remove item</button></form></div>}
   </section>;
 }

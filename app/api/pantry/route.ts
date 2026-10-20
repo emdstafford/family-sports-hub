@@ -255,6 +255,15 @@ export async function POST(request: Request) {
       if (purchaseNotes) item.notes = purchaseNotes;
       item.updatedAt = now;
       store.groceries = store.groceries.filter((row) => row.pantryItemId !== item!.id);
+    } else if (action === "price-edit") {
+      const item = store.items.find((row) => row.id === String(body?.itemId ?? ""));
+      const entry = item?.priceHistory.find((row) => row.id === String(body?.priceId ?? ""));
+      if (!item || !entry) return NextResponse.json({ error: "That saved price could not be found." }, { status: 404 });
+      const price = numberOrNull(body?.price);
+      if (price === null) return NextResponse.json({ error: "Enter a cost of zero or more." }, { status: 400 });
+      if (item.lastPrice === entry.price && item.store === entry.store && item.packageSize === entry.packageSize && item.packageUnit === entry.packageUnit) item.lastPrice = price;
+      entry.price = price;
+      item.updatedAt = new Date().toISOString();
     } else if (action === "price-record") {
       const item = store.items.find((row) => row.id === String(body?.itemId ?? ""));
       if (!item) return NextResponse.json({ error: "That pantry item could not be found." }, { status: 404 });
@@ -312,6 +321,15 @@ export async function POST(request: Request) {
         item.category = cleanText(body?.category, 30) || item.category;
         item.location = cleanText(body?.location, 80);
         if (item.location && !(store.locations ?? []).some((value) => value.toLowerCase() === item.location!.toLowerCase())) (store.locations ??= []).push(item.location);
+        if (body?.lastPrice !== undefined) {
+          const correctedPrice = numberOrNull(body.lastPrice);
+          if (body.lastPrice !== null && body.lastPrice !== "" && correctedPrice === null) return NextResponse.json({ error: "Enter a cost of zero or more, or leave it blank." }, { status: 400 });
+          if (correctedPrice !== item.lastPrice) {
+            const entry = item.priceHistory.find((row) => row.price === item.lastPrice && row.store === item.store && row.packageSize === item.packageSize && row.packageUnit === item.packageUnit);
+            if (entry && correctedPrice !== null) entry.price = correctedPrice;
+            item.lastPrice = correctedPrice;
+          }
+        }
         item.stockUpUnitPrice = numberOrNull(body?.stockUpUnitPrice);
         item.stockUpPrice = null;
         const lowAt = numberOrNull(body?.lowAt);

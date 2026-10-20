@@ -1374,6 +1374,8 @@ export default function Home() {
   const [signedInPlayer, setSignedInPlayer] =
     useState<Player | null>(null);
 
+  const [dinnersPlanned, setDinnersPlanned] = useState<number | null>(null);
+  const [dinnerCountError, setDinnerCountError] = useState(false);
   const [packingItems, setPackingItems] = useState<PackingItem[]>([]);
   const [packingInput, setPackingInput] = useState("");
   const [packingAssignedPlayerId, setPackingAssignedPlayerId] = useState("");
@@ -5550,6 +5552,23 @@ export default function Home() {
     })();
   }, [signedInPlayer?.id]);
 
+  useEffect(() => {
+    if (activeSection !== "Home" || !signedInPlayer) return;
+    let cancelled = false;
+    setDinnersPlanned(null); setDinnerCountError(false);
+    const token = window.localStorage.getItem("fambam_session_token") ?? "";
+    fetch(`/api/family-meal-plan?playerId=${encodeURIComponent(signedInPlayer.id)}`, { cache: "no-store", headers: { "x-fambam-session": token } })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Meal count unavailable");
+        const data = await response.json();
+        if (!Array.isArray(data.days) || data.days.length !== 7) throw new Error("Meal count unavailable");
+        const count = data.days.filter((day: { dinner?: unknown }) => typeof day.dinner === "string" && day.dinner.trim().length > 0).length;
+        if (!cancelled) setDinnersPlanned(count);
+      })
+      .catch(() => { if (!cancelled) setDinnerCountError(true); });
+    return () => { cancelled = true; };
+  }, [activeSection, signedInPlayer?.id]);
+
   return (
     <main className="min-h-screen bg-[#eef1f4] pb-24 text-[#10254a]">
       {/* DARK APP HEADER */}
@@ -5642,7 +5661,7 @@ export default function Home() {
       <div className="mx-auto max-w-5xl px-3 py-2 [&>section]:mb-2 [&>section]:rounded-2xl [&>section]:p-3">
         {signedInPlayer && (
           <nav aria-label="Hub shortcuts" className="mb-2 grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => { setActiveSection("Meal Plan"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🍽️</span><span>Meals</span><span className="text-[10px] font-semibold text-slate-500">Plan the week</span></button>
+            <button type="button" onClick={() => { setActiveSection("Meal Plan"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🍽️</span><span>Meals</span><span className="text-[10px] font-semibold text-slate-500">{dinnerCountError ? "Count unavailable" : dinnersPlanned === null ? "Checking dinners…" : `${dinnersPlanned}/7 dinners planned`}</span></button>
             <button type="button" onClick={openPicks} className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🏆</span><span>Picks</span><span className={`text-[10px] font-semibold ${challengeGames.length > 0 && currentPlayerReady ? "text-emerald-700" : "text-slate-500"}`}>{challengeGames.length > 0 ? currentPlayerReady ? "✓ Picks are in!" : `${challengeGamesWithSavedPick}/${challengeGames.length} saved` : "Coming soon"}</span></button>
             <button type="button" onClick={() => { setActiveSection("Checklist"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">✅</span><span>List</span><span className="text-[10px] font-semibold text-slate-500">{packingItems.filter((item) => !item.checked).length} to remember</span></button>
           </nav>

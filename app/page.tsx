@@ -5599,6 +5599,8 @@ export default function Home() {
                 setActiveSection("Home");
                 setActiveSport("All");
                 window.setTimeout(() => {
+                  const signIn = document.getElementById("signin");
+                  if (signIn instanceof HTMLDetailsElement) signIn.open = true;
                   document
                     .getElementById("signin")
                     ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -5637,12 +5639,12 @@ export default function Home() {
       )}
 
       {activeSection === "Home" && (
-      <div className="mx-auto max-w-5xl px-3 py-3">
+      <div className="mx-auto max-w-5xl px-3 py-2 [&>section]:mb-2 [&>section]:rounded-2xl [&>section]:p-3">
         {signedInPlayer && (
-          <nav aria-label="Hub shortcuts" className="mb-3 grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => { setActiveSection("Meal Plan"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-20 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🍽️</span><span>Meals</span><span className="text-[10px] font-semibold text-slate-500">Plan the week</span></button>
-            <button type="button" onClick={openPicks} className="flex min-h-20 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🏆</span><span>Picks</span><span className={`text-[10px] font-semibold ${challengeGames.length > 0 && currentPlayerReady ? "text-emerald-700" : "text-slate-500"}`}>{challengeGames.length > 0 ? currentPlayerReady ? "✓ Picks are in!" : `${challengeGamesWithSavedPick}/${challengeGames.length} saved` : "Coming soon"}</span></button>
-            <button type="button" onClick={() => { setActiveSection("Checklist"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-20 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">✅</span><span>List</span><span className="text-[10px] font-semibold text-slate-500">{packingItems.filter((item) => !item.checked).length} to remember</span></button>
+          <nav aria-label="Hub shortcuts" className="mb-2 grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => { setActiveSection("Meal Plan"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🍽️</span><span>Meals</span><span className="text-[10px] font-semibold text-slate-500">Plan the week</span></button>
+            <button type="button" onClick={openPicks} className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🏆</span><span>Picks</span><span className={`text-[10px] font-semibold ${challengeGames.length > 0 && currentPlayerReady ? "text-emerald-700" : "text-slate-500"}`}>{challengeGames.length > 0 ? currentPlayerReady ? "✓ Picks are in!" : `${challengeGamesWithSavedPick}/${challengeGames.length} saved` : "Coming soon"}</span></button>
+            <button type="button" onClick={() => { setActiveSection("Checklist"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">✅</span><span>List</span><span className="text-[10px] font-semibold text-slate-500">{packingItems.filter((item) => !item.checked).length} to remember</span></button>
           </nav>
         )}
         <WeeklyFaithPractice />
@@ -5651,7 +5653,7 @@ export default function Home() {
           <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">Today at a glance</h2>
           <span className="h-px flex-1 bg-[#e6dfd0]" />
         </div>
-        <div className="mb-3 grid grid-cols-2 items-stretch gap-3 [&>*]:min-w-0">
+        <div className="mb-0 grid grid-cols-2 items-stretch gap-2 [&>*]:min-w-0 [&>*]:p-3">
           <NorthGeorgiaWeatherCard />
           {signedInPlayer ? (          <details id="daisy-care" className="group scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
@@ -5679,19 +5681,11 @@ export default function Home() {
         </div>
         {/* SIGN IN */}
         {!signedInPlayer && (
-          <section
+          <details
             id="signin"
             className="overflow-hidden rounded-2xl bg-[#06284a] p-5 text-white shadow-sm"
           >
-            <div className="text-center">
-              <div className="text-3xl">🏆</div>
-              <h2 className="mt-2 text-2xl font-black">
-                Who&apos;s playing?
-              </h2>
-              <p className="mt-1 text-xs font-semibold text-blue-100">
-                Pick your profile to jump in.
-              </p>
-            </div>
+            <summary className="cursor-pointer list-none text-center text-sm font-black [&::-webkit-details-marker]:hidden">Sign in</summary>
 
             {loading ? (
               <p className="mt-5 text-center">Loading...</p>
@@ -5713,7 +5707,7 @@ export default function Home() {
                 ))}
               </div>
             )}
-          </section>
+          </details>
         )}
 
 
@@ -7954,13 +7948,13 @@ export default function Home() {
       </nav>
 
       {activeSection === "Food" && signedInPlayer && <PantryManager playerId={signedInPlayer.id} />}
-      {activeSection === "Food" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🧺</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Food & Canning</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to see and update the family food inventory.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => document.getElementById("signin")?.scrollIntoView({ behavior: "smooth" }), 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
+      {activeSection === "Food" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🧺</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Food & Canning</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to see and update the family food inventory.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => { const signIn = document.getElementById("signin"); if (signIn instanceof HTMLDetailsElement) signIn.open = true; signIn?.scrollIntoView({ behavior: "smooth" }); }, 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
 
       {activeSection === "House" && signedInPlayer && <HouseManager playerId={signedInPlayer.id} />}
-      {activeSection === "House" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><h1 className="text-2xl font-black text-[#10254a]">🏡 House</h1><p className="mt-2 text-sm text-slate-600">Sign in to see maintenance and utility history.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => document.getElementById("signin")?.scrollIntoView({ behavior: "smooth" }), 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
+      {activeSection === "House" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><h1 className="text-2xl font-black text-[#10254a]">🏡 House</h1><p className="mt-2 text-sm text-slate-600">Sign in to see maintenance and utility history.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => { const signIn = document.getElementById("signin"); if (signIn instanceof HTMLDetailsElement) signIn.open = true; signIn?.scrollIntoView({ behavior: "smooth" }); }, 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
 
       {activeSection === "Prayer" && signedInPlayer && <FamilyPrayerBoard />}
-      {activeSection === "Prayer" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🙏</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Family Prayer</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to share prayer requests with the family.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => document.getElementById("signin")?.scrollIntoView({ behavior: "smooth" }), 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
+      {activeSection === "Prayer" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🙏</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Family Prayer</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to share prayer requests with the family.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => { const signIn = document.getElementById("signin"); if (signIn instanceof HTMLDetailsElement) signIn.open = true; signIn?.scrollIntoView({ behavior: "smooth" }); }, 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
 
       {selectedEventGuide && (
         <div className="fixed inset-0 z-[135] flex items-end justify-center bg-slate-950/60 backdrop-blur-sm sm:items-center sm:p-4">

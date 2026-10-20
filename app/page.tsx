@@ -5652,7 +5652,7 @@ export default function Home() {
           </nav>
         )}
         <WeeklyFaithPractice />
-        <div className="mb-3 grid grid-cols-2 gap-3">
+        <div className="mb-3 grid grid-cols-1 gap-3">
           <MerriamWebsterWordOfDay />
           <NorthGeorgiaWeatherCard />
         </div>
@@ -5696,7 +5696,7 @@ export default function Home() {
         )}
 
       {signedInPlayer ? (
-        <div className="mb-4 grid grid-cols-2 gap-3 [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]" aria-label="Family home tools">
+        <div className="mb-4 grid grid-cols-1 gap-3 [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]" aria-label="Family home tools">
           <div id="today-card" className="order-1 scroll-mt-24 min-w-0"><TodaysFunHoliday /></div>
           <section className="contents" aria-label="Family checklist and Daisy care">
           <article id="family-checklist" className="order-4 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
@@ -5805,7 +5805,7 @@ export default function Home() {
             <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut can update the feeding time under the signed-in profile.</p>
           </article>
                   </section>
-          <div id="meal-plan" className="order-3 col-span-2 scroll-mt-24 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
+          <div id="meal-plan" className="order-3 scroll-mt-24 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
         </div>
       ) : (
         <div className="mb-4"><TodaysFunHoliday /></div>

@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 const BUCKET = "fambam-family-tools";
-type HandmadePlan = { id: string; recipient: string; occasion: string; year: number; product: string; quantity: number; made: number; addedBy: string; addedById: string; createdAt: string };
+type HandmadePlan = { id: string; recipient: string; occasion: string; year: number; product: string; quantity: number; made: number; addedBy: string; addedById: string; createdAt: string; sourceBatchId?: string };
 type Store = { items: HandmadePlan[] };
 
 function admin() {
@@ -32,9 +32,15 @@ async function ensureBucket(db: ReturnType<typeof admin>) {
 async function read(db: ReturnType<typeof admin>, id: string): Promise<Store> {
   await ensureBucket(db);
   const { data, error } = await db.storage.from(BUCKET).download(`${id}/handmade-gifts.json`);
-  if (error || !data) return { items: [] };
-  try { const parsed = JSON.parse(await data.text()); return { items: Array.isArray(parsed.items) ? parsed.items : [] }; }
-  catch { return { items: [] }; }
+  if (error) {
+    const status = Number((error as { statusCode?: number | string }).statusCode);
+    if ((status === 400 || status === 404) && /not found|not_found|does not exist/i.test(error.message)) return { items: [] };
+    throw new Error("Could not read the gift plan. Please try again.");
+  }
+  if (!data) throw new Error("Could not read the gift plan. Please try again.");
+  const parsed = JSON.parse(await data.text());
+  if (!Array.isArray(parsed.items)) throw new Error("Gift plan data could not be read.");
+  return { items: parsed.items };
 }
 async function write(db: ReturnType<typeof admin>, id: string, store: Store) {
   await ensureBucket(db);
@@ -66,7 +72,15 @@ export async function POST(request: Request) {
       const year = Number(body?.year ?? new Date().getFullYear()); const quantity = Number(body?.quantity ?? 1);
       if (!recipient || !product) return NextResponse.json({ error: "Add both a recipient and what you plan to make." }, { status: 400 });
       if (!Number.isInteger(year) || year < 2020 || year > 2100 || !Number.isInteger(quantity) || quantity < 1 || quantity > 500) return NextResponse.json({ error: "Enter a valid year and quantity." }, { status: 400 });
-      store.items.unshift({ id: randomUUID(), recipient, occasion, year, product, quantity, made: 0, addedBy: clean(player?.display_name, 60) || "Family", addedById: playerId, createdAt: new Date().toISOString() });
+      const sourceBatchId = clean(body?.sourceBatchId);
+      if (sourceBatchId) {
+        const { data, error: stockError } = await db.storage.from(BUCKET).download(`${id}/pantry.json`);
+        if (stockError || !data) return NextResponse.json({ error: "Could not check the homemade batch. Please refresh." }, { status: 400 });
+        const pantry = JSON.parse(await data.text());
+        const batch = Array.isArray(pantry.canning) ? pantry.canning.find((row: { id: string }) => row.id === sourceBatchId) : null;
+        if (!batch) return NextResponse.json({ error: "That homemade batch is no longer available." }, { status: 400 });
+      }
+      store.items.unshift({ sourceBatchId: sourceBatchId || undefined, id: randomUUID(), recipient, occasion, year, product, quantity, made: 0, addedBy: clean(player?.display_name, 60) || "Family", addedById: playerId, createdAt: new Date().toISOString() });
     } else {
       const item = store.items.find((row) => row.id === String(body?.itemId ?? ""));
       if (!item) return NextResponse.json({ error: "That gift plan could not be found." }, { status: 404 });

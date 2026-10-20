@@ -168,9 +168,9 @@ export async function POST(request: Request) {
         const row = entry && typeof entry === "object" ? entry as Record<string, unknown> : {};
         return { name: cleanText(row.name, 100), cost: numberOrNull(row.cost) ?? -1 };
       }).filter((entry) => entry.name && entry.cost >= 0) : [];
-      if (!name || !jarSize || !Number.isInteger(jarsMade) || jarsMade < 1 || !ingredients.length) return NextResponse.json({ error: "Add a name, jar size, number of jars, and ingredient costs." }, { status: 400 });
+      if (!name || !jarSize || !Number.isInteger(jarsMade) || jarsMade < 1 || (!ingredients.length && body?.costUnknown !== true)) return NextResponse.json({ error: "Add a name, jar size, number of jars, and ingredient costs." }, { status: 400 });
       const totalCost = Math.round(ingredients.reduce((sum, entry) => sum + entry.cost, 0) * 100) / 100;
-      store.canning.unshift({ id: randomUUID(), name, cannedAt, jarSize, jarsMade, jarsUsed: 0, lastUpdatedAt: new Date().toISOString(), ingredients, totalCost, costPerJar: Math.round(totalCost / jarsMade * 100) / 100 });
+      store.canning.unshift({ id: randomUUID(), name, cannedAt, jarSize, jarsMade, jarsUsed: 0, costUnknown: body?.costUnknown === true && !ingredients.length, lastUpdatedAt: new Date().toISOString(), ingredients, totalCost, costPerJar: Math.round(totalCost / jarsMade * 100) / 100 });
     } else if (action === "canning-use" || action === "canning-delete") {
       const batch = store.canning.find((entry) => entry.id === String(body?.batchId ?? ""));
       if (!batch) return NextResponse.json({ error: "That canning batch could not be found." }, { status: 404 });

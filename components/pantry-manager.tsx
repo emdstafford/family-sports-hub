@@ -164,8 +164,8 @@ export default function PantryManager({ playerId }: { playerId: string }) {
       const splitAt = line.lastIndexOf(",");
       return splitAt < 0 ? null : { name: line.slice(0, splitAt).trim(), cost: Number(line.slice(splitAt + 1).replace(/[$\s]/g, "")) };
     }).filter((entry): entry is { name: string; cost: number } => Boolean(entry?.name) && Number.isFinite(entry?.cost) && entry!.cost >= 0);
-    if (!ingredients.length) { setError("Add at least one ingredient as: Ingredient name, cost"); return; }
-    const ok = await submit({ action: "canning-add", name: canningName, cannedAt: canningDate, jarSize, jarsMade: Number(jarsMade), ingredients });
+    if (ingredientLines.trim() && !ingredients.length) { setError("Enter ingredients as: Ingredient name, cost, or leave blank to add costs later."); return; }
+    const ok = await submit({ action: "canning-add", name: canningName, cannedAt: canningDate, jarSize, jarsMade: Number(jarsMade), ingredients, costUnknown: !ingredients.length });
     if (ok) { setCanningName(""); setJarsMade("1"); setIngredientLines(""); }
   }
   function chooseCommonFood(food: string) {
@@ -351,15 +351,16 @@ export default function PantryManager({ playerId }: { playerId: string }) {
     {!inventoryOpen && <>
     <details className="mb-4 mt-4 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
       <summary className="cursor-pointer list-none text-lg font-black text-[#10254a]">🫙 Canning <span className="text-sm font-semibold text-slate-500">· {canning.length} batches</span></summary>
-      <details className="mt-3 rounded-xl border border-emerald-200 p-3"><summary className="cursor-pointer text-sm font-bold text-[#10254a]">＋ Add a canning batch</summary>
+      <div className="mt-3 flex flex-wrap gap-2">{[["Vanilla", "5 oz bottle"], ["Strawberry jam", "half-pint"]].map(([name, size]) => <button key={name} type="button" onClick={() => { setCanningName(name); setJarSize(size); const form = document.getElementById("homemade-batch-form"); if (form instanceof HTMLDetailsElement) form.open = true; }} className="min-h-10 rounded-lg bg-emerald-50 px-3 text-xs font-black text-emerald-900">＋ {name}</button>)}</div>
+      <details id="homemade-batch-form" className="mt-3 rounded-xl border border-emerald-200 p-3"><summary className="cursor-pointer text-sm font-bold text-[#10254a]">＋ Add a canning batch</summary>
       <form onSubmit={addCanningBatch} className="mt-3 rounded-xl bg-emerald-50 p-3">
         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <label className="col-span-2 text-xs font-bold text-slate-600 sm:col-span-1">What did you can?<input required value={canningName} onChange={(event) => setCanningName(event.target.value)} placeholder="Green beans" className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" /></label>
+          <label className="col-span-2 text-xs font-bold text-slate-600 sm:col-span-1">What did you make?<input required value={canningName} onChange={(event) => setCanningName(event.target.value)} placeholder="Green beans" className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" /></label>
           <label className="text-xs font-bold text-slate-600">Date canned<input required type="date" value={canningDate} onChange={(event) => setCanningDate(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2.5 text-sm" /></label>
-          <label className="text-xs font-bold text-slate-600">Jar size<select value={jarSize} onChange={(event) => setJarSize(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2.5 text-sm">{["half-pint", "pint", "quart", "half-gallon", "gallon", "other"].map((size) => <option key={size}>{size}</option>)}</select></label>
-          <label className="text-xs font-bold text-slate-600">Jars made<input required min="1" step="1" type="number" value={jarsMade} onChange={(event) => setJarsMade(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" /></label>
+          <label className="text-xs font-bold text-slate-600">Jar / bottle size<select value={jarSize} onChange={(event) => setJarSize(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2.5 text-sm">{["half-pint", "pint", "quart", "half-gallon", "gallon", "4 oz bottle", "5 oz bottle", "8 oz bottle", "other"].map((size) => <option key={size}>{size}</option>)}</select></label>
+          <label className="text-xs font-bold text-slate-600">Jars / bottles made<input required min="1" step="1" type="number" value={jarsMade} onChange={(event) => setJarsMade(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" /></label>
         </div>
-        <label className="mt-2 block text-xs font-bold text-slate-600">Ingredients and cost for this batch <span className="font-medium">(one per line: ingredient, cost)</span><textarea required rows={3} value={ingredientLines} onChange={(event) => setIngredientLines(event.target.value)} placeholder={"Green beans, 12.00\nVinegar, 2.49\nSalt, 0.25"} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" /></label>
+        <label className="mt-2 block text-xs font-bold text-slate-600">Ingredients and cost (optional; leave blank if unknown) <span className="font-medium">(one per line: ingredient, cost)</span><textarea rows={3} value={ingredientLines} onChange={(event) => setIngredientLines(event.target.value)} placeholder={"Green beans, 12.00\nVinegar, 2.49\nSalt, 0.25"} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" /></label>
         <button disabled={busy} className="mt-2 min-h-11 rounded-lg bg-[#10254a] px-4 py-2 text-sm font-black text-white disabled:opacity-50">{busy ? "Saving…" : "Save batch & calculate cost per jar"}</button>
       </form></details>
 

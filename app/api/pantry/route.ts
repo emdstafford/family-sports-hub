@@ -26,6 +26,7 @@ type PantryItem = {
   store: string;
   lastPrice: number | null;
   stockUpPrice: number | null;
+  stockUpUnitPrice?: number | null;
   rating: "not_tried" | "love" | "okay" | "no_thanks";
   notes: string;
   updatedAt: string;
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
       const frozenAt = cleanText(body?.frozenAt, 10) || null;
       const storeName = cleanText(body?.store, 40) || "Not recorded";
       const price = numberOrNull(body?.price);
-      const stockUpPrice = numberOrNull(body?.stockUpPrice);
+      const stockUpUnitPrice = numberOrNull(body?.stockUpUnitPrice);
       const rating = ["not_tried", "love", "okay", "no_thanks"].includes(String(body?.rating))
         ? String(body?.rating) as PantryItem["rating"] : "not_tried";
       if (!name) return NextResponse.json({ error: "Enter a food name." }, { status: 400 });
@@ -151,7 +152,7 @@ export async function POST(request: Request) {
       if (!item) {
         item = {
           id: randomUUID(), name, category, quantity: 0, unit: "packages", lowAt: 1, expirationDate, frozenAt, packageSize,
-          packageUnit, store: storeName, lastPrice: null, stockUpPrice, rating,
+          packageUnit, store: storeName, lastPrice: null, stockUpPrice: null, stockUpUnitPrice, rating,
           notes: cleanText(body?.notes, 500), updatedAt: now, priceHistory: [],
         };
         store.items.push(item);
@@ -168,12 +169,25 @@ export async function POST(request: Request) {
         item.priceHistory.unshift({ id: randomUUID(), store: storeName, price, packageSize, packageUnit, purchasedAt: now, purchasedBy: cleanText(player?.display_name, 60) || "Family" });
         item.priceHistory = item.priceHistory.slice(0, 30);
       }
-      if (stockUpPrice !== null) item.stockUpPrice = stockUpPrice;
+      if (stockUpUnitPrice !== null) {
+        item.stockUpUnitPrice = stockUpUnitPrice;
+        item.stockUpPrice = null;
+      }
       if (rating !== "not_tried") item.rating = rating;
       const purchaseNotes = cleanText(body?.notes, 500);
       if (purchaseNotes) item.notes = purchaseNotes;
       item.updatedAt = now;
       store.groceries = store.groceries.filter((row) => row.pantryItemId !== item!.id);
+    } else if (action === "price-record") {
+      const item = store.items.find((row) => row.id === String(body?.itemId ?? ""));
+      if (!item) return NextResponse.json({ error: "That pantry item could not be found." }, { status: 404 });
+      const price = numberOrNull(body?.price);
+      const packageSize = numberOrNull(body?.packageSize);
+      const packageUnit = cleanText(body?.packageUnit, 20) || "count";
+      if (price === null || price <= 0 || packageSize === null || packageSize <= 0) return NextResponse.json({ error: "Enter a price and package size greater than zero." }, { status: 400 });
+      item.priceHistory.unshift({ id: randomUUID(), store: cleanText(body?.store, 40) || "Other", price, packageSize, packageUnit, purchasedAt: new Date().toISOString(), purchasedBy: cleanText(player?.display_name, 60) || "Family" });
+      item.priceHistory = item.priceHistory.slice(0, 30);
+      item.updatedAt = new Date().toISOString();
     } else {
       const item = store.items.find((row) => row.id === String(body?.itemId ?? ""));
       if (!item) return NextResponse.json({ error: "That pantry item could not be found." }, { status: 404 });
@@ -206,7 +220,8 @@ export async function POST(request: Request) {
         if (!name) return NextResponse.json({ error: "Enter a food name." }, { status: 400 });
         item.name = name;
         item.category = cleanText(body?.category, 30) || item.category;
-        item.stockUpPrice = numberOrNull(body?.stockUpPrice);
+        item.stockUpUnitPrice = numberOrNull(body?.stockUpUnitPrice);
+        item.stockUpPrice = null;
         item.lowAt = Math.max(0, Math.round(numberOrNull(body?.lowAt) ?? 1));
         item.expirationDate = cleanText(body?.expirationDate, 10) || null;
         item.frozenAt = cleanText(body?.frozenAt, 10) || null;

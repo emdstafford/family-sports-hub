@@ -33,8 +33,8 @@ type PantryItem = {
   priceHistory: StorePrice[];
 };
 type GroceryLine = { id: string; name: string; pantryItemId: string | null; addedAt: string; addedBy: string };
-type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number };
-type PantryStore = { items: PantryItem[]; groceries: GroceryLine[]; canning: CanningBatch[] };
+type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number; notes?: string; needsCount?: boolean; costYield?: number; costUnknown?: boolean };
+type PantryStore = { items: PantryItem[]; groceries: GroceryLine[]; canning: CanningBatch[]; imports?: string[]; canningUsage?: { batchId: string; name: string; jarSize: string; amount: number; usedAt: string }[] };
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -66,7 +66,7 @@ async function readStore(db: ReturnType<typeof getAdminClient>, familyId: string
   if (error || !data) return { items: [], groceries: [], canning: [] };
   try {
     const parsed = JSON.parse(await data.text());
-    return { canning: Array.isArray(parsed.canning) ? parsed.canning.filter((batch: unknown) => typeof batch === "object" && batch !== null && "id" in batch && "name" in batch) : [], items: Array.isArray(parsed.items) ? parsed.items.filter((item: unknown): item is PantryItem =>
+    return { canningUsage: Array.isArray(parsed.canningUsage) ? parsed.canningUsage : [], imports: Array.isArray(parsed.imports) ? parsed.imports : [], canning: Array.isArray(parsed.canning) ? parsed.canning.filter((batch: unknown) => typeof batch === "object" && batch !== null && "id" in batch && "name" in batch) : [], items: Array.isArray(parsed.items) ? parsed.items.filter((item: unknown): item is PantryItem =>
       typeof item === "object" && item !== null && "id" in item && typeof item.id === "string" && "name" in item && typeof item.name === "string" && "quantity" in item && Number.isFinite(Number(item.quantity))
     ).map((item: PantryItem) => ({ ...item, lowAt: Number.isFinite(Number(item.lowAt)) ? Number(item.lowAt) : 1, expirationDate: typeof item.expirationDate === "string" ? item.expirationDate : null, frozenAt: typeof item.frozenAt === "string" ? item.frozenAt : null })) : [], groceries: Array.isArray(parsed.groceries) ? parsed.groceries : [] };
   } catch { return { items: [], groceries: [], canning: [] }; }
@@ -93,7 +93,7 @@ export async function GET(request: Request) {
     if (!(await verifySession(db, playerId, token))) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
     const familyId = await getFamilyId(db);
     const store = await readStore(db, familyId);
-    return NextResponse.json({ items: store.items.sort((a, b) => a.name.localeCompare(b.name)), groceries: store.groceries, canning: store.canning });
+    return NextResponse.json({ items: store.items.sort((a, b) => a.name.localeCompare(b.name)), groceries: store.groceries, canning: store.canning, canningUsage: store.canningUsage ?? [] });
   } catch (error) {
     console.error("Pantry GET failed:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not load the pantry." }, { status: 500 });
@@ -113,7 +113,34 @@ export async function POST(request: Request) {
     const store = await readStore(db, familyId);
     const action = cleanText(body?.action, 24);
 
-    if (action === "canning-add") {
+    if (action === "canning-import-2025") {
+      const importId = "emily-canning-notes-2025-v1";
+      if (store.imports?.includes(importId)) return NextResponse.json({ ok: true });
+      const rows: [string, string, number, number, number | null, number | null, { name: string; cost: number }[], string][] = [
+        ["Green beans", "quart", 70, 24, 80, 50, [{ name: "Green beans — 2 bushels", cost: 80 }], "2025 annual total: 70 quarts. Cost note covers a separate 50-quart yield, not all 70 jars."],
+        ["Vegetable soup", "quart", 39, 5, 89.50, 38, [{ name: "Corn", cost: 16 }, { name: "Okra (quantity recorded as 12)", cost: 10 }, { name: "Canning tomatoes — 2 boxes", cost: 32 }, { name: "Green beans", cost: 15 }, { name: "Carrots — Costco and Ingles", cost: 10 }, { name: "Potatoes — Costco", cost: 4 }, { name: "Onion — Costco", cost: 2.50 }], "Annual total says 39 quarts; cost note says 38-quart yield. Corn note also lists an alternative 3 dozen for $25; saved cost uses the recorded $89.50 total."],
+        ["Squash", "quart", 9, 7, null, null, [], "Ingredient costs not recorded."],
+        ["Sweet potatoes", "quart", 10, 1, null, null, [], "Ingredient costs not recorded."],
+        ["Carrots", "pint", 50, 9, null, null, [], "Ingredient costs not recorded."],
+        ["Tomatoes", "pint", 6, 0, null, null, [], "Ate zero in the source note. Ingredient costs not recorded."],
+        ["Corn", "pint", 4, 0, null, null, [], "Ate zero in the source note. Ingredient costs not recorded."],
+        ["Blueberry jam", "half-pint", 35, 16, 8.41, 35, [{ name: "Blueberries — free from Kayla’s bushes", cost: 0 }, { name: "Sugar — one 4 lb bag", cost: 3.46 }, { name: "Sure-Jell — 3 at $1.65", cost: 4.95 }], "Blueberries were free from Kayla’s bushes. Ingredient costs exclude jars and lids."],
+        ["Peach jam", "half-pint", 46, 28, 51.82, 46, [{ name: "Peaches — half bushel", cost: 35 }, { name: "Sugar — two 4 lb bags", cost: 6.92 }, { name: "Sure-Jell — 6 at $1.65", cost: 9.90 }], "Ingredient costs exclude jars and lids."],
+        ["Peach concentrate", "pint", 5, 0, null, null, [], "Five pints made; amount eaten was not recorded. Remaining count needs checking."],
+      ];
+      for (const [name, jarSize, jarsMade, jarsUsed, cost, yieldCount, ingredients, notes] of rows) {
+        const id = `${importId}-${name.toLowerCase().replaceAll(" ", "-")}`;
+        if (!store.canning.some((batch) => batch.id === id)) store.canning.push({ id, name, jarSize, cannedAt: "2025", jarsMade, jarsUsed, ingredients, totalCost: cost ?? 0, costPerJar: cost !== null && yieldCount ? Math.round(cost / yieldCount * 100) / 100 : 0, costYield: yieldCount ?? undefined, costUnknown: cost === null, needsCount: true, notes: `Imported from your 2025 notes; not a current shelf count. ${notes}` });
+      }
+      store.imports = [...(store.imports ?? []), importId];
+    } else if (action === "canning-count") {
+      const batch = store.canning.find((entry) => entry.id === String(body?.batchId ?? ""));
+      if (!batch) return NextResponse.json({ error: "That batch could not be found." }, { status: 404 });
+      const remaining = numberOrNull(body?.remaining);
+      if (remaining === null || !Number.isInteger(remaining) || remaining > batch.jarsMade) return NextResponse.json({ error: "Enter whole jars left between zero and the number made." }, { status: 400 });
+      batch.jarsUsed = batch.jarsMade - remaining;
+      batch.needsCount = false;
+    } else if (action === "canning-add") {
       const name = cleanText(body?.name, 100);
       const jarsMade = numberOrNull(body?.jarsMade) ?? 0;
       const jarSize = cleanText(body?.jarSize, 30);
@@ -132,6 +159,7 @@ export async function POST(request: Request) {
         const amount = numberOrNull(body?.amount) ?? 0;
         if (!Number.isInteger(amount) || amount < 1 || batch.jarsUsed + amount > batch.jarsMade) return NextResponse.json({ error: "Enter a valid number of jars used." }, { status: 400 });
         batch.jarsUsed += amount;
+        (store.canningUsage ??= []).push({ batchId: batch.id, name: batch.name, jarSize: batch.jarSize, amount, usedAt: new Date().toISOString() });
       } else store.canning = store.canning.filter((entry) => entry.id !== batch.id);
     } else if (action === "grocery-add") {
       const name = cleanText(body?.name);

@@ -70,7 +70,7 @@ function SidePicker({ value, options, onChange, onAddOption }: { value: string; 
     onChange([...selected, side].join(", "));
     setCustomSide("");
   }
-  return <details className="relative mt-2">
+  return <details data-side-picker className="relative mt-2">
     <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-[#10254a] [&::-webkit-details-marker]:hidden">
       <span className="truncate">{selected.length ? `${selected.length} selected: ${selected.join(", ")}` : "Choose sides…"}</span>
       <span aria-hidden="true" className="ml-2 shrink-0">⌄</span>
@@ -180,6 +180,7 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Could not save the meal plan.");
+      document.querySelectorAll<HTMLDetailsElement>("details[data-side-picker]").forEach((picker) => { picker.open = false; });
       setSavedDate(day.date);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save the meal plan.");

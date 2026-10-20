@@ -15,7 +15,7 @@ type GroceryLine = { id: string; name: string; pantryItemId: string | null; adde
 type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number; notes?: string; needsCount?: boolean; costYield?: number; costUnknown?: boolean; lastUpdatedAt?: string; reminderBaselineAt?: string };
 const LOCATIONS = ["Garage Deep Freezer", "Garage Fridge/Freezer", "Kitchen Fridge/Freezer", "Pantry", "Basement"];
 const STORES = ["Costco", "Aldi", "Walmart", "Ingles", "Save A Lot", "Other"];
-const CATEGORIES = ["Meat", "Freezer", "Canned Goods", "Pantry", "Fridge", "Other"];
+const CATEGORIES = ["Meat", "Freezer", "Canned Goods", "Pantry", "Fridge", "Paper Products", "Cleaning", "Laundry", "Personal Care", "Other"];
 const RATINGS: { value: Rating; label: string }[] = [
   { value: "not_tried", label: "Haven’t tried" }, { value: "love", label: "Loved it" },
   { value: "okay", label: "It was okay" }, { value: "no_thanks", label: "Didn’t like" },
@@ -193,11 +193,11 @@ export default function PantryManager({ playerId }: { playerId: string }) {
   }, {} as Record<string, number>);
 
   return <section className="fambam-light-forms mx-auto max-w-5xl px-3 py-4">
-    {inventoryOpen ? <div className="mb-4"><button type="button" onClick={() => setInventoryOpen(false)} className="mb-2 min-h-11 text-sm font-black text-blue-800">← Back to Food</button><div className="flex items-center justify-between gap-2"><h1 className="text-2xl font-black text-[#10254a]">Food Inventory</h1><button type="button" onClick={() => { setInventoryOpen(false); setName(""); setFormOpen(true); }} className="min-h-11 rounded-xl bg-[#10254a] px-3 text-xs font-black text-white">＋ Add food</button></div></div> : (
+    {inventoryOpen ? <div className="mb-4"><button type="button" onClick={() => setInventoryOpen(false)} className="mb-2 min-h-11 text-sm font-black text-blue-800">← Back to Food</button><div className="flex items-center justify-between gap-2"><h1 className="text-2xl font-black text-[#10254a]">Inventory</h1><button type="button" onClick={() => { setInventoryOpen(false); setName(""); setFormOpen(true); }} className="min-h-11 rounded-xl bg-[#10254a] px-3 text-xs font-black text-white">＋ Add food</button></div></div> : (
     <header className="mb-4 rounded-3xl bg-[#06284a] p-5 text-white shadow-sm">
       <div className="text-xs font-black uppercase tracking-[0.22em] text-[#f3c64f]">FamBam Hub</div>
-      <h1 className="mt-1 text-3xl font-black">🧺 Food & Canning</h1>
-      <p className="mt-2 text-sm font-semibold text-blue-100">Track what’s on hand, what it cost, where you bought it, and what’s worth buying again.</p>
+      <h1 className="mt-1 text-3xl font-black">🧺 Food & Household</h1>
+      <p className="mt-2 text-sm font-semibold text-blue-100">Food, household supplies, groceries & canning.</p>
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
         <span className="rounded-full bg-white/10 px-3 py-1.5">{items.length} items tracked</span>
         <span className="rounded-full bg-white/10 px-3 py-1.5">{lowStockCount} low / out</span>
@@ -219,17 +219,20 @@ export default function PantryManager({ playerId }: { playerId: string }) {
 
     <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="text-lg font-black">Quick add</h2>
-      <p className="mb-3 text-xs font-medium text-slate-500">Choose a common meat, or add another food.</p>
+      <p className="mb-3 text-xs font-medium text-slate-500">Choose food or household supplies.</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {["Chicken breast", "Chicken thighs", "Hamburger meat", "Bacon", "Hot dogs", "Other food"].map((food) => <button key={food} type="button" onClick={() => { if (food === "Other food") { setName(""); setCategory("Pantry"); setPackageUnit("count"); setPackageSize("1"); setFormOpen(true); } else chooseCommonFood(food); }} className="min-h-12 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-[#10254a] active:bg-blue-50">＋ {food}</button>)}
+        {[["Toilet paper", "Paper Products"], ["Paper towels", "Paper Products"], ["Hand soap", "Personal Care"], ["Dishwasher detergent", "Cleaning"], ["Laundry detergent", "Laundry"], ["Other household item", "Cleaning"]].map(([itemName, itemCategory]) => <button key={itemName} type="button" onClick={() => { setName(itemName === "Other household item" ? "" : itemName); setCategory(itemCategory); setPackageUnit("count"); setPackageSize("1"); setPackages("1"); setFormOpen(true); window.setTimeout(() => document.getElementById("pantry-food-name")?.focus(), 0); }} className="min-h-12 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-[#10254a] active:bg-blue-50">＋ {itemName}</button>)
+        }
+
       </div>
     </div>
 
     </>}
     {formOpen && <form onSubmit={addPurchase} className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-start justify-between gap-2"><div><h2 className="text-lg font-black">Add food / record a purchase</h2><p className="text-xs font-medium text-slate-500">Price and store are optional. Package size lets the app compare unit prices.</p></div><button type="button" onClick={() => setFormOpen(false)} aria-label="Close form" className="rounded-lg bg-slate-100 px-3 py-1 text-xl font-bold">×</button></div>
+      <div className="mb-3 flex items-start justify-between gap-2"><div><h2 className="text-lg font-black">Add an item / record a purchase</h2><p className="text-xs font-medium text-slate-500">Price and store are optional. Package size lets the app compare unit prices.</p></div><button type="button" onClick={() => setFormOpen(false)} aria-label="Close form" className="rounded-lg bg-slate-100 px-3 py-1 text-xl font-bold">×</button></div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <label className="col-span-2 text-xs font-bold text-slate-600 sm:col-span-2">Food name<input id="pantry-food-name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Ground beef" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#10254a]" /></label>
+        <label className="col-span-2 text-xs font-bold text-slate-600 sm:col-span-2">Item name<input id="pantry-food-name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Ground beef" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#10254a]" /></label>
         <label className="text-xs font-bold text-slate-600">Section<select value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-sm text-[#10254a]">{CATEGORIES.map((option) => <option key={option}>{option}</option>)}</select></label>
         <FoodLocation value={location} options={locations} onChange={setLocation} />
         <label className="text-xs font-bold text-slate-600">Packages bought<input required min="1" step="1" type="number" value={packages} onChange={(e) => setPackages(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#10254a]" /></label>
@@ -246,13 +249,13 @@ export default function PantryManager({ playerId }: { playerId: string }) {
         <label className="col-span-2 text-xs font-bold text-slate-600 sm:col-span-3">Notes<input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Good for tacos; family favorite" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#10254a]" /></label>
       </div>
       </details>
-      <button disabled={busy} className="mt-3 w-full rounded-xl bg-[#10254a] px-4 py-3 text-sm font-black text-white disabled:opacity-50">{busy ? "Saving…" : "Save food and quantity"}</button>
+      <button disabled={busy} className="mt-3 w-full rounded-xl bg-[#10254a] px-4 py-3 text-sm font-black text-white disabled:opacity-50">{busy ? "Saving…" : "Save item and quantity"}</button>
     </form>}
 
     {error && <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</div>}
-    {!inventoryOpen && <button type="button" onClick={() => { setInventoryOpen(true); setFormOpen(false); }} className="mb-4 flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm"><span><span className="block text-base font-black text-[#10254a]">🧊 Food Inventory</span><span className="mt-1 block text-xs font-semibold text-slate-500">{items.length} foods · {lowStockCount} low / out</span></span><span className="text-sm font-black text-blue-800">Open →</span></button>}
+    {!inventoryOpen && <button type="button" onClick={() => { setInventoryOpen(true); setFormOpen(false); }} className="mb-4 flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm"><span><span className="block text-base font-black text-[#10254a]">🧊 Inventory</span><span className="mt-1 block text-xs font-semibold text-slate-500">{items.length} foods · {lowStockCount} low / out</span></span><span className="text-sm font-black text-blue-800">Open →</span></button>}
     {inventoryOpen && <>
-    <h2 className="mb-2 text-lg font-black text-[#10254a]">Your food inventory</h2>
+    <h2 className="mb-2 text-lg font-black text-[#10254a]">Your inventory</h2>
     <div className="mb-3 flex gap-2 overflow-x-auto pb-1">{["All", ...CATEGORIES].map((option) => <button key={option} onClick={() => setFilter(option)} className={`shrink-0 rounded-full px-3 py-2 text-xs font-black ${filter === option ? "bg-[#10254a] text-white" : "bg-white text-slate-600 shadow-sm"}`}>{option}</button>)}</div>
 
     <label className="mb-3 block text-xs font-bold text-slate-600">Show storage location<select aria-label="Filter food by storage location" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-[#10254a]">{["All locations", ...locations, "Not recorded"].map((value) => <option key={value}>{value}</option>)}</select></label>

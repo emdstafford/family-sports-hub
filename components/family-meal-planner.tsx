@@ -12,6 +12,36 @@ type DayPlan = {
   dinner: string;
 };
 
+const MEAL_OPTIONS = {
+  breakfast: ["Cereal", "Waffles", "Pancakes", "Biscuits", "Sausage rolls", "Yogurt", "Eggs", "Toast", "Oatmeal", "Breakfast sandwiches", "Breakfast burritos", "French toast", "Bagels", "Muffins", "Smoothies", "Fruit and yogurt"],
+  lunch: ["Leftovers", "Sandwiches", "Wraps", "Quesadillas", "Grilled cheese", "Soup", "Salad", "Chicken nuggets", "Mac and cheese", "Snack plate", "Hot dogs", "Chicken salad", "Tuna salad"],
+  dinner: ["Chicken breast", "Chicken thighs", "Baked chicken", "Grilled chicken", "Chicken tacos", "Chicken pasta", "Chicken stir-fry", "Steak", "Steak and potatoes", "Steak fajitas", "Ground beef tacos", "Ground turkey tacos", "Burgers", "Spaghetti with meat sauce", "Meatloaf", "Sloppy joes", "Chili", "Meatballs", "Beef or turkey stir-fry", "Crockpot meal", "Pizza", "Italian dinner", "Breakfast for dinner", "Loaded baked potatoes", "Black bean quesadillas", "Veggie fried rice", "Grilled cheese and tomato soup"],
+} as const;
+
+type MealKind = keyof typeof MEAL_OPTIONS;
+
+function MealPicker({ kind, value, onChange }: { kind: MealKind; value: string; onChange: (value: string) => void }) {
+  const [customMode, setCustomMode] = useState(false);
+  const isCustom = customMode || (value !== "" && !(MEAL_OPTIONS[kind] as readonly string[]).includes(value));
+
+  return <>
+    <select value={isCustom ? "__custom" : value} onChange={(event) => {
+      if (event.target.value === "__custom") {
+        setCustomMode(true);
+        onChange("");
+      } else {
+        setCustomMode(false);
+        onChange(event.target.value);
+      }
+    }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base font-medium text-[#10254a]">
+      <option value="">Choose an idea…</option>
+      {MEAL_OPTIONS[kind].map((option) => <option key={option} value={option}>{option}</option>)}
+      <option value="__custom">Add a different meal…</option>
+    </select>
+    {isCustom && <input autoFocus value={value} onChange={(event) => onChange(event.target.value)} maxLength={120} placeholder="Type your meal idea" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-[#10254a]" />}
+  </>;
+}
+
 function dateOnly(value: string) {
   return new Date(`${value}T12:00:00`);
 }
@@ -102,7 +132,7 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
               </select>
             </label>
             {(["breakfast", "lunch", "dinner"] as const).map((meal) => <label key={meal} className="block text-sm font-bold capitalize text-slate-700">{meal}
-              <input value={day[meal]} onChange={(event) => updateDay(day.date, { [meal]: event.target.value })} maxLength={120} placeholder={meal === "dinner" ? "What’s for dinner?" : "Optional"} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-[#10254a]" />
+              <MealPicker kind={meal} value={day[meal]} onChange={(value) => updateDay(day.date, { [meal]: value })} />
             </label>)}
             <label className="block text-sm font-bold text-slate-700">Dinner theme (optional)
               <input value={day.theme} onChange={(event) => updateDay(day.date, { theme: event.target.value })} maxLength={60} placeholder="Taco Tuesday, soup night…" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-[#10254a]" />

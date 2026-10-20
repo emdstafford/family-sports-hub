@@ -5557,17 +5557,17 @@ export default function Home() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <img
-              src="/fambam-hub-icon.svg"
-              alt="FamBam Hub"
+              src="/fambam-hub-icon.svg?v=sl-a3"
+              alt="Souther Ladies SL monogram"
               className="h-12 w-12 shrink-0 rounded-xl object-cover"
             />
 
             <div className="min-w-0">
-              <div className="truncate text-xl font-black tracking-tight">
-                FamBam Hub
+              <div className="truncate text-xl tracking-tight" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                Souther Ladies
               </div>
-              <div className="text-[8px] font-black uppercase tracking-[0.28em] text-[#f3c64f]">
-                Our family, all in one place
+              <div className="text-[9px] font-semibold uppercase tracking-[0.22em] text-[#bd9752]">
+                FamBam Hub
               </div>
             </div>
           </div>

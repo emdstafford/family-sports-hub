@@ -28,24 +28,24 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/fambam-hub-icon.svg",
+        url: "/fambam-hub-icon.svg?v=sl-a3",
         sizes: "any",
         type: "image/svg+xml",
       },
       {
-        url: "/icon-192.png",
+        url: "/api/brand-icon?size=192&v=sl-a3",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        url: "/icon-512.png",
+        url: "/api/brand-icon?size=512&v=sl-a3",
         sizes: "512x512",
         type: "image/png",
       },
     ],
     apple: [
       {
-        url: "/apple-touch-icon.png",
+        url: "/api/brand-icon?size=180&v=sl-a3",
         sizes: "180x180",
         type: "image/png",
       },

@@ -271,8 +271,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "This food is tracked by packages. Edit its package size and choose lb or oz to subtract by weight." }, { status: 400 });
           }
           packagesUsed = amount / poundsPerPackage;
+        } else if (quantityUnit === "count" && ["count", "each"].includes(item.packageUnit) && item.packageSize > 0) {
+          packagesUsed = amount / item.packageSize;
         } else if (quantityUnit !== "packages") {
-          return NextResponse.json({ error: "Choose packages or pounds." }, { status: 400 });
+          return NextResponse.json({ error: "Choose packages, individual items, or pounds." }, { status: 400 });
         }
         if (packagesUsed > item.quantity + 0.0001) {
           return NextResponse.json({ error: `There isn’t that much ${item.name} recorded. Please choose a smaller amount.` }, { status: 400 });
@@ -281,6 +283,17 @@ export async function POST(request: Request) {
       } else if (action === "edit") {
         const name = cleanText(body?.name);
         if (!name) return NextResponse.json({ error: "Enter a food name." }, { status: 400 });
+        if (body?.quantity !== undefined) {
+          const quantity = numberOrNull(body.quantity);
+          if (quantity === null) return NextResponse.json({ error: "Enter a quantity of zero or more." }, { status: 400 });
+          item.quantity = Math.round(quantity * 10000) / 10000;
+        }
+        if (body?.packageSize !== undefined) {
+          const size = numberOrNull(body.packageSize);
+          if (size === null || size <= 0) return NextResponse.json({ error: "Enter package contents greater than zero." }, { status: 400 });
+          item.packageSize = size;
+        }
+        if (body?.packageUnit !== undefined) item.packageUnit = cleanText(body.packageUnit, 20) || item.packageUnit;
         item.name = name;
         item.category = cleanText(body?.category, 30) || item.category;
         item.location = cleanText(body?.location, 80);

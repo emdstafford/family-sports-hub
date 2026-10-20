@@ -81,39 +81,37 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
     ? `${new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(new Date(`${weekStart}T12:00:00Z`))}–${new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(weekEnd)}`
     : "";
 
-  return <article className="rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 shadow-sm">
+  return <article className="rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-5 shadow-sm sm:p-6">
     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family meals</div>
-    <h2 className="mt-1 text-lg font-black text-[#10254a]">Meal Plan 🍽️</h2>
-    <p className="mt-1 text-xs font-semibold text-slate-500">{loading ? "Loading this week…" : weekLabel ? `Week starting Sunday · ${weekLabel}` : "Sunday–Saturday"}</p>
-    <details className="mt-3">
-      <summary className="cursor-pointer rounded-xl bg-white px-3 py-2.5 text-sm font-black text-[#10254a]">Plan breakfast, lunch, and dinner</summary>
-      <div className="mt-3 space-y-2">
-        {days.map((day) => <details key={day.date} className="rounded-xl border border-[#eee5d5] bg-white p-3">
-          <summary className="cursor-pointer text-sm font-black text-[#10254a]">
+    <h2 className="mt-1 text-xl font-black text-[#10254a]">Meal Plan 🍽️</h2>
+    <p className="mt-1 text-sm font-semibold text-slate-600">{loading ? "Loading this week…" : weekLabel ? `Week starting Sunday · ${weekLabel}` : "Sunday–Saturday"}</p>
+    <p className="mt-2 text-sm text-slate-600">Tap a day to add or edit breakfast, lunch, dinner, or a meal theme.</p>
+    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {days.map((day) => <details key={day.date} className="rounded-xl border border-[#e5dccb] bg-white p-4">
+          <summary className="flex min-h-12 cursor-pointer items-center text-base font-black text-[#10254a]">
             {new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" }).format(dateOnly(day.date))}
-            {day.theme && <span className="ml-2 text-xs font-semibold text-[#b28a2e]">{day.theme}</span>}
+            {day.theme && <span className="ml-2 text-sm font-semibold text-[#b28a2e]">{day.theme}</span>}
           </summary>
-          <div className="mt-3 space-y-2">
-            <label className="block text-xs font-bold text-slate-600">Theme
-              <input value={day.theme} onChange={(event) => updateDay(day.date, { theme: event.target.value })} maxLength={60} placeholder="Taco Tuesday, soup night…" className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-[#10254a]" />
+          <div className="mt-3 space-y-3">
+            <label className="block text-sm font-bold text-slate-700">Theme
+              <input value={day.theme} onChange={(event) => updateDay(day.date, { theme: event.target.value })} maxLength={60} placeholder="Taco Tuesday, soup night…" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-[#10254a]" />
             </label>
-            <label className="block text-xs font-bold text-slate-600">Meal choice
-              <select value={day.chosenByPlayerId ?? ""} onChange={(event) => updateDay(day.date, { chosenByPlayerId: event.target.value || null })} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#10254a]">
+            <label className="block text-sm font-bold text-slate-700">Meal choice
+              <select value={day.chosenByPlayerId ?? ""} onChange={(event) => updateDay(day.date, { chosenByPlayerId: event.target.value || null })} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base font-medium text-[#10254a]">
                 <option value="">Anyone can choose</option>
                 {players.map((player) => <option key={player.id} value={player.id}>{player.display_name}</option>)}
               </select>
             </label>
-            {(["breakfast", "lunch", "dinner"] as const).map((meal) => <label key={meal} className="block text-xs font-bold capitalize text-slate-600">{meal}
-              <input value={day[meal]} onChange={(event) => updateDay(day.date, { [meal]: event.target.value })} maxLength={120} placeholder={meal === "dinner" ? "What’s for dinner?" : "Optional"} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-[#10254a]" />
+            {(["breakfast", "lunch", "dinner"] as const).map((meal) => <label key={meal} className="block text-sm font-bold capitalize text-slate-700">{meal}
+              <input value={day[meal]} onChange={(event) => updateDay(day.date, { [meal]: event.target.value })} maxLength={120} placeholder={meal === "dinner" ? "What’s for dinner?" : "Optional"} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-base font-medium text-[#10254a]" />
             </label>)}
             <div className="flex items-center gap-2 pt-1">
-              <button type="button" disabled={busyDate === day.date} onClick={() => void saveDay(day)} className="rounded-lg bg-[#10254a] px-3 py-2 text-xs font-black text-white disabled:opacity-50">{busyDate === day.date ? "Saving…" : "Save day"}</button>
-              {savedDate === day.date && <span role="status" className="text-xs font-bold text-emerald-700">Saved</span>}
+              <button type="button" disabled={busyDate === day.date} onClick={() => void saveDay(day)} className="min-h-11 rounded-lg bg-[#10254a] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">{busyDate === day.date ? "Saving…" : "Save day"}</button>
+              {savedDate === day.date && <span role="status" className="text-sm font-bold text-emerald-700">Saved</span>}
             </div>
           </div>
         </details>)}
-      </div>
-      {error && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{error}</p>}
-    </details>
+    </div>
+    {error && <p role="alert" className="mt-3 text-sm font-bold text-red-600">{error}</p>}
   </article>;
 }

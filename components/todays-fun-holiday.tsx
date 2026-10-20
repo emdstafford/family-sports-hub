@@ -23,7 +23,6 @@ export default function TodaysFunHoliday() {
       .catch(() => setHoliday(null))
       .finally(() => setLoading(false));
   }, []);
-  const fallbackUrl = holiday?.url || "https://www.timeanddate.com/holidays/fun/";
   return <article className="flex flex-col justify-between rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] p-4 shadow-sm">
     <div>
       <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">A little family fun</div>
@@ -31,6 +30,5 @@ export default function TodaysFunHoliday() {
       <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-slate-400">{dateLabel || "Today"}</p>
       <p className="mt-1 text-lg font-black text-[#10254a]">{loading ? "Finding today’s celebration…" : holiday?.name || "No kid-friendly holiday listed today"}</p>
     </div>
-    <a className="mt-3 inline-flex min-h-10 items-center self-start rounded-xl bg-[#10254a] px-3 text-xs font-black text-white" href={fallbackUrl} target="_blank" rel="noreferrer">See it on Timeanddate ↗</a>
   </article>;
 }

@@ -15,7 +15,6 @@ import FamilyMealPlanner from "@/components/family-meal-planner";
 
 type PackingItem = { id: string; label: string; repeatWeekly: boolean; checked: boolean; assignedPlayerId?: string | null };
 type DaisyFeedEvent = { id: string; fedAt: string; fedBy: string };
-type DaisyWaterEvent = { id: string; changedAt: string; changedBy: string };
 
 async function readApiResponse(response: Response, serviceName: string) {
   const text = await response.text();
@@ -1383,7 +1382,6 @@ export default function Home() {
   const [editingPackingId, setEditingPackingId] = useState<string | null>(null);
   const [editingPackingLabel, setEditingPackingLabel] = useState("");
   const [daisyLatestFeed, setDaisyLatestFeed] = useState<DaisyFeedEvent | null>(null);
-  const [daisyLatestWater, setDaisyLatestWater] = useState<DaisyWaterEvent | null>(null);
   const [daisyBusy, setDaisyBusy] = useState(false);
   const [daisyError, setDaisyError] = useState<string | null>(null);
   const [nfcFeedNotice, setNfcFeedNotice] = useState<string | null>(null);
@@ -1405,7 +1403,6 @@ export default function Home() {
     if (!signedInPlayer) {
       setPackingItems([]);
       setDaisyLatestFeed(null);
-      setDaisyLatestWater(null);
       return;
     }
     void loadFamilyTools();
@@ -5513,7 +5510,6 @@ export default function Home() {
       if (!daisyResponse.ok) throw new Error(daisy.error ?? "Could not load Daisy’s care status.");
       setPackingItems(Array.isArray(packing.items) ? packing.items : []);
       setDaisyLatestFeed(daisy.latest ?? null);
-      setDaisyLatestWater(daisy.latestWater ?? null);
       setPackingError(null); setDaisyError(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not load family tools.";
@@ -5772,15 +5768,14 @@ export default function Home() {
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Pet care</div>
                 <h2 className="mt-1 text-lg font-black text-[#10254a]">Daisy’s Care 🐾</h2>
-                <p className="text-xs font-medium text-slate-500">See the latest feeding and water change.</p>
+                <p className="text-xs font-medium text-slate-500">See when Daisy was last fed.</p>
               </div>
               <span className="text-2xl" aria-hidden="true">🐶</span>
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="mt-3 grid gap-2">
               <div className="rounded-xl bg-[#fffaf0] p-3"><p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Last fed</p>{daisyLatestFeed ? <p className="mt-1 text-sm font-bold text-[#10254a]">{new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(daisyLatestFeed.fedAt))}<span className="font-medium text-slate-500"> by {daisyLatestFeed.fedBy}</span></p> : <p className="mt-1 text-sm font-semibold text-slate-500">Not recorded yet.</p>}</div>
-              <div className="rounded-xl bg-[#fffaf0] p-3"><p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Last water change</p>{daisyLatestWater ? <p className="mt-1 text-sm font-bold text-[#10254a]">{new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(daisyLatestWater.changedAt))}<span className="font-medium text-slate-500"> by {daisyLatestWater.changedBy}</span></p> : <p className="mt-1 text-sm font-semibold text-slate-500">Not recorded yet.</p>}</div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid grid-cols-1 gap-2">
             <button disabled={daisyBusy} onClick={async () => {
               if (!signedInPlayer) return;
               setDaisyBusy(true); setDaisyError(null);
@@ -5788,20 +5783,13 @@ export default function Home() {
               catch (error) { setDaisyError(error instanceof Error ? error.message : "Could not save Daisy’s feeding time."); }
               finally { setDaisyBusy(false); }
             }} className="rounded-xl bg-[#10254a] px-2 py-3 text-sm font-black text-white disabled:opacity-50">{daisyBusy ? "Saving…" : "I fed Daisy"}</button>
-            <button disabled={daisyBusy} onClick={async () => {
-              if (!signedInPlayer) return;
-              setDaisyBusy(true); setDaisyError(null);
-              try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/daisy-feed", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "water" }) }); const data = await readApiResponse(response, "Daisy’s care status"); if (!response.ok) throw new Error(data.error ?? "Could not save the water change."); await loadFamilyTools(); }
-              catch (error) { setDaisyError(error instanceof Error ? error.message : "Could not save Daisy’s water time."); }
-              finally { setDaisyBusy(false); }
-            }} className="rounded-xl border border-[#10254a] px-2 py-3 text-sm font-black text-[#10254a] disabled:opacity-50">{daisyBusy ? "Saving…" : "I changed her water"}</button>
             </div>
             {daisyError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{daisyError}</p>}
             {nfcFeedNotice && <p role="status" className="mt-2 text-xs font-bold text-emerald-700">{nfcFeedNotice}</p>}
             <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut can update the feeding time under the signed-in profile.</p>
           </article>
                   </section>
-          <div className="order-3 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
+          <div className="order-3 col-span-2 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
         </div>
       ) : (
         <div className="mb-4"><TodaysFunHoliday /></div>

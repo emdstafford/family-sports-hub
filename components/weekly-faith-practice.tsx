@@ -36,7 +36,16 @@ export default function WeeklyFaithPractice() {
   }) ?? "";
   const displayedText = practiceMode === "initials" ? initialsText : practiceMode === "alternate" ? alternateWordsText : entry?.text ?? "";
   return <section className="mb-4 rounded-3xl border border-amber-200 bg-[#fffaf0] p-4 shadow-sm">
-    <h2 className="mt-1 text-xl font-black text-[#10254a]">📖 Verse of the week · ESV</h2>
+    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+      <h2 className="mt-1 text-xl font-black text-[#10254a]">📖 Verse of the week</h2>
+      <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
+        <span>ESV</span>
+        <details className="relative">
+          <summary className="cursor-pointer underline underline-offset-2">Copyright</summary>
+          <p className="absolute right-0 top-full z-20 mt-2 w-72 max-w-[80vw] rounded-xl border border-slate-200 bg-white p-3 text-[10px] font-medium leading-relaxed text-slate-600 shadow-lg">Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers. ESV Text Edition: 2025. Used by permission. All rights reserved.</p>
+        </details>
+      </div>
+    </div>
     {entry ? <>
       <div className="mt-3 rounded-2xl bg-white p-4">
         <p className="text-xs font-black uppercase tracking-wide text-slate-400">{entry.reference}</p>
@@ -53,9 +62,5 @@ export default function WeeklyFaithPractice() {
         {practiceMode === "alternate" && <p className="mt-2 text-xs font-semibold text-slate-500">Say the whole verse, filling in each blank from memory.</p>}
       </div>
     </> : <p className="mt-2 text-sm font-semibold text-slate-500">This week’s verse is on the way…</p>}
-    <details className="mt-2 text-[10px] text-slate-400">
-      <summary className="w-fit cursor-pointer font-semibold">ESV copyright</summary>
-      <p className="mt-1 leading-relaxed">Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers. ESV Text Edition: 2025. Used by permission. All rights reserved.</p>
-    </details>
   </section>;
 }

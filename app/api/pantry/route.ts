@@ -20,6 +20,7 @@ type PantryItem = {
   quantity: number;
   unit: string;
   lowAt: number;
+  lowUnit?: "packages" | "count";
   expirationDate: string | null;
   frozenAt: string | null;
   packageSize: number;
@@ -313,7 +314,10 @@ export async function POST(request: Request) {
         if (item.location && !(store.locations ?? []).some((value) => value.toLowerCase() === item.location!.toLowerCase())) (store.locations ??= []).push(item.location);
         item.stockUpUnitPrice = numberOrNull(body?.stockUpUnitPrice);
         item.stockUpPrice = null;
-        item.lowAt = Math.max(0, Math.round(numberOrNull(body?.lowAt) ?? 1));
+        const lowAt = numberOrNull(body?.lowAt);
+        const lowUnit = body?.lowUnit === undefined ? item.lowUnit ?? "packages" : String(body.lowUnit);
+        if (lowAt === null || !["packages", "count"].includes(lowUnit) || (lowUnit === "count" && !["count", "each"].includes(item.packageUnit))) return NextResponse.json({ error: "Choose packages or individual items and enter a valid low-stock amount. Individual items need a count or each package unit." }, { status: 400 });
+        item.lowAt = lowAt; item.lowUnit = lowUnit as "packages" | "count";
         item.expirationDate = cleanText(body?.expirationDate, 10) || null;
         item.frozenAt = cleanText(body?.frozenAt, 10) || null;
         item.rating = ["not_tried", "love", "okay", "no_thanks"].includes(String(body?.rating)) ? String(body?.rating) as PantryItem["rating"] : item.rating;

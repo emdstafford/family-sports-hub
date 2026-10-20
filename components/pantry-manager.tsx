@@ -213,7 +213,32 @@ export default function PantryManager({ playerId }: { playerId: string }) {
         <input value={groceryName} onChange={(e) => setGroceryName(e.target.value)} placeholder="Ketchup, marshmallows…" aria-label="Grocery item" className="min-h-12 min-w-0 flex-1 rounded-xl border border-amber-200 bg-white px-3 text-sm font-semibold text-[#10254a]" />
         <button disabled={busy || !groceryName.trim()} className="min-h-12 rounded-xl bg-[#10254a] px-4 text-sm font-black text-white disabled:opacity-50">Add</button>
       </form>
-      {groceries.length > 0 ? <ul className="mt-3 divide-y divide-amber-200 rounded-xl bg-white px-3">{groceries.map((line) => <li key={line.id} className="flex items-center justify-between gap-2 py-2.5"><span className="min-w-0 flex-1 text-sm font-bold text-[#10254a]">{line.name}<span className="ml-1 text-[10px] font-medium text-slate-400">· {line.addedBy}</span></span><button disabled={busy} onClick={() => void submit({ action: "grocery-bought", groceryId: line.id })} className="min-h-10 rounded-lg bg-green-100 px-3 text-xs font-black text-green-800">Bought +1</button><button disabled={busy} aria-label={`Remove ${line.name} from grocery list`} onClick={() => void submit({ action: "grocery-remove", groceryId: line.id })} className="min-h-10 rounded-lg px-2 text-lg font-black text-slate-400">×</button></li>)}</ul> : <p className="mt-3 text-xs font-semibold text-slate-500">Nothing on the list yet.</p>}
+      {groceries.length > 0 ? <ul className="mt-3 divide-y divide-amber-200 rounded-xl bg-white px-3">{groceries.map((line) => {
+        const item = items.find((entry) => entry.id === line.pantryItemId);
+        const latest = item ? [...(item.priceHistory ?? [])].sort((a, b) => b.purchasedAt.localeCompare(a.purchasedAt))[0] : undefined;
+        const price = latest?.price ?? item?.lastPrice ?? null;
+        const size = latest?.packageSize ?? item?.packageSize ?? 1;
+        const unit = latest?.packageUnit ?? item?.packageUnit ?? "count";
+        const priceUnit = normalizedPrice(price ?? 0, size, unit);
+        const targetUnit = item && ["lb", "oz"].includes(item.packageUnit) ? "lb" : item?.packageUnit || "count";
+        const target = item?.stockUpUnitPrice ?? (item?.stockUpPrice != null ? normalizedPrice(item.stockUpPrice, item.packageSize, item.packageUnit).value : null);
+        return <li key={line.id} className="py-3">
+          <div className="flex items-center justify-between gap-2"><span className="min-w-0 flex-1 text-sm font-bold text-[#10254a]">{line.name}</span><button disabled={busy} onClick={() => void submit({ action: "grocery-bought", groceryId: line.id })} className="min-h-10 rounded-lg bg-green-100 px-3 text-xs font-black text-green-800">Bought +1</button><button disabled={busy} aria-label={`Remove ${line.name} from grocery list`} onClick={() => void submit({ action: "grocery-remove", groceryId: line.id })} className="min-h-10 rounded-lg px-2 text-lg font-black text-slate-400">×</button></div>
+          <p className="mt-1 text-xs font-semibold text-slate-600">{price === null ? "Price not recorded" : `Last recorded: ${money(price)} / package · ${size} ${unit} · ${latest?.store ?? item?.store ?? "Not recorded"}`}</p>
+          {price !== null && <p className="mt-1 text-xs text-slate-500">{money(priceUnit.value)} per {priceUnit.unit}{latest && ` · ${new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", year: "numeric" }).format(new Date(latest.purchasedAt))}`}</p>}
+          <p className="mt-1 text-xs font-bold text-emerald-800">{target === null ? "Stock-up target not set" : `Stock up at ${money(target)} or less per ${targetUnit}`}</p>
+          {item && <details className="mt-2"><summary className="cursor-pointer text-xs font-bold text-blue-800">Edit price / stock-up target</summary>
+            <form key={`${line.id}-${item.updatedAt}`} className="mt-2 grid grid-cols-2 gap-2" onSubmit={async (event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const editor = event.currentTarget.closest("details"); if (await submit({ action: "grocery-price", groceryId: line.id, price: data.get("price"), packageSize: data.get("packageSize"), packageUnit: data.get("packageUnit"), store: data.get("store"), stockUpUnitPrice: data.get("target") }) && editor) editor.open = false; }}>
+              <label className="text-xs font-bold text-slate-600">Package price ($)<input name="price" type="number" min="0.01" step="0.01" defaultValue={price ?? ""} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm text-[#10254a]" /></label>
+              <label className="text-xs font-bold text-slate-600">Store<input name="store" defaultValue={latest?.store ?? (item.store === "Not recorded" ? "" : item.store)} placeholder="Costco, Walmart…" className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm text-[#10254a]" /></label>
+              <label className="text-xs font-bold text-slate-600">Amount per package<input name="packageSize" required type="number" min="0.0001" step="any" defaultValue={size} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm text-[#10254a]" /></label>
+              <label className="text-xs font-bold text-slate-600">Unit<select name="packageUnit" defaultValue={unit} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm text-[#10254a]">{[...new Set(["lb", "oz", "count", "each", "bags", "boxes", unit])].map((option) => <option key={option}>{option}</option>)}</select></label>
+              <label className="col-span-2 text-xs font-bold text-slate-600">Stock-up target ($ per {targetUnit})<input name="target" type="number" min="0" step="0.01" defaultValue={target ?? ""} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm text-[#10254a]" /></label>
+              <button disabled={busy} className="col-span-2 min-h-10 rounded-lg bg-[#10254a] px-3 text-xs font-black text-white disabled:opacity-50">Save prices</button>
+            </form>
+          </details>}
+        </li>;
+      })}</ul> : <p className="mt-3 text-xs font-semibold text-slate-500">Nothing on the list yet.</p>}
     </div>
 
 
@@ -253,7 +278,7 @@ export default function PantryManager({ playerId }: { playerId: string }) {
     </form>}
 
     {error && <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</div>}
-    {!inventoryOpen && <button type="button" onClick={() => { setInventoryOpen(true); setFormOpen(false); }} className="mb-4 flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm"><span><span className="block text-base font-black text-[#10254a]">🧊 Inventory</span><span className="mt-1 block text-xs font-semibold text-slate-500">{items.length} foods · {lowStockCount} low / out</span></span><span className="text-sm font-black text-blue-800">Open →</span></button>}
+    {!inventoryOpen && <button type="button" onClick={() => { setInventoryOpen(true); setFormOpen(false); }} className="mb-4 flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm"><span><span className="block text-base font-black text-[#10254a]">🧊 Inventory</span><span className="mt-1 block text-xs font-semibold text-slate-500">{items.length} items · {lowStockCount} low / out</span></span><span className="text-sm font-black text-blue-800">Open →</span></button>}
     {inventoryOpen && <>
     <h2 className="mb-2 text-lg font-black text-[#10254a]">Your inventory</h2>
     <div className="mb-3 flex gap-2 overflow-x-auto pb-1">{["All", ...CATEGORIES].map((option) => <button key={option} onClick={() => setFilter(option)} className={`shrink-0 rounded-full px-3 py-2 text-xs font-black ${filter === option ? "bg-[#10254a] text-white" : "bg-white text-slate-600 shadow-sm"}`}>{option}</button>)}</div>

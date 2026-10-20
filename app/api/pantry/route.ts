@@ -191,6 +191,19 @@ export async function POST(request: Request) {
         if (item) { item.quantity = Math.round(item.quantity + 1); item.updatedAt = new Date().toISOString(); }
       }
       store.groceries = store.groceries.filter((row) => row.id !== String(body?.groceryId ?? ""));
+    } else if (action === "grocery-price") {
+      const line = store.groceries.find((row) => row.id === String(body?.groceryId ?? ""));
+      const item = line && store.items.find((row) => row.id === line.pantryItemId);
+      if (!item) return NextResponse.json({ error: "That grocery item could not be found." }, { status: 404 });
+      const price = numberOrNull(body?.price), size = numberOrNull(body?.packageSize);
+      const target = numberOrNull(body?.stockUpUnitPrice);
+      if ((body?.price !== "" && price === null) || (price !== null && (price <= 0 || size === null || size <= 0)) || (body?.stockUpUnitPrice !== "" && target === null)) return NextResponse.json({ error: "Enter a valid price, package size and stock-up target, or leave prices blank." }, { status: 400 });
+      if (price !== null) {
+        const now = new Date().toISOString();
+        item.priceHistory.unshift({ id: randomUUID(), store: cleanText(body?.store, 40) || "Not recorded", price, packageSize: size!, packageUnit: cleanText(body?.packageUnit, 20) || "count", purchasedAt: now, purchasedBy: cleanText(player?.display_name, 60) || "Family" });
+        item.priceHistory = item.priceHistory.slice(0, 30);
+      }
+      item.stockUpUnitPrice = target; item.stockUpPrice = null; item.updatedAt = new Date().toISOString();
     } else if (action === "purchase") {
       const name = cleanText(body?.name);
       const category = cleanText(body?.category, 30) || "Freezer";

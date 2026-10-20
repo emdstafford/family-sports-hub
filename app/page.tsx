@@ -5660,9 +5660,31 @@ export default function Home() {
           <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">Today at a glance</h2>
           <span className="h-px flex-1 bg-[#e6dfd0]" />
         </div>
-        <div className="mb-3 grid grid-cols-2 items-start [&>*]:min-w-0 gap-3">
-          <MerriamWebsterWordOfDay />
+        <div className="mb-3 grid grid-cols-2 items-start gap-3 [&>*]:min-w-0">
           <NorthGeorgiaWeatherCard />
+          {signedInPlayer ? (          <details id="daisy-care" className="group scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">🐾 Daisy’s care</div>
+                {daisyLatestFeed ? <p className="mt-1 text-sm font-bold text-[#10254a]">Last fed {new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(daisyLatestFeed.fedAt))} by {daisyLatestFeed.fedBy}</p> : <p className="mt-1 text-sm font-semibold text-slate-500">{daisyBusy ? "Saving…" : "Not recorded yet · tap to open"}</p>}
+              </div>
+              <span className="text-2xl" aria-hidden="true">🐶 <span className="inline-block text-base transition-transform group-open:rotate-180">⌄</span></span>
+            </summary>
+            <div className="mt-3 grid grid-cols-1 gap-2">
+            <button disabled={daisyBusy} onClick={async () => {
+              if (!signedInPlayer) return;
+              setDaisyBusy(true); setDaisyError(null);
+              try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/daisy-feed", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "feed" }) }); const data = await readApiResponse(response, "Daisy’s care status"); if (!response.ok) throw new Error(data.error ?? "Could not save the feeding."); await loadFamilyTools(); }
+              catch (error) { setDaisyError(error instanceof Error ? error.message : "Could not save Daisy’s feeding time."); }
+              finally { setDaisyBusy(false); }
+            }} className="rounded-xl bg-[#10254a] px-2 py-3 text-sm font-black text-white disabled:opacity-50">{daisyBusy ? "Saving…" : "I fed Daisy"}</button>
+            </div>
+            {daisyError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{daisyError}</p>}
+            {nfcFeedNotice && <p role="status" className="mt-2 text-xs font-bold text-emerald-700">{nfcFeedNotice}</p>}
+            <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut can update the feeding time under the signed-in profile.</p>
+          </details>) : <div className="min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4"><p className="text-sm font-black text-[#10254a]">🐾 Daisy’s care</p><p className="mt-1 text-xs text-slate-500">Sign in to see her latest feeding.</p></div>}
+          <MerriamWebsterWordOfDay />
+          <TodaysFunHoliday />
         </div>
         {/* SIGN IN */}
         {!signedInPlayer && (
@@ -5705,8 +5727,7 @@ export default function Home() {
 
       {signedInPlayer ? (
         <div className="mb-4 grid grid-cols-1 gap-3 [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]" aria-label="Family home tools">
-          <div className="order-1 min-w-0"><TodaysFunHoliday /></div>
-          <section className="contents" aria-label="Family checklist and Daisy care">
+          <section className="contents" aria-label="Family checklist">
           <details id="family-checklist" className="group order-8 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <div>
@@ -5787,27 +5808,7 @@ export default function Home() {
             </div>
           </details>
 
-          <details id="daisy-care" className="group order-2 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">🐾 Daisy’s care</div>
-                {daisyLatestFeed ? <p className="mt-1 text-sm font-bold text-[#10254a]">Last fed {new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(daisyLatestFeed.fedAt))} by {daisyLatestFeed.fedBy}</p> : <p className="mt-1 text-sm font-semibold text-slate-500">{daisyBusy ? "Saving…" : "Not recorded yet · tap to open"}</p>}
-              </div>
-              <span className="text-2xl" aria-hidden="true">🐶 <span className="inline-block text-base transition-transform group-open:rotate-180">⌄</span></span>
-            </summary>
-            <div className="mt-3 grid grid-cols-1 gap-2">
-            <button disabled={daisyBusy} onClick={async () => {
-              if (!signedInPlayer) return;
-              setDaisyBusy(true); setDaisyError(null);
-              try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/daisy-feed", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "feed" }) }); const data = await readApiResponse(response, "Daisy’s care status"); if (!response.ok) throw new Error(data.error ?? "Could not save the feeding."); await loadFamilyTools(); }
-              catch (error) { setDaisyError(error instanceof Error ? error.message : "Could not save Daisy’s feeding time."); }
-              finally { setDaisyBusy(false); }
-            }} className="rounded-xl bg-[#10254a] px-2 py-3 text-sm font-black text-white disabled:opacity-50">{daisyBusy ? "Saving…" : "I fed Daisy"}</button>
-            </div>
-            {daisyError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{daisyError}</p>}
-            {nfcFeedNotice && <p role="status" className="mt-2 text-xs font-bold text-emerald-700">{nfcFeedNotice}</p>}
-            <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut can update the feeding time under the signed-in profile.</p>
-          </details>
+
                   </section>
           <div className="order-5 mt-1 flex items-center gap-2 px-1">
             <span className="text-lg">📅</span>
@@ -5843,7 +5844,7 @@ export default function Home() {
             </details>
         </div>
       ) : (
-        <div className="mb-4"><TodaysFunHoliday /></div>
+        null
       )}
 
 

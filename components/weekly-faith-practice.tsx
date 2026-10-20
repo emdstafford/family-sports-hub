@@ -19,7 +19,7 @@ const WEEKLY_PRACTICE = [
 
 export default function WeeklyFaithPractice() {
   const [index, setIndex] = useState<number | null>(null);
-  const [firstLettersOnly, setFirstLettersOnly] = useState(false);
+  const [practiceMode, setPracticeMode] = useState<"full" | "initials" | "alternate">("full");
   useEffect(() => {
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
@@ -27,16 +27,30 @@ export default function WeeklyFaithPractice() {
     setIndex(week % WEEKLY_PRACTICE.length);
   }, []);
   const entry = index === null ? null : WEEKLY_PRACTICE[index];
-  const verseText = entry?.text.replace(/[\p{L}\p{N}][\p{L}\p{M}\p{N}'’\-]*/gu, (word) => word[0]) ?? "";
+  const wordPattern = /[\p{L}\p{N}][\p{L}\p{M}\p{N}'’\-]*/gu;
+  const initialsText = entry?.text.replace(wordPattern, (word) => word[0]) ?? "";
+  let wordIndex = 0;
+  const alternateWordsText = entry?.text.replace(wordPattern, (word) => {
+    wordIndex += 1;
+    return wordIndex % 2 === 0 ? "____" : word;
+  }) ?? "";
+  const displayedText = practiceMode === "initials" ? initialsText : practiceMode === "alternate" ? alternateWordsText : entry?.text ?? "";
   return <section className="mb-4 rounded-3xl border border-amber-200 bg-[#fffaf0] p-4 shadow-sm">
     <h2 className="mt-1 text-xl font-black text-[#10254a]">📖 Verse of the week · ESV</h2>
     {entry ? <>
       <div className="mt-3 rounded-2xl bg-white p-4">
         <p className="text-xs font-black uppercase tracking-wide text-slate-400">{entry.reference}</p>
-        <blockquote className="mt-2 text-base font-semibold leading-relaxed text-[#10254a]">“{firstLettersOnly ? verseText : entry.text}”</blockquote>
-        <button type="button" aria-pressed={firstLettersOnly} onClick={() => setFirstLettersOnly((current) => !current)} className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-[#10254a] px-3 text-xs font-black text-[#10254a]">
-          {firstLettersOnly ? "Show full verse" : "Practice with first letters"}
-        </button>
+        <blockquote className="mt-2 text-base font-semibold leading-relaxed text-[#10254a]">“{displayedText}”</blockquote>
+        <div className="mt-3 flex flex-wrap gap-2" aria-label="Verse memorization practice">
+          {([
+            ["full", "Full verse"],
+            ["initials", "First letters"],
+            ["alternate", "Every other word"],
+          ] as const).map(([mode, label]) => <button key={mode} type="button" aria-pressed={practiceMode === mode} onClick={() => setPracticeMode(mode)} className={`inline-flex min-h-10 items-center rounded-xl border px-3 text-xs font-black ${practiceMode === mode ? "border-[#10254a] bg-[#10254a] text-white" : "border-[#10254a]/30 bg-white text-[#10254a]"}`}>
+            {label}
+          </button>)}
+        </div>
+        {practiceMode === "alternate" && <p className="mt-2 text-xs font-semibold text-slate-500">Say the whole verse, filling in each blank from memory.</p>}
       </div>
     </> : <p className="mt-2 text-sm font-semibold text-slate-500">This week’s verse is on the way…</p>}
     <details className="mt-2 text-[10px] text-slate-400">

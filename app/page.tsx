@@ -7936,7 +7936,7 @@ export default function Home() {
           }}
         >
           {[
-            ["🏠", "Hub"],
+            ["⭐", "Hub"],
             ["🙏", "Prayer"],
             ["🧺", "Food"],
             ["🏟️", "Sports"],

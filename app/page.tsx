@@ -5652,6 +5652,11 @@ export default function Home() {
           </nav>
         )}
         <WeeklyFaithPractice />
+        <div id="today-card" className="mb-2 mt-1 flex items-center gap-2 px-1">
+          <span className="text-lg">☀️</span>
+          <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">Today at a glance</h2>
+          <span className="h-px flex-1 bg-[#e6dfd0]" />
+        </div>
         <div className="mb-3 grid grid-cols-1 gap-3">
           <MerriamWebsterWordOfDay />
           <NorthGeorgiaWeatherCard />
@@ -5699,7 +5704,7 @@ export default function Home() {
         <div className="mb-4 grid grid-cols-1 gap-3 [&_.text-lg]:text-base [&_.text-sm]:text-[13px] [&_.text-xs]:text-[11px]" aria-label="Family home tools">
           <div className="order-1 min-w-0"><TodaysFunHoliday /></div>
           <section className="contents" aria-label="Family checklist and Daisy care">
-          <details id="family-checklist" className="group order-4 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+          <details id="family-checklist" className="group order-7 scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">Family routine</div>
@@ -5801,7 +5806,12 @@ export default function Home() {
             <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut can update the feeding time under the signed-in profile.</p>
           </details>
                   </section>
-          <div className="order-3 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
+          <div className="order-5 mt-1 flex items-center gap-2 px-1">
+            <span className="text-lg">📅</span>
+            <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">This week</h2>
+            <span className="h-px flex-1 bg-[#e6dfd0]" />
+          </div>
+          <div className="order-6 min-w-0"><FamilyMealPlanner playerId={signedInPlayer.id} players={players} /></div>
         </div>
       ) : (
         <div className="mb-4"><TodaysFunHoliday /></div>

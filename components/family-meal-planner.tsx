@@ -43,6 +43,34 @@ function MealPicker({ kind, value, onChange }: { kind: MealKind; value: string; 
   </>;
 }
 
+function SidePicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const selected = value ? value.split(",").map((side) => side.trim()).filter(Boolean) : [];
+  const [customSide, setCustomSide] = useState("");
+  function toggle(side: string) {
+    const next = selected.includes(side) ? selected.filter((item) => item !== side) : [...selected, side];
+    onChange(next.join(", "));
+  }
+  function addCustom(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const side = customSide.trim();
+    if (!side || selected.some((item) => item.toLowerCase() === side.toLowerCase())) return;
+    onChange([...selected, side].join(", "));
+    setCustomSide("");
+  }
+  return <div className="mt-2">
+    <p className="mb-2 text-xs font-medium text-slate-500">Choose as many as you like.</p>
+    <div className="flex flex-wrap gap-2">{MEAL_OPTIONS.sides.map((side) => {
+      const active = selected.includes(side);
+      return <button key={side} type="button" aria-pressed={active} onClick={() => toggle(side)} className={`min-h-10 rounded-full border px-3 py-2 text-xs font-bold ${active ? "border-emerald-800 bg-emerald-800 text-white" : "border-slate-300 bg-white text-slate-700"}`}>{active ? "✓ " : "+ "}{side}</button>;
+    })}</div>
+    <form onSubmit={addCustom} className="mt-2 flex gap-2">
+      <input value={customSide} onChange={(event) => setCustomSide(event.target.value)} maxLength={60} placeholder="Add another side" aria-label="Custom dinner side" className="min-h-10 min-w-0 flex-1 rounded-lg border border-slate-300 px-3 text-sm font-medium text-[#10254a]" />
+      <button type="submit" disabled={!customSide.trim()} className="min-h-10 rounded-lg bg-slate-100 px-3 text-sm font-black text-[#10254a] disabled:opacity-50">Add</button>
+    </form>
+    {selected.length > 0 && <p className="mt-2 text-xs font-semibold text-emerald-900">Selected: {selected.join(", ")}</p>}
+  </div>;
+}
+
 function dateOnly(value: string) {
   return new Date(`${value}T12:00:00`);
 }
@@ -153,7 +181,7 @@ export default function FamilyMealPlanner({ playerId, players }: { playerId: str
               <MealPicker kind={meal} value={day[meal]} onChange={(value) => updateDay(day.date, { [meal]: value })} />
             </label>)}
             <label className="block text-sm font-bold text-slate-700">Dinner sides
-              <MealPicker kind="sides" value={day.dinnerSides} onChange={(value) => updateDay(day.date, { dinnerSides: value })} />
+              <SidePicker value={day.dinnerSides} onChange={(value) => updateDay(day.date, { dinnerSides: value })} />
             </label>
             {(day.dinner || day.dinnerSides) && <div className="rounded-xl bg-emerald-50 p-3">
               <p className="text-xs font-black text-emerald-900">Possible matches in your pantry/freezer</p>

@@ -1,5 +1,4 @@
 import { ImageResponse } from "next/og";
-export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const requested = Number(new URL(request.url).searchParams.get("size"));
   const size = [180, 192, 512].includes(requested) ? requested : 512;

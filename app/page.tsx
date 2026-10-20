@@ -6489,6 +6489,7 @@ export default function Home() {
                 "calc(env(safe-area-inset-bottom, 0px) + 100px)",
             }}
           >
+            <a href="https://stafford-sisters.vercel.app/" target="_blank" rel="noopener noreferrer" className="mb-3 flex min-h-12 items-center justify-between gap-3 rounded-xl border border-[#e6dfd0] bg-white px-4 py-3 text-sm font-black text-[#10254a] shadow-sm"><span>🎬 Stafford Sisters</span><span aria-hidden="true" className="text-[#b28a2e]">↗</span><span className="sr-only">Opens in a new tab</span></a>
             {profileLoading ? (
               <div className="rounded-2xl bg-white p-8 text-center text-sm font-bold text-slate-500 shadow-sm">
                 Opening your profile…

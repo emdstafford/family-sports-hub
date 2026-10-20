@@ -33,7 +33,8 @@ type PantryItem = {
   priceHistory: StorePrice[];
 };
 type GroceryLine = { id: string; name: string; pantryItemId: string | null; addedAt: string; addedBy: string };
-type PantryStore = { items: PantryItem[]; groceries: GroceryLine[] };
+type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number };
+type PantryStore = { items: PantryItem[]; groceries: GroceryLine[]; canning: CanningBatch[] };
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -62,13 +63,13 @@ async function ensureBucket(db: ReturnType<typeof getAdminClient>) {
 async function readStore(db: ReturnType<typeof getAdminClient>, familyId: string): Promise<PantryStore> {
   await ensureBucket(db);
   const { data, error } = await db.storage.from(BUCKET).download(familyId + "/pantry.json");
-  if (error || !data) return { items: [], groceries: [] };
+  if (error || !data) return { items: [], groceries: [], canning: [] };
   try {
     const parsed = JSON.parse(await data.text());
-    return { items: Array.isArray(parsed.items) ? parsed.items.filter((item: unknown): item is PantryItem =>
+    return { canning: Array.isArray(parsed.canning) ? parsed.canning.filter((batch: unknown) => typeof batch === "object" && batch !== null && "id" in batch && "name" in batch) : [], items: Array.isArray(parsed.items) ? parsed.items.filter((item: unknown): item is PantryItem =>
       typeof item === "object" && item !== null && "id" in item && typeof item.id === "string" && "name" in item && typeof item.name === "string" && "quantity" in item && Number.isFinite(Number(item.quantity))
     ).map((item: PantryItem) => ({ ...item, lowAt: Number.isFinite(Number(item.lowAt)) ? Number(item.lowAt) : 1, expirationDate: typeof item.expirationDate === "string" ? item.expirationDate : null, frozenAt: typeof item.frozenAt === "string" ? item.frozenAt : null })) : [], groceries: Array.isArray(parsed.groceries) ? parsed.groceries : [] };
-  } catch { return { items: [], groceries: [] }; }
+  } catch { return { items: [], groceries: [], canning: [] }; }
 }
 async function writeStore(db: ReturnType<typeof getAdminClient>, familyId: string, store: PantryStore) {
   await ensureBucket(db);
@@ -92,7 +93,7 @@ export async function GET(request: Request) {
     if (!(await verifySession(db, playerId, token))) return NextResponse.json({ error: "Your FamBam session has expired." }, { status: 401 });
     const familyId = await getFamilyId(db);
     const store = await readStore(db, familyId);
-    return NextResponse.json({ items: store.items.sort((a, b) => a.name.localeCompare(b.name)), groceries: store.groceries });
+    return NextResponse.json({ items: store.items.sort((a, b) => a.name.localeCompare(b.name)), groceries: store.groceries, canning: store.canning });
   } catch (error) {
     console.error("Pantry GET failed:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not load the pantry." }, { status: 500 });
@@ -112,7 +113,27 @@ export async function POST(request: Request) {
     const store = await readStore(db, familyId);
     const action = cleanText(body?.action, 24);
 
-    if (action === "grocery-add") {
+    if (action === "canning-add") {
+      const name = cleanText(body?.name, 100);
+      const jarsMade = numberOrNull(body?.jarsMade) ?? 0;
+      const jarSize = cleanText(body?.jarSize, 30);
+      const cannedAt = cleanText(body?.cannedAt, 10) || new Date().toISOString().slice(0, 10);
+      const ingredients = Array.isArray(body?.ingredients) ? body.ingredients.map((entry) => {
+        const row = entry && typeof entry === "object" ? entry as Record<string, unknown> : {};
+        return { name: cleanText(row.name, 100), cost: numberOrNull(row.cost) ?? -1 };
+      }).filter((entry) => entry.name && entry.cost >= 0) : [];
+      if (!name || !jarSize || !Number.isInteger(jarsMade) || jarsMade < 1 || !ingredients.length) return NextResponse.json({ error: "Add a name, jar size, number of jars, and ingredient costs." }, { status: 400 });
+      const totalCost = Math.round(ingredients.reduce((sum, entry) => sum + entry.cost, 0) * 100) / 100;
+      store.canning.unshift({ id: randomUUID(), name, cannedAt, jarSize, jarsMade, jarsUsed: 0, ingredients, totalCost, costPerJar: Math.round(totalCost / jarsMade * 100) / 100 });
+    } else if (action === "canning-use" || action === "canning-delete") {
+      const batch = store.canning.find((entry) => entry.id === String(body?.batchId ?? ""));
+      if (!batch) return NextResponse.json({ error: "That canning batch could not be found." }, { status: 404 });
+      if (action === "canning-use") {
+        const amount = numberOrNull(body?.amount) ?? 0;
+        if (!Number.isInteger(amount) || amount < 1 || batch.jarsUsed + amount > batch.jarsMade) return NextResponse.json({ error: "Enter a valid number of jars used." }, { status: 400 });
+        batch.jarsUsed += amount;
+      } else store.canning = store.canning.filter((entry) => entry.id !== batch.id);
+    } else if (action === "grocery-add") {
       const name = cleanText(body?.name);
       if (!name) return NextResponse.json({ error: "Enter a grocery item." }, { status: 400 });
       let item = store.items.find((row) => row.name.toLowerCase() === name.toLowerCase());

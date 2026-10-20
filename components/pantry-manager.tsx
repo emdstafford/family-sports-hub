@@ -12,8 +12,9 @@ type PantryItem = {
   rating: Rating; notes: string; updatedAt: string; priceHistory: PriceRow[];
 };
 type GroceryLine = { id: string; name: string; pantryItemId: string | null; addedAt: string; addedBy: string };
+type CanningBatch = { id: string; name: string; cannedAt: string; jarSize: string; jarsMade: number; jarsUsed: number; ingredients: { name: string; cost: number }[]; totalCost: number; costPerJar: number };
 const STORES = ["Costco", "Aldi", "Walmart", "Ingles", "Save A Lot", "Other"];
-const CATEGORIES = ["Meat", "Freezer", "Pantry", "Fridge", "Other"];
+const CATEGORIES = ["Meat", "Freezer", "Canned Goods", "Pantry", "Fridge", "Other"];
 const RATINGS: { value: Rating; label: string }[] = [
   { value: "not_tried", label: "Haven’t tried" }, { value: "love", label: "Loved it" },
   { value: "okay", label: "It was okay" }, { value: "no_thanks", label: "Didn’t like" },
@@ -41,6 +42,13 @@ async function responseJson(response: Response) {
 export default function PantryManager({ playerId }: { playerId: string }) {
   const [items, setItems] = useState<PantryItem[]>([]);
   const [groceries, setGroceries] = useState<GroceryLine[]>([]);
+  const [canning, setCanning] = useState<CanningBatch[]>([]);
+  const [canningName, setCanningName] = useState("");
+  const [canningDate, setCanningDate] = useState(new Date().toISOString().slice(0, 10));
+  const [jarSize, setJarSize] = useState("pint");
+  const [jarsMade, setJarsMade] = useState("1");
+  const [ingredientLines, setIngredientLines] = useState("");
+  const [canningYear, setCanningYear] = useState(String(new Date().getFullYear()));
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +84,7 @@ export default function PantryManager({ playerId }: { playerId: string }) {
       if (!response.ok) throw new Error(data.error ?? "Could not load pantry items.");
       setItems(Array.isArray(data.items) ? data.items : []);
       setGroceries(Array.isArray(data.groceries) ? data.groceries : []);
+      setCanning(Array.isArray(data.canning) ? data.canning : []);
       setError(null);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not load pantry items."); }
     finally { setLoading(false); }
@@ -98,6 +107,16 @@ export default function PantryManager({ playerId }: { playerId: string }) {
     const ok = await submit({ action: "purchase", name, category, store, packages: Number(packages), packageSize: Number(packageSize), packageUnit, expirationDate: expirationDate || null, frozenAt: frozenAt || null, price: price ? Number(price) : null, stockUpUnitPrice: stockUpPrice ? Number(stockUpPrice) : null, rating, notes });
     if (ok) { setName(""); setPackages("1"); setPrice(""); setStockUpPrice(""); setRating("not_tried"); setNotes(""); setStore(""); setExpirationDate(""); setFrozenAt(""); setFormOpen(false); }
   }
+  async function addCanningBatch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const ingredients = ingredientLines.split("\n").map((line) => {
+      const splitAt = line.lastIndexOf(",");
+      return splitAt < 0 ? null : { name: line.slice(0, splitAt).trim(), cost: Number(line.slice(splitAt + 1).replace(/[$\s]/g, "")) };
+    }).filter((entry): entry is { name: string; cost: number } => Boolean(entry?.name) && Number.isFinite(entry?.cost) && entry!.cost >= 0);
+    if (!ingredients.length) { setError("Add at least one ingredient as: Ingredient name, cost"); return; }
+    const ok = await submit({ action: "canning-add", name: canningName, cannedAt: canningDate, jarSize, jarsMade: Number(jarsMade), ingredients });
+    if (ok) { setCanningName(""); setJarsMade("1"); setIngredientLines(""); }
+  }
   function chooseCommonFood(food: string) {
     setName(food); setCategory("Meat"); setPackageUnit("lb"); setPackageSize("1"); setPackages("1"); setFormOpen(true);
     window.setTimeout(() => document.getElementById("pantry-food-name")?.focus(), 0);
@@ -115,6 +134,13 @@ export default function PantryManager({ playerId }: { playerId: string }) {
   }
   const visibleItems = useMemo(() => filter === "All" ? items : items.filter((item) => item.category === filter), [items, filter]);
   const lowStockCount = items.filter((item) => item.quantity <= (item.lowAt ?? 1)).length;
+  const canningYears = [...new Set([String(new Date().getFullYear()), ...canning.map((batch) => batch.cannedAt.slice(0, 4))])].sort().reverse();
+  const yearBatches = canning.filter((batch) => batch.cannedAt.startsWith(canningYear));
+  const yearlyStats = yearBatches.reduce((summary, batch) => {
+    const row = summary[batch.name] ?? { made: 0, used: 0, batches: 0 };
+    row.made += batch.jarsMade; row.used += batch.jarsUsed; row.batches += 1; summary[batch.name] = row;
+    return summary;
+  }, {} as Record<string, { made: number; used: number; batches: number }>);
 
   return <section className="fambam-light-forms mx-auto max-w-5xl px-3 py-4">
     <header className="mb-4 rounded-3xl bg-[#06284a] p-5 text-white shadow-sm">
@@ -136,6 +162,25 @@ export default function PantryManager({ playerId }: { playerId: string }) {
       </form>
       {groceries.length > 0 ? <ul className="mt-3 divide-y divide-amber-200 rounded-xl bg-white px-3">{groceries.map((line) => <li key={line.id} className="flex items-center justify-between gap-2 py-2.5"><span className="min-w-0 flex-1 text-sm font-bold text-[#10254a]">{line.name}<span className="ml-1 text-[10px] font-medium text-slate-400">· {line.addedBy}</span></span><button disabled={busy} onClick={() => void submit({ action: "grocery-bought", groceryId: line.id })} className="min-h-10 rounded-lg bg-green-100 px-3 text-xs font-black text-green-800">Bought +1</button><button disabled={busy} aria-label={`Remove ${line.name} from grocery list`} onClick={() => void submit({ action: "grocery-remove", groceryId: line.id })} className="min-h-10 rounded-lg px-2 text-lg font-black text-slate-400">×</button></li>)}</ul> : <p className="mt-3 text-xs font-semibold text-slate-500">Nothing on the list yet.</p>}
     </div>
+
+    <details className="mb-4 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
+      <summary className="cursor-pointer list-none text-lg font-black text-[#10254a]">🫙 Canning costs & yearly use <span className="text-sm font-semibold text-slate-500">· {canning.length} batches</span></summary>
+      <p className="mt-2 text-sm text-slate-600">Record each batch’s ingredient costs and jar yield. The app calculates cost per pint, quart, or other jar size, and tracks jars used so you can plan next year.</p>
+      <form onSubmit={addCanningBatch} className="mt-3 rounded-xl bg-emerald-50 p-3">
+        <h3 className="text-sm font-black text-emerald-950">Add a batch</h3>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <label className="col-span-2 text-xs font-bold text-slate-600 sm:col-span-1">What did you can?<input required value={canningName} onChange={(event) => setCanningName(event.target.value)} placeholder="Green beans" className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" /></label>
+          <label className="text-xs font-bold text-slate-600">Date canned<input required type="date" value={canningDate} onChange={(event) => setCanningDate(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2.5 text-sm" /></label>
+          <label className="text-xs font-bold text-slate-600">Jar size<select value={jarSize} onChange={(event) => setJarSize(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2.5 text-sm">{["half-pint", "pint", "quart", "half-gallon", "gallon", "other"].map((size) => <option key={size}>{size}</option>)}</select></label>
+          <label className="text-xs font-bold text-slate-600">Jars made<input required min="1" step="1" type="number" value={jarsMade} onChange={(event) => setJarsMade(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" /></label>
+        </div>
+        <label className="mt-2 block text-xs font-bold text-slate-600">Ingredients and cost for this batch <span className="font-medium">(one per line: ingredient, cost)</span><textarea required rows={3} value={ingredientLines} onChange={(event) => setIngredientLines(event.target.value)} placeholder={"Green beans, 12.00\nVinegar, 2.49\nSalt, 0.25"} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm" /></label>
+        <button disabled={busy} className="mt-2 min-h-11 rounded-lg bg-[#10254a] px-4 py-2 text-sm font-black text-white disabled:opacity-50">{busy ? "Saving…" : "Save batch & calculate cost per jar"}</button>
+      </form>
+      <div className="mt-3 flex items-center justify-between gap-2"><h3 className="text-sm font-black text-[#10254a]">Yearly totals</h3><select aria-label="Canning year" value={canningYear} onChange={(event) => setCanningYear(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold">{canningYears.map((year) => <option key={year}>{year}</option>)}</select></div>
+      {Object.keys(yearlyStats).length > 0 ? <div className="mt-2 grid gap-2 sm:grid-cols-2">{Object.entries(yearlyStats).map(([product, stats]) => <article key={product} className="rounded-xl border border-slate-200 p-3"><p className="font-black text-[#10254a]">{product}</p><p className="text-sm text-slate-600">{stats.made} jars canned · {stats.used} used · {stats.made - stats.used} remaining · {stats.batches} {stats.batches === 1 ? "batch" : "batches"}</p></article>)}</div> : <p className="mt-2 text-sm text-slate-500">No batches recorded for {canningYear} yet.</p>}
+      <div className="mt-3 space-y-2">{yearBatches.map((batch) => <article key={batch.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3"><div><p className="font-bold text-[#10254a]">{batch.name} · {batch.jarSize} · {batch.cannedAt}</p><p className="text-xs text-slate-600">${batch.totalCost.toFixed(2)} batch cost ÷ {batch.jarsMade} jars = <b>${batch.costPerJar.toFixed(2)} per jar</b> · {batch.jarsMade - batch.jarsUsed} left</p><p className="text-xs text-slate-500">{batch.ingredients.map((ingredient) => `${ingredient.name} $${ingredient.cost.toFixed(2)}`).join(" · ")}</p></div><div className="flex gap-2"><button type="button" disabled={busy || batch.jarsUsed >= batch.jarsMade} onClick={() => void submit({ action: "canning-use", batchId: batch.id, amount: 1 })} className="min-h-10 rounded-lg bg-emerald-100 px-3 text-xs font-black text-emerald-900 disabled:opacity-50">Used 1 jar</button><button type="button" disabled={busy} onClick={() => { if (window.confirm(`Delete the ${batch.name} batch?`)) void submit({ action: "canning-delete", batchId: batch.id }); }} aria-label={`Delete ${batch.name} batch`} className="min-h-10 rounded-lg px-2 text-lg font-black text-slate-400">×</button></div></article>)}</div>
+    </details>
 
     <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="text-lg font-black">Quick add</h2>

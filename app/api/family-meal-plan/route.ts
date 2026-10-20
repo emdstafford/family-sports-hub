@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 const BUCKET = "fambam-family-tools";
 const MEALS = ["breakfast", "lunch", "dinner"] as const;
 type MealName = (typeof MEALS)[number];
-type DayPlan = { theme: string; chosenByPlayerId: string | null; breakfast: string; lunch: string; dinner: string };
+type DayPlan = { breakfast: string; lunch: string; dinner: string; dinnerSides: string };
 type MealStore = { days: Record<string, DayPlan> };
 
 function getAdminClient() {
@@ -69,7 +69,7 @@ async function writeStore(db: ReturnType<typeof getAdminClient>, familyId: strin
 }
 
 function blankDay(): DayPlan {
-  return { theme: "", chosenByPlayerId: null, breakfast: "", lunch: "", dinner: "" };
+  return { breakfast: "", lunch: "", dinner: "", dinnerSides: "" };
 }
 
 export async function GET(request: Request) {
@@ -101,8 +101,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null) as {
       playerId?: string;
       date?: string;
-      theme?: string;
-      chosenByPlayerId?: string | null;
+      dinnerSides?: string;
       meals?: Partial<Record<MealName, string>>;
     } | null;
     const playerId = String(body?.playerId ?? "");
@@ -119,11 +118,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Choose a day in this Sunday-to-Saturday meal plan." }, { status: 400 });
     }
     const meals = Object.fromEntries(MEALS.map((meal) => [meal, String(body?.meals?.[meal] ?? "").trim().slice(0, 120)])) as Pick<DayPlan, MealName>;
-    const theme = String(body?.theme ?? "").trim().slice(0, 60);
-    const chosenByPlayerId = body?.chosenByPlayerId ? String(body.chosenByPlayerId).slice(0, 100) : null;
+    const dinnerSides = String(body?.dinnerSides ?? "").trim().slice(0, 240);
     const familyId = await getFamilyId(db);
     const store = await readStore(db, familyId);
-    store.days[date] = { ...meals, theme, chosenByPlayerId };
+    store.days[date] = { ...meals, dinnerSides };
     await writeStore(db, familyId, store);
     return NextResponse.json({ ok: true, date });
   } catch (error) {

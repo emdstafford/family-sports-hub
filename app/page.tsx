@@ -5660,7 +5660,7 @@ export default function Home() {
           <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">Today at a glance</h2>
           <span className="h-px flex-1 bg-[#e6dfd0]" />
         </div>
-        <div className="mb-3 grid grid-cols-2 items-start gap-3 [&>*]:min-w-0">
+        <div className="mb-3 grid grid-cols-2 items-stretch gap-3 [&>*]:min-w-0">
           <NorthGeorgiaWeatherCard />
           {signedInPlayer ? (          <details id="daisy-care" className="group scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">

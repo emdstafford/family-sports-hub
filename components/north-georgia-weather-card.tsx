@@ -33,9 +33,10 @@ export default function NorthGeorgiaWeatherCard() {
     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
       <span className="min-w-0"><span className="block text-[10px] font-black uppercase tracking-[0.18em] text-[#47718e]">Weather around home · Blairsville</span>
         {weather ? <span className="mt-1 flex items-center gap-2 text-base font-black text-[#10254a]"><span aria-hidden="true">{icon}</span>{weather.temperature}° <span className="truncate text-xs font-bold text-slate-600">{description}</span></span> : <span className="mt-1 block text-sm font-semibold text-slate-500">{loading ? "Checking current conditions…" : "Conditions unavailable"}</span>}
+        {weather && <span className="mt-2 block text-xs font-bold text-slate-600">High {weather.high}° · Low {weather.low}°</span>}
       </span>
       <span aria-hidden="true" className="text-lg text-[#10254a] transition-transform group-open:rotate-180">⌄</span>
     </summary>
-    {weather && <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[#d7e5ef] pt-3 text-xs font-bold text-slate-600"><span>Feels like {weather.feelsLike}°</span><span>H {weather.high}° / L {weather.low}°</span>{weather.rainChance !== null && <span>Rain {weather.rainChance}%</span>}<span>Wind {weather.wind} mph</span><span className="w-full text-[10px] font-medium text-slate-400">Quick snapshot from Open-Meteo</span></div>}
+    {weather && <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[#d7e5ef] pt-3 text-xs font-bold text-slate-600"><span>Feels like {weather.feelsLike}°</span>{weather.rainChance !== null && <span>Rain {weather.rainChance}%</span>}<span>Wind {weather.wind} mph</span><span className="w-full text-[10px] font-medium text-slate-400">Quick snapshot from Open-Meteo</span></div>}
   </details>;
 }

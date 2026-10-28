@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 
-export const revalidate = 900;
-
 type Story = { title: string; link: string; source: string; publishedAt: string; topic: string };
 const feeds = [
   { topic: "Arsenal", q: "Arsenal FC match result cup upset" },

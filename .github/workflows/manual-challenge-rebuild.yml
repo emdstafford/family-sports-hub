@@ -42,3 +42,5 @@ jobs:
 # Triggered 2026-10-02 after FBS-only importer deployed.
 
 # Triggered 2026-10-28 to rebuild the 10-game card after user confirmed no picks saved.
+
+# Rebuild requested October 28 after football feed filter correction.

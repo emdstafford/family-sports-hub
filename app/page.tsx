@@ -1572,11 +1572,11 @@ export default function Home() {
   const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist" | "Meal Plan">(() => {
+    useState<"Home" | "Sports" | "Sports Buzz" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist" | "Meal Plan">(() => {
       if (typeof window === "undefined") return "Home";
       const saved = window.sessionStorage.getItem("souther-ladies-active-section");
-      const allowed = ["Home", "Sports", "Challenge", "Events", "Locker Room", "Trophy Room", "Gifts", "Food", "Prayer", "House", "Checklist", "Meal Plan"];
-      return allowed.includes(saved || "") ? saved as "Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist" | "Meal Plan" : "Home";
+      const allowed = ["Home", "Sports", "Sports Buzz", "Challenge", "Events", "Locker Room", "Trophy Room", "Gifts", "Food", "Prayer", "House", "Checklist", "Meal Plan"];
+      return allowed.includes(saved || "") ? saved as "Home" | "Sports" | "Sports Buzz" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist" | "Meal Plan" : "Home";
     });
 
   useEffect(() => {
@@ -5650,7 +5650,7 @@ export default function Home() {
             <h1 className="mt-1 text-3xl font-black">Your sports hub</h1>
             <p className="mt-2 text-sm font-semibold text-blue-100">Challenges, family events, favorite teams, and trophies in one place.</p>
           </div>
-          <nav aria-label="Sports sections" className="mt-3 grid grid-cols-4 gap-2">
+          <nav aria-label="Sports sections" className="mt-3 grid grid-cols-5 gap-2">\n            <button type="button" onClick={() => setActiveSection("Sports Buzz")} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">\n              <span className="block text-lg">📰</span><span className="mt-1 block text-[10px] font-black leading-tight">Sports Buzz</span>\n            </button>
             <button type="button" onClick={() => openPicks()} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
               <span className="block text-lg">🎯</span><span className="mt-1 block text-[10px] font-black leading-tight">Challenge</span>
             </button>

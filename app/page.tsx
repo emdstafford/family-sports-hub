@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import StandingsHub from "@/components/standings-hub";
 import GiftManager from "@/components/gift-manager";
+import SportsBuzz from "@/components/sports-buzz";
 
 type Player = {
   id: string;
@@ -5516,6 +5517,7 @@ export default function Home() {
             <h1 className="mt-1 text-3xl font-black">Your sports hub</h1>
             <p className="mt-2 text-sm font-semibold text-blue-100">Challenges, family events, favorite teams, and trophies in one place.</p>
           </div>
+          <SportsBuzz />
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <button type="button" onClick={() => openPicks()} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
               <span className="text-2xl">🎯</span><span className="mt-2 block text-lg font-black">Family Challenge</span><span className="mt-1 block text-sm font-semibold text-slate-500">Make picks across this week’s games.</span>

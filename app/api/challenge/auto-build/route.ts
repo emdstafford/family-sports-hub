@@ -24,7 +24,7 @@ const TARGET_GAMES = 10;
 function normalize(value: string) { return value.toLowerCase().replace(/\b(fc|afc)\b/g, "").replace(/[^a-z0-9]/g, ""); }
 function exactTeam(name: string, target: string) { return normalize(name) === normalize(target); }
 function isChallengeSoccerTeam(name: string) { return ["Arsenal", "Liverpool", "Aston Villa"].some((team) => exactTeam(name, team)); }
-function isKentucky(name: string) { const n = normalize(name); return n === "kentucky" || n === "kentuckywildcats"; }
+function isKentucky(name: string) { const n = normalize(name); return n === "kentucky" || n === "kentuckywildcats" || n === "universityofkentucky"; }
 function isGeorgia(name: string) { const n = normalize(name); return n === "georgia" || n === "georgiabulldogs"; }
 function getRank(name: string, rankingMap: Map<string, number>) {
   const n = normalize(name); const exact = rankingMap.get(n); if (exact !== undefined) return exact;
@@ -113,10 +113,10 @@ export async function POST(request: Request) {
 
       if (sport === "Soccer") {
         if (!isChallengeSoccerTeam(home) && !isChallengeSoccerTeam(away)) continue;
-        candidates.push({ game, home, away, sport, homeRank: null, awayRank: null, score: 2000, mandatory: true, reason: "Arsenal/Liverpool/Aston Villa" });
+        candidates.push({ game, home, away, sport, homeRank: null, awayRank: null, score: 850, mandatory: false, reason: "Major family soccer match" });
         continue;
       }
-      if (sport === "College Basketball" || sport === "College Basketball Men" || sport === "College Basketball Women" || sport === "Men's College Basketball" || sport === "Women's College Basketball") {
+      if (sport === "College Basketball" || sport === "College Basketball Men" || sport === "Men's College Basketball") {
         // Exhibition and scrimmage games may be watched, but are not eligible for family picks.
         if (/exhibition|scrimmage|preseason/i.test(notes)) continue;
         const kentucky = isKentucky(home) || isKentucky(away);
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
       const homeRank = getRank(home, rankingMap); const awayRank = getRank(away, rankingMap);
       let score = 30; let mandatory = false; let worthy = false; let reason = "Best available college football game";
       if (isKentucky(home) || isKentucky(away)) { mandatory = true; worthy = true; score += 1800; reason = "Kentucky football"; }
-      else if (isGeorgia(home) || isGeorgia(away)) { mandatory = true; worthy = true; score += 1750; reason = "Georgia football"; }
+      else if (isGeorgia(home) || isGeorgia(away)) { worthy = true; score += 350; reason = "Georgia football"; }
       const topTen = (homeRank !== null && homeRank <= 10) || (awayRank !== null && awayRank <= 10);
       if (topTen) { worthy = true; score += 900; if (reason === "Best available college football game") { const rank = homeRank !== null && homeRank <= 10 ? homeRank : awayRank; reason = `AP Top 10 team (#${rank})`; } }
       if (homeRank !== null && awayRank !== null) { worthy = true; score += 700 + Math.max(0, 80 - homeRank - awayRank); if (reason === "Best available college football game") reason = `Big ranked matchup: #${awayRank} vs #${homeRank}`; }
@@ -150,6 +150,29 @@ export async function POST(request: Request) {
     if (!reset) for (const row of existing) protectedIds.add(row.game_id);
     const selected: Candidate[] = [];
     const fillFrom = (pool: Candidate[]) => { for (const candidate of pool) { if (protectedIds.has(candidate.game.id) || selected.some((row) => row.game.id === candidate.game.id)) continue; if (protectedIds.size + selected.length >= TARGET_GAMES) break; selected.push(candidate); } };
+    // Reserve a place for every available Kentucky football/men's basketball game.
+    // The remaining spots are a balanced 5 football, 3 men's basketball, 2 soccer.
+    const quotas: Record<string, number> = { "College Football": 5, "Men's Basketball": 3, Soccer: 2 };
+    const group = (sport: string) => sport === "Soccer" ? "Soccer" : sport === "College Football" ? "College Football" : "Men's Basketball";
+    const selectedCounts = () => {
+      const counts: Record<string, number> = {};
+      for (const row of selected) counts[group(row.sport)] = (counts[group(row.sport)] ?? 0) + 1;
+      return counts;
+    };
+    for (const candidate of candidates.filter(row => row.mandatory)) {
+      if (protectedIds.size + selected.length >= TARGET_GAMES) break;
+      if (!selected.some(row => row.game.id === candidate.game.id)) selected.push(candidate);
+    }
+    for (const category of ["College Football", "Men's Basketball", "Soccer"]) {
+      for (const candidate of [...candidates, ...fallbackCandidates]) {
+        if (group(candidate.sport) !== category) continue;
+        if ((selectedCounts()[category] ?? 0) >= quotas[category]) break;
+        if (protectedIds.size + selected.length >= TARGET_GAMES) break;
+        if (protectedIds.has(candidate.game.id) || selected.some(row => row.game.id === candidate.game.id)) continue;
+        selected.push(candidate);
+      }
+    }
+    // Seasonal fallback: redistribute empty basketball/football/soccer slots.
     fillFrom(candidates); fillFrom(fallbackCandidates);
 
     const desiredIds = new Set([...protectedIds, ...selected.map((row) => row.game.id)]);

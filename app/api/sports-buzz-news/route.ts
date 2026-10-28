@@ -20,7 +20,7 @@ function decode(s: string) {
     .replace(/&#(\\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)));
 }
 function field(xml: string, tag: string) {
-  const m = xml.match(new RegExp("<" + tag + "(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/" + tag + ">", "i"));
+  const m = xml.match(new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)<\\/" + tag + ">", "i"));
   return m ? decode(m[1]).trim() : "";
 }
 export async function GET() {

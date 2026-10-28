@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 
 type Game = { id: string; sport: string; competition: string; home: string; away: string; startsAt: string | null; homeScore: number | null; awayScore: number | null; status: string; sourceNotes?: string | null };
-const favorites = ["arsenal", "aston villa", "liverpool", "wimbledon", "kentucky", "canucks", "braves", "cubs", "georgia", "rock lobsters"];
+const favorites = ["arsenal", "aston villa", "liverpool", "afc wimbledon", "university of kentucky", "kentucky wildcats", "canucks", "braves", "cubs", "georgia bulldogs", "rock lobsters"];
+const familyTeam = (team: string) => {
+  const name = team.toLowerCase();
+  if (/western kentucky|wku|hilltoppers/.test(name)) return false;
+  if (/^kentucky(?:\s+(?:wildcats|football|basketball|volleyball|hockey))?$/.test(name)) return true;
+  return favorites.some(favorite => name.includes(favorite));
+};
+const relevantGame = (game: Game) => familyTeam(game.home) || familyTeam(game.away);
 const cup = /fa cup|carabao|efl cup|league cup|champions league|europa league|conference league|playoff|tournament|world series|stanley cup|march madness/i;
 const dateLabel = (value: string | null) => value ? new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" }).format(new Date(value)) : "Date TBD";
 
@@ -32,12 +39,12 @@ export default function SportsBuzz() {
     return games.filter((game) => {
       if (!game.startsAt || !Number.isFinite(Date.parse(game.startsAt))) return false;
       const delta = Date.parse(game.startsAt) - now;
-      const relevant = favorites.some((name) => (game.home + " " + game.away).toLowerCase().includes(name));
+      const relevant = relevantGame(game);
       const knockout = cup.test(game.competition);
-      const final = /final|finished|complete|closed/i.test(game.status) && game.homeScore != null && game.awayScore != null;
+      const final = /final|finished|completed?|closed/i.test(game.status) && game.homeScore != null && game.awayScore != null;
       return (relevant || knockout) && (final ? delta > -7 * 86400000 && delta <= 0 : delta > 0 && delta < 4 * 86400000);
     }).sort((a,b) => {
-      const score = (g: Game) => (favorites.some(n => (g.home+" "+g.away).toLowerCase().includes(n)) ? 100 : 0) + (cup.test(g.competition) ? 30 : 0) + (/final|finished|complete|closed/i.test(g.status) ? 20 : 0);
+      const score = (g: Game) => (relevantGame(g) ? 100 : 0) + (cup.test(g.competition) ? 30 : 0) + (/final|finished|completed?|closed/i.test(g.status) ? 20 : 0);
       return score(b)-score(a) || Math.abs(Date.parse(a.startsAt!)-now)-Math.abs(Date.parse(b.startsAt!)-now);
     }).slice(0, 12);
   }, [games]);
@@ -62,15 +69,18 @@ export default function SportsBuzz() {
     </div>
     {stories.length === 0 ? <p className="mt-4 text-sm text-slate-500">{loading ? "Checking the latest games…" : "No major games to highlight right now. Check back soon!"}</p> : <div className="mt-3 space-y-3">
       {(expanded ? stories : stories.slice(0,3)).map((g) => {
-        const final = /final|finished|complete|closed/i.test(g.status) && g.homeScore != null && g.awayScore != null;
+        const final = /final|finished|completed?|closed/i.test(g.status) && g.homeScore != null && g.awayScore != null;
         const knockout = cup.test(g.competition);
         const draw = final && g.homeScore === g.awayScore;
         const winner = final && !draw ? (g.homeScore! > g.awayScore! ? g.home : g.away) : null;
         return <article key={g.id} className="rounded-2xl border border-slate-200 bg-[#fbfcff] p-3">
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#84651a]"><span>{knockout ? "🏆 Cup / tournament" : "⭐ Family team"}</span><span className="text-slate-400">· {dateLabel(g.startsAt)}</span></div>
-          <h3 className="mt-1 font-black text-[#06284a]">{g.home} {final ? g.homeScore : "vs"} {final ? "– " + g.awayScore : ""} {g.away}</h3>
+          <h3 className="mt-1 text-lg font-black text-[#06284a]">{final ? (winner ? (familyTeam(winner) ? winner + " take the win! 🎉" : (relevantGame(g) ? "A tough result for our family team 😭" : winner + " win!")) : "A dramatic draw! 🤝") : "Coming up: " + g.home + " vs " + g.away}</h3>
+          <p className="mt-2 font-bold text-[#06284a]">{g.home} {final ? g.homeScore : "vs"} {final ? "– " + g.awayScore : ""} {g.away}</p>
           <p className="text-xs font-semibold text-slate-500">{g.competition}</p>
+          <p className="mt-3 text-sm text-slate-700"><strong>Here's what happened: </strong>{final ? (winner ? winner + " finished ahead on the recorded score." : "The teams finished level on the recorded score.") : "This match is coming up. We'll update the story after the result."}</p>
           <p className="mt-2 text-sm text-slate-700"><strong>Why it matters: </strong>{final && knockout && winner ? winner + " won the recorded match. In a single-leg knockout, the winner advances; multi-leg ties and some formats work differently." : draw && knockout ? "Level at full time. Extra time, penalties, or another leg may decide who advances." : final ? "Final result recorded. League standings or tournament implications depend on the competition." : knockout ? "An upcoming cup or tournament game — advancement rules depend on the round and competition." : "Upcoming game involving a family favorite."}</p>
+          {relevantGame(g) && <p className="mt-2 text-xs font-bold text-[#84651a]">💛 A game involving one of our family teams</p>}
         </article>;
       })}
       {stories.length > 3 && <button type="button" onClick={() => setExpanded(v => !v)} className="w-full rounded-xl bg-[#06284a] px-4 py-2 text-sm font-bold text-white">{expanded ? "Show fewer stories" : "See all " + stories.length + " stories"}</button>}

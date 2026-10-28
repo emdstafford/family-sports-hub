@@ -14,13 +14,13 @@ const feeds = [
   { topic: "Braves", q: "Atlanta Braves baseball game" },
 ];
 function decode(s: string) {
-  return s.replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1")
+  return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&#(\\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)));
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)));
 }
 function field(xml: string, tag: string) {
-  const m = xml.match(new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)<\\/" + tag + ">", "i"));
+  const m = xml.match(new RegExp("<" + tag + "(?:\s[^>]*)?>([\s\S]*?)<\/" + tag + ">", "i"));
   return m ? decode(m[1]).trim() : "";
 }
 export async function GET() {
@@ -29,19 +29,19 @@ export async function GET() {
     const response = await fetch(url, { next: { revalidate: 900 }, signal: AbortSignal.timeout(9000) });
     if (!response.ok) throw new Error("Feed unavailable");
     const xml = await response.text();
-    return [...xml.matchAll(/<item>([\\s\\S]*?)<\\/item>/g)].slice(0, 5).map(m => {
+    return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 5).map(m => {
       const item = m[1];
-      const title = field(item, "title").replace(/\\s+-\\s+[^-]+$/, "");
+      const title = field(item, "title").replace(/\s+-\s+[^-]+$/, "");
       const link = field(item, "link");
       const source = field(item, "source") || "Google News";
       const publishedAt = field(item, "pubDate");
-      if (!title || !/^https:\\/\\//.test(link) || !Number.isFinite(Date.parse(publishedAt))) return null;
+      if (!title || !/^https:\/\//.test(link) || !Number.isFinite(Date.parse(publishedAt))) return null;
       return { title, link, source, publishedAt, topic };
     }).filter((s): s is Story => s !== null);
   }));
   const seen = new Set<string>();
   const stories = settled.flatMap(r => r.status === "fulfilled" ? r.value : [])
-    .filter(s => !/western kentucky|\\bWKU\\b|hilltoppers/i.test(s.title))
+    .filter(s => !/western kentucky|\bWKU\b|hilltoppers/i.test(s.title))
     .filter(s => { const key = s.title.toLowerCase(); if (seen.has(key)) return false; seen.add(key); return true; })
     .sort((a,b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).slice(0, 24);
   return NextResponse.json({ stories, updatedAt: new Date().toISOString(), available: settled.some(r => r.status === "fulfilled") });

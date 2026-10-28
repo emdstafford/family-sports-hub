@@ -1572,7 +1572,16 @@ export default function Home() {
   const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist" | "Meal Plan">("Home");
+    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist" | "Meal Plan">(() => {
+      if (typeof window === "undefined") return "Home";
+      const saved = window.sessionStorage.getItem("souther-ladies-active-section");
+      const allowed = ["Home", "Sports", "Challenge", "Events", "Locker Room", "Trophy Room", "Gifts", "Food", "Prayer", "House", "Checklist", "Meal Plan"];
+      return allowed.includes(saved || "") ? saved as "Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist" | "Meal Plan" : "Home";
+    });
+
+  useEffect(() => {
+    window.sessionStorage.setItem("souther-ladies-active-section", activeSection);
+  }, [activeSection]);
 
   useEffect(() => {
     const section = new URL(window.location.href).searchParams.get("section");

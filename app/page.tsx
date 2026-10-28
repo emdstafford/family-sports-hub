@@ -7729,7 +7729,7 @@ export default function Home() {
       {/* APP NAV */}
       <nav className={`fixed inset-x-0 bottom-0 ${profileOpen ? "z-[145]" : "z-50"} border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]`}>
         <div
-          className="mx-auto grid max-w-5xl grid-cols-3"
+          className="mx-auto grid max-w-5xl grid-cols-7"
           style={{
             paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
             paddingTop: "6px",
@@ -7737,25 +7737,24 @@ export default function Home() {
         >
           {[
             ["🏠", "Home"],
-            ["🏟️", "Sports"],
+            ["📰", "Sports"],
+            ["🎯", "Challenge"],
+            ["⭐", "Events"],
+            ["👕", "Locker Room"],
+            ["🏆", "Trophy Room"],
             ["🎁", "Gifts"],
           ].map(([icon, label]) => (
             <button
               key={label}
               onClick={() => {
                 setProfileOpen(false);
-                if (label === "Home") {
-                  setActiveSection("Home");
-                  setActiveSport("All");
-                }
-
-                if (label === "Sports") {
-                  setActiveSection("Sports");
-                }
-
-                if (label === "Gifts") {
-                  setActiveSection("Gifts");
-                }
+                if (label === "Home") { setActiveSection("Home"); setActiveSport("All"); }
+                if (label === "Sports") setActiveSection("Sports");
+                if (label === "Challenge") openPicks();
+                if (label === "Events") setActiveSection("Events");
+                if (label === "Locker Room") { setActiveSection("Locker Room"); void loadLockerRoom(); }
+                if (label === "Trophy Room") { setActiveSection("Trophy Room"); void loadLockerRoom(); void loadPassport(); }
+                if (label === "Gifts") setActiveSection("Gifts");
               }}
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${
                 (label === "Sports"
@@ -7765,10 +7764,10 @@ export default function Home() {
                   : "text-white"
               }`}
             >
-              <span className="text-xl leading-none">
+              <span className="text-lg leading-none">
                 {icon}
               </span>
-              <span className="mt-1 truncate text-[9px] font-bold">
+              <span className="mt-1 truncate text-[8px] font-bold">
                 {label}
               </span>
 

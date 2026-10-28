@@ -11,6 +11,7 @@ export default function SportsBuzz() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [showCinderella, setShowCinderella] = useState(true);
   useEffect(() => {
     let active = true;
     async function refresh() {
@@ -43,6 +44,22 @@ export default function SportsBuzz() {
   return <section className="mt-4 rounded-3xl border border-[#e6dfcf] bg-white p-4 shadow-sm" aria-label="Sports Buzz">
     <div className="flex items-center justify-between gap-2"><div><div className="text-xs font-black uppercase tracking-widest text-[#8a6b1e]">🏆 Souther Ladies</div><h2 className="text-xl font-black text-[#06284a]">The Sports Buzz</h2></div><span className="rounded-full bg-[#f8f0d9] px-3 py-1 text-xs font-bold text-[#725719]">Auto-updating</span></div>
     <p className="mt-1 text-xs text-slate-500">Important games and what they mean, based on the latest synced results. Refreshes while the app is open.</p>
+    <div className="mt-4 rounded-2xl border border-amber-200 bg-[#fff9e9] p-4">
+      <div className="text-xs font-black uppercase tracking-wider text-amber-800">✨ Beyond the scoreboard</div>
+      <h3 className="mt-1 text-lg font-black text-[#06284a]">Why this game matters</h3>
+      <p className="mt-1 text-sm text-slate-700">Cup soccer is different from league soccer: a knockout defeat can end a team's run in that competition, without ending their Premier League or other campaigns. Some cups use two legs or extra time, so we'll avoid declaring a team eliminated until the result confirms it.</p>
+    </div>
+    <div className="mt-3 rounded-2xl border border-slate-200 bg-[#f7f9fd] p-4">
+      <button type="button" onClick={() => setShowCinderella(v => !v)} className="flex w-full items-center justify-between gap-2 text-left">
+        <span className="text-base font-black text-[#06284a]">🏆 Cinderella Watch</span>
+        <span className="text-xs font-bold text-[#84651a]">{showCinderella ? "Hide" : "Explore"}</span>
+      </button>
+      {showCinderella && <div className="mt-2 space-y-2 text-sm text-slate-700">
+        <p>Keep an eye on smaller clubs reaching later rounds of the FA Cup — especially when they draw a Premier League opponent.</p>
+        <p><strong>What's a giant-killing?</strong> When a lower-division team beats a much higher-division club in a cup tie.</p>
+        <p><strong>Why it's exciting:</strong> One surprise win can send an underdog into the next round. We only label a specific result a giant-killing after confirming the teams' levels and the outcome.</p>
+      </div>}
+    </div>
     {stories.length === 0 ? <p className="mt-4 text-sm text-slate-500">{loading ? "Checking the latest games…" : "No major games to highlight right now. Check back soon!"}</p> : <div className="mt-3 space-y-3">
       {(expanded ? stories : stories.slice(0,3)).map((g) => {
         const final = /final|finished|complete|closed/i.test(g.status) && g.homeScore != null && g.awayScore != null;
@@ -53,7 +70,7 @@ export default function SportsBuzz() {
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#84651a]"><span>{knockout ? "🏆 Cup / tournament" : "⭐ Family team"}</span><span className="text-slate-400">· {dateLabel(g.startsAt)}</span></div>
           <h3 className="mt-1 font-black text-[#06284a]">{g.home} {final ? g.homeScore : "vs"} {final ? "– " + g.awayScore : ""} {g.away}</h3>
           <p className="text-xs font-semibold text-slate-500">{g.competition}</p>
-          <p className="mt-2 text-sm text-slate-700"><strong>What it means: </strong>{final && knockout && winner ? winner + " won this match. In a knockout tie, the winner advances if the tie is decided in one game; check the competition format for exceptions." : draw && knockout ? "Level at full time. Extra time, penalties, or another leg may decide who advances." : final ? "Final result recorded. League standings or tournament implications depend on the competition." : knockout ? "An upcoming cup or tournament game — advancement rules depend on the round and competition." : "Upcoming game involving a family favorite."}</p>
+          <p className="mt-2 text-sm text-slate-700"><strong>Why it matters: </strong>{final && knockout && winner ? winner + " won the recorded match. In a single-leg knockout, the winner advances; multi-leg ties and some formats work differently." : draw && knockout ? "Level at full time. Extra time, penalties, or another leg may decide who advances." : final ? "Final result recorded. League standings or tournament implications depend on the competition." : knockout ? "An upcoming cup or tournament game — advancement rules depend on the round and competition." : "Upcoming game involving a family favorite."}</p>
         </article>;
       })}
       {stories.length > 3 && <button type="button" onClick={() => setExpanded(v => !v)} className="w-full rounded-xl bg-[#06284a] px-4 py-2 text-sm font-bold text-white">{expanded ? "Show fewer stories" : "See all " + stories.length + " stories"}</button>}

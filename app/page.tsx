@@ -5650,7 +5650,9 @@ export default function Home() {
             <h1 className="mt-1 text-3xl font-black">Your sports hub</h1>
             <p className="mt-2 text-sm font-semibold text-blue-100">Challenges, family events, favorite teams, and trophies in one place.</p>
           </div>
-          <nav aria-label="Sports sections" className="mt-3 grid grid-cols-5 gap-2">\n            <button type="button" onClick={() => setActiveSection("Sports Buzz")} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">\n              <span className="block text-lg">📰</span><span className="mt-1 block text-[10px] font-black leading-tight">Sports Buzz</span>\n            </button>
+          <nav aria-label="Sports sections" className="mt-3 grid grid-cols-5 gap-2">
+            <button type="button" onClick={() => setActiveSection("Sports Buzz")} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
+              <span className="block text-lg">📰</span><span className="mt-1 block text-[10px] font-black leading-tight">Sports Buzz</span>\n            </button>
             <button type="button" onClick={() => openPicks()} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
               <span className="block text-lg">🎯</span><span className="mt-1 block text-[10px] font-black leading-tight">Challenge</span>
             </button>
@@ -5664,6 +5666,12 @@ export default function Home() {
               <span className="block text-lg">🏆</span><span className="mt-1 block text-[10px] font-black leading-tight">Trophy Room</span>
             </button>
           </nav>
+        </section>
+      )}
+
+      {activeSection === "Sports Buzz" && (
+        <section className="mx-auto max-w-3xl px-3 py-5 pb-8">
+          <button type="button" onClick={() => setActiveSection("Sports")} className="mb-3 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[#06284a]">← Back to Sports</button>
           <SportsBuzz />
         </section>
       )}

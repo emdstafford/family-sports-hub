@@ -14,8 +14,7 @@ export const metadata: Metadata = {
     default: "FamBam Hub",
     template: "%s | FamBam Hub",
   },
-  description:
-    "Our family hub for sports, gifts, birthdays, memories, and FamBam fun.",
+  description: "Our family, all in one place: plans, pets, sports, and memories.",
   applicationName: "FamBam Hub",
   appleWebApp: {
     capable: true,
@@ -29,19 +28,24 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/icon-192.png?v=souther-20261021",
+        url: "/fambam-hub-icon.svg?v=sl-a3",
+        sizes: "any",
+        type: "image/svg+xml",
+      },
+      {
+        url: "/api/brand-icon?size=192&v=sl-a3",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        url: "/icon-512.png?v=souther-20261021",
+        url: "/api/brand-icon?size=512&v=sl-a3",
         sizes: "512x512",
         type: "image/png",
       },
     ],
     apple: [
       {
-        url: "/apple-touch-icon.png?v=souther-20261021",
+        url: "/api/brand-icon?size=180&v=sl-a3",
         sizes: "180x180",
         type: "image/png",
       },

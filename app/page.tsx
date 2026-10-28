@@ -3,8 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import StandingsHub from "@/components/standings-hub";
-import GiftManager from "@/components/gift-manager";
 import SportsBuzz from "@/components/sports-buzz";
+import GiftManager from "@/components/gift-manager";
+import PantryManager from "@/components/pantry-manager";
+import HouseManager from "@/components/house-manager";
+import MerriamWebsterWordOfDay from "@/components/merriam-webster-word-of-day";
+import NorthGeorgiaWeatherCard from "@/components/north-georgia-weather-card";
+import HandmadeGiftPlanner from "@/components/handmade-gift-planner";
+import FamilyPrayerBoard from "@/components/family-prayer-board";
+import WeeklyFaithPractice from "@/components/weekly-faith-practice";
+import TodaysFunHoliday from "@/components/todays-fun-holiday";
+import FamilyMealPlanner from "@/components/family-meal-planner";
+
+type PackingItem = { id: string; label: string; repeatWeekly: boolean; checked: boolean; assignedPlayerId?: string | null };
+type DaisyFeedEvent = { id: string; fedAt: string; fedBy: string };
+
+async function readApiResponse(response: Response, serviceName: string) {
+  const text = await response.text();
+  try { return text ? JSON.parse(text) : {}; }
+  catch {
+    throw new Error(response.status === 404
+      ? `${serviceName} isn’t available on this app version yet. Refresh after the update is published.`
+      : `${serviceName} returned an unreadable response (${response.status}). Please refresh the app and try again.`);
+  }
+}
 
 type Player = {
   id: string;
@@ -1353,6 +1375,22 @@ export default function Home() {
   const [signedInPlayer, setSignedInPlayer] =
     useState<Player | null>(null);
 
+  const [dinnersPlanned, setDinnersPlanned] = useState<number | null>(null);
+  const [dinnerCountError, setDinnerCountError] = useState(false);
+  const [packingItems, setPackingItems] = useState<PackingItem[]>([]);
+  const [packingInput, setPackingInput] = useState("");
+  const [packingAssignedPlayerId, setPackingAssignedPlayerId] = useState("");
+  const [packingRepeatWeekly, setPackingRepeatWeekly] = useState(true);
+  const [packingBusy, setPackingBusy] = useState(false);
+  const [packingError, setPackingError] = useState<string | null>(null);
+  const [editingPackingId, setEditingPackingId] = useState<string | null>(null);
+  const [editingPackingLabel, setEditingPackingLabel] = useState("");
+  const [daisyLatestFeed, setDaisyLatestFeed] = useState<DaisyFeedEvent | null>(null);
+  const [daisyBusy, setDaisyBusy] = useState(false);
+  const [daisyError, setDaisyError] = useState<string | null>(null);
+  const [nfcFeedNotice, setNfcFeedNotice] = useState<string | null>(null);
+  const nfcFeedHandledRef = useRef(false);
+
   const [pin, setPin] = useState("");
   const [pinEmojis, setPinEmojis] =
     useState(["🏈", "⚽", "🏀", "⚾"]);
@@ -1364,6 +1402,16 @@ export default function Home() {
 
   const [activeSport, setActiveSport] =
     useState<Sport>("All");
+
+  useEffect(() => {
+    if (!signedInPlayer) {
+      setPackingItems([]);
+      setDaisyLatestFeed(null);
+      return;
+    }
+    void loadFamilyTools();
+  }, [signedInPlayer?.id]);
+
 
   const [gamesPageView, setGamesPageView] =
     useState<"games" | "standings" | "results">("games");
@@ -1524,7 +1572,13 @@ export default function Home() {
   const [passportDraft, setPassportDraft] = useState<PassportEntry>({ id:"", sport:"Football", visitType:"game", date:"", away:"", home:"", venue:"", city:"", state:"", country:"United States", continent:"North America", awayScore:"", homeScore:"", result:"", attendeeIds:[], attendeeNames:[], memories:[], photos:[] });
 
   const [activeSection, setActiveSection] =
-    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts">("Home");
+    useState<"Home" | "Sports" | "Challenge" | "Events" | "Locker Room" | "Trophy Room" | "Gifts" | "Food" | "Prayer" | "House" | "Checklist" | "Meal Plan">("Home");
+
+  useEffect(() => {
+    const section = new URL(window.location.href).searchParams.get("section");
+    if (section === "Food" || section === "Pantry") setActiveSection("Food");
+    if (section === "House") setActiveSection("House");
+  }, []);
 
   useEffect(() => {
     window.scrollTo({
@@ -5448,6 +5502,74 @@ export default function Home() {
   }
 
 
+  async function loadFamilyTools() {
+    if (!signedInPlayer) return;
+    const token = window.localStorage.getItem("fambam_session_token") ?? "";
+    try {
+      const headers = { "x-fambam-session": token };
+      const [packingResponse, daisyResponse] = await Promise.all([
+        fetch(`/api/family-packing-list?playerId=${encodeURIComponent(signedInPlayer.id)}`, { cache: "no-store", headers }),
+        fetch(`/api/daisy-feed?playerId=${encodeURIComponent(signedInPlayer.id)}`, { cache: "no-store", headers }),
+      ]);
+      const [packing, daisy] = await Promise.all([readApiResponse(packingResponse, "Shared list"), readApiResponse(daisyResponse, "Daisy’s care status")]);
+      if (!packingResponse.ok) throw new Error(packing.error ?? "Could not load the shared list.");
+      if (!daisyResponse.ok) throw new Error(daisy.error ?? "Could not load Daisy’s care status.");
+      setPackingItems(Array.isArray(packing.items) ? packing.items : []);
+      setDaisyLatestFeed(daisy.latest ?? null);
+      setPackingError(null); setDaisyError(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not load family tools.";
+      setPackingError(message); setDaisyError(message);
+    }
+  }
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("action") !== "feed-daisy" || !signedInPlayer || nfcFeedHandledRef.current) return;
+    nfcFeedHandledRef.current = true;
+    url.searchParams.delete("action");
+    window.history.replaceState({}, "", url.toString());
+
+    void (async () => {
+      setDaisyBusy(true);
+      setDaisyError(null);
+      setNfcFeedNotice(null);
+      try {
+        const token = window.localStorage.getItem("fambam_session_token") ?? "";
+        const response = await fetch("/api/daisy-feed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-fambam-session": token },
+          body: JSON.stringify({ playerId: signedInPlayer.id }),
+        });
+        const data = await readApiResponse(response, "Daisy’s care status");
+        if (!response.ok) throw new Error(data.error ?? "Could not log Daisy’s feeding.");
+        await loadFamilyTools();
+        setNfcFeedNotice(`Daisy’s feeding was logged for ${signedInPlayer.display_name}.`);
+      } catch (error) {
+        setDaisyError(error instanceof Error ? error.message : "Could not log Daisy’s feeding.");
+      } finally {
+        setDaisyBusy(false);
+      }
+    })();
+  }, [signedInPlayer?.id]);
+
+  useEffect(() => {
+    if (activeSection !== "Home" || !signedInPlayer) return;
+    let cancelled = false;
+    setDinnersPlanned(null); setDinnerCountError(false);
+    const token = window.localStorage.getItem("fambam_session_token") ?? "";
+    fetch(`/api/family-meal-plan?playerId=${encodeURIComponent(signedInPlayer.id)}`, { cache: "no-store", headers: { "x-fambam-session": token } })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Meal count unavailable");
+        const data = await response.json();
+        if (!Array.isArray(data.days) || data.days.length !== 7) throw new Error("Meal count unavailable");
+        const count = data.days.filter((day: { dinner?: unknown }) => typeof day.dinner === "string" && day.dinner.trim().length > 0).length;
+        if (!cancelled) setDinnersPlanned(count);
+      })
+      .catch(() => { if (!cancelled) setDinnerCountError(true); });
+    return () => { cancelled = true; };
+  }, [activeSection, signedInPlayer?.id]);
+
   return (
     <main className="min-h-screen bg-[#eef1f4] pb-24 text-[#10254a]">
       {/* DARK APP HEADER */}
@@ -5455,17 +5577,17 @@ export default function Home() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <img
-              src="/icon-512.png"
-              alt="FamBam Sports"
+              src="/fambam-hub-icon.svg?v=sl-a3"
+              alt="Souther Ladies SL monogram"
               className="h-12 w-12 shrink-0 rounded-xl object-cover"
             />
 
             <div className="min-w-0">
-              <div className="truncate text-xl font-black tracking-tight">
-                FamBam
+              <div className="truncate text-xl tracking-tight" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                Souther Ladies
               </div>
-              <div className="text-[8px] font-black uppercase tracking-[0.28em] text-[#f3c64f]">
-                Family · Sports · Fun
+              <div className="text-[9px] font-semibold uppercase tracking-[0.22em] text-[#bd9752]">
+                FamBam Hub
               </div>
             </div>
           </div>
@@ -5497,6 +5619,8 @@ export default function Home() {
                 setActiveSection("Home");
                 setActiveSport("All");
                 window.setTimeout(() => {
+                  const signIn = document.getElementById("signin");
+                  if (signIn instanceof HTMLDetailsElement) signIn.open = true;
                   document
                     .getElementById("signin")
                     ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -5517,41 +5641,73 @@ export default function Home() {
             <h1 className="mt-1 text-3xl font-black">Your sports hub</h1>
             <p className="mt-2 text-sm font-semibold text-blue-100">Challenges, family events, favorite teams, and trophies in one place.</p>
           </div>
+          <nav aria-label="Sports sections" className="mt-3 grid grid-cols-4 gap-2">
+            <button type="button" onClick={() => openPicks()} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
+              <span className="block text-lg">🎯</span><span className="mt-1 block text-[10px] font-black leading-tight">Challenge</span>
+            </button>
+            <button type="button" onClick={() => setActiveSection("Events")} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
+              <span className="block text-lg">⭐</span><span className="mt-1 block text-[10px] font-black leading-tight">Events</span>
+            </button>
+            <button type="button" onClick={() => { setActiveSection("Locker Room"); void loadLockerRoom(); }} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
+              <span className="block text-lg">👕</span><span className="mt-1 block text-[10px] font-black leading-tight">Locker Room</span>
+            </button>
+            <button type="button" onClick={() => { setActiveSection("Trophy Room"); void loadLockerRoom(); void loadPassport(); }} className="rounded-xl border border-slate-200 bg-white px-1 py-2.5 text-center shadow-sm active:bg-slate-50">
+              <span className="block text-lg">🏆</span><span className="mt-1 block text-[10px] font-black leading-tight">Trophy Room</span>
+            </button>
+          </nav>
           <SportsBuzz />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <button type="button" onClick={() => openPicks()} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
-              <span className="text-2xl">🎯</span><span className="mt-2 block text-lg font-black">Family Challenge</span><span className="mt-1 block text-sm font-semibold text-slate-500">Make picks across this week’s games.</span>
-            </button>
-            <button type="button" onClick={() => setActiveSection("Events")} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
-              <span className="text-2xl">⭐</span><span className="mt-2 block text-lg font-black">Events</span><span className="mt-1 block text-sm font-semibold text-slate-500">Choose the special games and events to follow.</span>
-            </button>
-            <button type="button" onClick={() => { setActiveSection("Locker Room"); void loadLockerRoom(); }} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
-              <span className="text-2xl">👕</span><span className="mt-2 block text-lg font-black">Locker Room</span><span className="mt-1 block text-sm font-semibold text-slate-500">Manage each person’s favorite teams.</span>
-            </button>
-            <button type="button" onClick={() => { setActiveSection("Trophy Room"); void loadLockerRoom(); void loadPassport(); }} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm active:bg-slate-50">
-              <span className="text-2xl">🏆</span><span className="mt-2 block text-lg font-black">Trophy Room</span><span className="mt-1 block text-sm font-semibold text-slate-500">See records, achievements, and memories.</span>
-            </button>
-          </div>
         </section>
       )}
 
       {activeSection === "Home" && (
-      <div className="mx-auto max-w-5xl px-3 py-3">
+      <div className="mx-auto max-w-5xl px-3 py-2 [&>section]:mb-2 [&>section]:rounded-2xl [&>section]:p-3">
+        {signedInPlayer && (
+          <nav aria-label="Hub shortcuts" className="mb-2 grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => { setActiveSection("Meal Plan"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🍽️</span><span>Meals</span><span className="text-[10px] font-semibold text-slate-500">{dinnerCountError ? "Count unavailable" : dinnersPlanned === null ? "Checking dinners…" : `${dinnersPlanned}/7 dinners planned`}</span></button>
+            <button type="button" onClick={openPicks} className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">🏆</span><span>Picks</span><span className={`text-[10px] font-semibold ${challengeGames.length > 0 && currentPlayerReady ? "text-emerald-700" : "text-slate-500"}`}>{challengeGames.length > 0 ? currentPlayerReady ? "✓ Picks are in!" : `${challengeGamesWithSavedPick}/${challengeGames.length} saved` : "Coming soon"}</span></button>
+            <button type="button" onClick={() => { setActiveSection("Checklist"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#e6dfd0] bg-white px-2 py-2 text-xs font-black text-[#10254a] shadow-sm active:bg-[#fffaf0]"><span aria-hidden="true" className="text-lg">✅</span><span>List</span><span className="text-[10px] font-semibold text-slate-500">{packingItems.filter((item) => !item.checked).length} to remember</span></button>
+          </nav>
+        )}
+        <WeeklyFaithPractice />
+        <div id="today-card" className="mb-2 mt-1 flex items-center gap-2 px-1">
+          <span className="text-lg">☀️</span>
+          <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#10254a]">Today at a glance</h2>
+          <span className="h-px flex-1 bg-[#e6dfd0]" />
+        </div>
+        <div className="mb-0 grid grid-cols-2 items-stretch gap-2 [&>*]:min-w-0 [&>*]:p-3">
+          <NorthGeorgiaWeatherCard />
+          {signedInPlayer ? (          <details id="daisy-care" className="group scroll-mt-24 min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b28a2e]">🐾 Daisy’s care</div>
+                {daisyLatestFeed ? <p className="mt-1 text-sm font-bold text-[#10254a]">Last fed {new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(daisyLatestFeed.fedAt))} by {daisyLatestFeed.fedBy}</p> : <p className="mt-1 text-sm font-semibold text-slate-500">{daisyBusy ? "Saving…" : "Not recorded yet · tap to open"}</p>}
+              </div>
+              <span className="text-2xl" aria-hidden="true">🐶 <span className="inline-block text-base transition-transform group-open:rotate-180">⌄</span></span>
+            </summary>
+            <div className="mt-3 grid grid-cols-1 gap-2">
+            <button disabled={daisyBusy} onClick={async () => {
+              if (!signedInPlayer) return;
+              setDaisyBusy(true); setDaisyError(null);
+              try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/daisy-feed", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "feed" }) }); const data = await readApiResponse(response, "Daisy’s care status"); if (!response.ok) throw new Error(data.error ?? "Could not save the feeding."); await loadFamilyTools(); }
+              catch (error) { setDaisyError(error instanceof Error ? error.message : "Could not save Daisy’s feeding time."); }
+              finally { setDaisyBusy(false); }
+            }} className="rounded-xl bg-[#10254a] px-2 py-3 text-sm font-black text-white disabled:opacity-50">{daisyBusy ? "Saving…" : "I fed Daisy"}</button>
+            </div>
+            {daisyError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{daisyError}</p>}
+            {nfcFeedNotice && <p role="status" className="mt-2 text-xs font-bold text-emerald-700">{nfcFeedNotice}</p>}
+            <p className="mt-2 text-center text-[10px] font-semibold text-slate-400">NFC shortcut can update the feeding time under the signed-in profile.</p>
+          </details>) : <div className="min-w-0 rounded-2xl border border-[#e6dfd0] bg-white p-4"><p className="text-sm font-black text-[#10254a]">🐾 Daisy’s care</p><p className="mt-1 text-xs text-slate-500">Sign in to see her latest feeding.</p></div>}
+          <MerriamWebsterWordOfDay />
+          <TodaysFunHoliday />
+        </div>
+        <a href="https://stafford-sisters.vercel.app/" target="_blank" rel="noopener noreferrer" className="mt-2 flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[#e6dfd0] bg-white px-3 py-2 text-xs font-black text-[#10254a] shadow-sm"><span>🎬 Stafford Sisters</span><span aria-hidden="true" className="text-[#b28a2e]">Open ↗</span><span className="sr-only">Opens in a new tab</span></a>
         {/* SIGN IN */}
         {!signedInPlayer && (
-          <section
+          <details
             id="signin"
             className="overflow-hidden rounded-2xl bg-[#06284a] p-5 text-white shadow-sm"
           >
-            <div className="text-center">
-              <div className="text-3xl">🏆</div>
-              <h2 className="mt-2 text-2xl font-black">
-                Who&apos;s playing?
-              </h2>
-              <p className="mt-1 text-xs font-semibold text-blue-100">
-                Pick your profile to jump in.
-              </p>
-            </div>
+            <summary className="cursor-pointer list-none text-center text-sm font-black [&::-webkit-details-marker]:hidden">Sign in</summary>
 
             {loading ? (
               <p className="mt-5 text-center">Loading...</p>
@@ -5573,91 +5729,110 @@ export default function Home() {
                 ))}
               </div>
             )}
-          </section>
+          </details>
         )}
 
-        {signedInPlayer && (
-          <>
-            {/* CHALLENGE STRIP */}
-            <section className="mb-2.5 overflow-hidden rounded-2xl border border-[#e6dfd0] bg-[#fffaf0] shadow-sm">
-              <div className="flex min-h-[92px] items-stretch">
-                <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
-                  <div className="text-4xl">🏆</div>
 
-                  <div className="min-w-0">
-                    <div className="text-sm font-black uppercase text-[#10254a]">
-                      This Week&apos;s Challenge
-                    </div>
-                    <div className="mt-0.5 text-sm font-black text-[#10254a]">
-                      {currentPlayerReady
-                        ? "You’re all set!"
-                        : challengeGames.length > 0
-                          ? `${challengeGamesWithSavedPick}/${challengeGames.length} picks saved`
-                          : "This week’s picks are coming soon."}
-                    </div>
-                    <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
-                      Every game locks at kickoff.
-                    </div>
-                  </div>
+
+
+
+
+
+      </div>
+      )}
+
+      {activeSection === "Meal Plan" && signedInPlayer && (
+        <section className="mx-auto max-w-4xl px-3 py-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 100px)" }}>
+          <button type="button" onClick={() => setActiveSection("Home")} className="mb-3 min-h-11 text-sm font-black text-[#164d9b]">← Back to Hub</button>
+          <FamilyMealPlanner playerId={signedInPlayer.id} players={players} />
+        </section>
+      )}
+
+      {activeSection === "Checklist" && signedInPlayer && (
+        <section className="mx-auto max-w-3xl px-3 py-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 100px)" }}>
+          <button type="button" onClick={() => setActiveSection("Home")} className="mb-3 min-h-11 text-sm font-black text-[#164d9b]">← Back to Hub</button>
+          <div className="rounded-2xl border border-[#e6dfd0] bg-white p-4 shadow-sm">
+            <h1 className="text-xl font-black text-[#10254a]">Family Checklist ✅</h1>
+            <p className="mt-1 text-sm text-slate-500">{packingItems.filter((item) => !item.checked).length} items to remember</p>
+            
+            <form onSubmit={async (event) => {
+              event.preventDefault();
+              const label = packingInput.trim();
+              if (!label || !signedInPlayer) return;
+              setPackingBusy(true); setPackingError(null);
+              try {
+                const token = window.localStorage.getItem("fambam_session_token") ?? "";
+                const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "add", label, repeatWeekly: packingRepeatWeekly, assignedPlayerId: packingAssignedPlayerId || null }) });
+                const data = await readApiResponse(response, "Shared list");
+                if (!response.ok) throw new Error(data.error ?? "Could not add that item.");
+                setPackingInput(""); setPackingAssignedPlayerId(""); await loadFamilyTools();
+              } catch (error) { setPackingError(error instanceof Error ? error.message : "Could not add that item."); }
+              finally { setPackingBusy(false); }
+            }} className="mt-3 flex gap-2">
+              <input value={packingInput} onChange={(event) => setPackingInput(event.target.value)} maxLength={100} placeholder="Add an item…" aria-label="New item to bring" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-[#b28a2e]" />
+              <button disabled={packingBusy || !packingInput.trim()} className="rounded-xl bg-[#10254a] px-3 py-2 text-sm font-black text-white disabled:opacity-40">Add</button>
+            </form>
+            <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <span className="shrink-0">For</span>
+              <select value={packingAssignedPlayerId} onChange={(event) => setPackingAssignedPlayerId(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-[#10254a]">
+                <option value="">Everyone</option>
+                {players.map((player) => <option key={player.id} value={player.id}>{player.display_name}</option>)}
+              </select>
+            </label>
+            <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <input type="checkbox" checked={packingRepeatWeekly} onChange={(event) => setPackingRepeatWeekly(event.target.checked)} />
+              Repeat this item every week
+            </label>
+            {packingError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{packingError}</p>}
+            <div className="mt-3 space-y-2">
+              {packingItems.length === 0 ? <p className="rounded-xl bg-[#fffaf0] p-3 text-sm font-medium text-slate-500">Your shared list is empty. Add anything someone needs for a practice, game, school day, trip, or handoff.</p> : packingItems.map((item) => (
+                <div key={item.id} className="flex items-center gap-2 rounded-xl bg-[#fffaf0] px-3 py-2">
+                  <input type="checkbox" checked={item.checked} aria-label={item.checked ? `Mark ${item.label} not packed` : `Mark ${item.label} packed`} onChange={async (event) => {
+                    if (!signedInPlayer) return;
+                    setPackingBusy(true); setPackingError(null);
+                    try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "toggle", itemId: item.id, checked: event.target.checked }) }); const data = await readApiResponse(response, "Shared list"); if (!response.ok) throw new Error(data.error ?? "Could not update the list."); await loadFamilyTools(); }
+                    catch (error) { setPackingError(error instanceof Error ? error.message : "Could not update the list."); }
+                    finally { setPackingBusy(false); }
+                  }} />
+                  {editingPackingId === item.id ? <form className="flex min-w-0 flex-1 gap-1" onSubmit={async (event) => {
+                    event.preventDefault(); if (!signedInPlayer) return;
+                    setPackingBusy(true); setPackingError(null);
+                    try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "edit", itemId: item.id, label: editingPackingLabel }) }); const data = await readApiResponse(response, "Shared list"); if (!response.ok) throw new Error(data.error ?? "Could not edit that item."); setEditingPackingId(null); await loadFamilyTools(); }
+                    catch (error) { setPackingError(error instanceof Error ? error.message : "Could not edit that item."); }
+                    finally { setPackingBusy(false); }
+                  }}><input autoFocus value={editingPackingLabel} onChange={(event) => setEditingPackingLabel(event.target.value)} className="min-w-0 flex-1 rounded border px-2 py-1 text-sm" /><button className="text-xs font-black text-[#164d9b]">Save</button></form> : <button onClick={() => { setEditingPackingId(item.id); setEditingPackingLabel(item.label); }} className={`min-w-0 flex-1 text-left text-sm font-bold ${item.checked ? "text-slate-400 line-through" : "text-[#10254a]"}`}>{item.label}<span className="ml-1 text-[10px] font-semibold text-slate-400">{item.repeatWeekly ? "weekly" : ""}</span></button>}
+                  <label className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-slate-500">
+                    <span className="sr-only">Assigned to</span>
+                    <select value={item.assignedPlayerId ?? ""} aria-label={`Who is ${item.label} for?`} onChange={async (event) => {
+                      if (!signedInPlayer) return;
+                      setPackingBusy(true); setPackingError(null);
+                      try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "assign", itemId: item.id, assignedPlayerId: event.target.value || null }) }); const data = await readApiResponse(response, "Shared list"); if (!response.ok) throw new Error(data.error ?? "Could not assign that item."); await loadFamilyTools(); }
+                      catch (error) { setPackingError(error instanceof Error ? error.message : "Could not assign that item."); }
+                      finally { setPackingBusy(false); }
+                    }} className="max-w-[92px] rounded border border-slate-200 bg-white px-1 py-1 text-[10px] text-slate-600">
+                      <option value="">Everyone</option>
+                      {players.map((player) => <option key={player.id} value={player.id}>{player.display_name}</option>)}
+                    </select>
+                  </label>
+                  <button aria-label={`Remove ${item.label}`} onClick={async () => {
+                    if (!signedInPlayer) return;
+                    setPackingBusy(true); setPackingError(null);
+                    try { const token = window.localStorage.getItem("fambam_session_token") ?? ""; const response = await fetch("/api/family-packing-list", { method: "POST", headers: { "Content-Type": "application/json", "x-fambam-session": token }, body: JSON.stringify({ playerId: signedInPlayer.id, action: "delete", itemId: item.id }) }); const data = await readApiResponse(response, "Shared list"); if (!response.ok) throw new Error(data.error ?? "Could not remove that item."); await loadFamilyTools(); }
+                    catch (error) { setPackingError(error instanceof Error ? error.message : "Could not remove that item."); }
+                    finally { setPackingBusy(false); }
+                  }} className="px-1 text-lg font-bold text-slate-400" title="Remove item">×</button>
                 </div>
+              ))}
+            </div>
+          
+          </div>
+        </section>
+      )}
 
-                <button
-                  onClick={openPicks}
-                  className="flex w-[42%] max-w-[180px] shrink-0 flex-col items-center justify-center bg-[#06284a] px-2 text-center text-white active:bg-[#0a365f]"
-                >
-                  {currentPlayerReady ? (
-                    <>
-                      <div className="text-[10px] font-bold text-blue-100">
-                        You&apos;re all set
-                      </div>
-                      <div className="text-2xl font-black text-[#f3c64f]">
-                        {challengeGamesWithSavedPick}/{challengeGames.length}
-                      </div>
-                      <div className="text-[10px] font-black">
-                        picks complete ✓
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-[10px] font-bold text-blue-100">
-                        You have
-                      </div>
-                      <div className="text-xl font-black text-[#f3c64f]">
-                        {Math.max(
-                          0,
-                          challengeGames.length -
-                            challengeGamesWithSavedPick,
-                        )} picks left
-                      </div>
-                      <div className="mt-0.5 text-[10px] font-black">
-                        Finish My Picks ›
-                      </div>
-                    </>
-                  )}
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveSection("Events")}
-                className="flex w-full items-center justify-between gap-2 border-t border-[#e6dfd0] px-3 py-2.5 text-left text-[11px] font-black text-[#10254a]"
-              >
-                <span>🏟️ Event picks: {eventPicksChecking
-                  ? "checking…"
-                  : eventPicksCheckFailed
-                    ? "couldn’t check all events"
-                    : eventPicksRemaining > 0
-                      ? `${eventPicksRemaining} to make`
-                      : "0 to make · all caught up!"}</span>
-                <span className="shrink-0 text-[#164d9b]">Events →</span>
-              </button>
-            </section>
-          </>
-        )}
-
-      {signedInPlayer && (
+      {activeSection === "Sports" && signedInPlayer && (
         <section
-          id="home-games"
-          className="scroll-mt-20 py-4"
+          id="sports-games"
+          className="mx-auto max-w-5xl scroll-mt-20 px-3 py-4"
           style={{
             paddingBottom:
               "calc(env(safe-area-inset-bottom, 0px) + 90px)",
@@ -6203,10 +6378,6 @@ export default function Home() {
           )}
 
         </section>
-      )}
-
-      </div>
-
       )}
 
       {passportPhotoViewer && (
@@ -7723,58 +7894,73 @@ export default function Home() {
             </p>
           </div>
           <GiftManager />
+          <HandmadeGiftPlanner />
         </section>
       )}
 
       {/* APP NAV */}
       <nav className={`fixed inset-x-0 bottom-0 ${profileOpen ? "z-[145]" : "z-50"} border-t border-white/10 bg-[#06284a] text-white shadow-[0_-4px_18px_rgba(0,0,0,0.18)]`}>
         <div
-          className="mx-auto grid max-w-5xl grid-cols-7"
+          className="mx-auto grid max-w-5xl grid-cols-6"
           style={{
             paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
             paddingTop: "6px",
           }}
         >
           {[
-            ["🏠", "Home"],
-            ["📰", "Sports"],
-            ["🎯", "Challenge"],
-            ["⭐", "Events"],
-            ["👕", "Locker Room"],
-            ["🏆", "Trophy Room"],
+            ["✨", "Hub"],
+            ["🙏", "Prayer"],
+            ["🧺", "Food"],
+            ["🏟️", "Sports"],
             ["🎁", "Gifts"],
+            ["🏡", "House"],
           ].map(([icon, label]) => (
             <button
               key={label}
               onClick={() => {
                 setProfileOpen(false);
-                if (label === "Home") { setActiveSection("Home"); setActiveSport("All"); }
-                if (label === "Sports") setActiveSection("Sports");
-                if (label === "Challenge") openPicks();
-                if (label === "Events") setActiveSection("Events");
-                if (label === "Locker Room") { setActiveSection("Locker Room"); void loadLockerRoom(); }
-                if (label === "Trophy Room") { setActiveSection("Trophy Room"); void loadLockerRoom(); void loadPassport(); }
-                if (label === "Gifts") setActiveSection("Gifts");
+                if (label === "Hub") {
+                  setActiveSection("Home");
+                  setActiveSport("All");
+                }
+
+                if (label === "Sports") {
+                  setActiveSection("Sports");
+                }
+
+                if (label === "Gifts") {
+                  setActiveSection("Gifts");
+                }
+
+                if (label === "Food") {
+                  setActiveSection("Food");
+                }
+
+                if (label === "House") { setActiveSection("House"); }
+
+                if (label === "Prayer") {
+                  setActiveSection("Prayer");
+                }
               }}
               className={`relative flex min-w-0 flex-col items-center justify-center py-2 ${
                 (label === "Sports"
                   ? ["Sports", "Challenge", "Events", "Locker Room", "Trophy Room"].includes(activeSection)
-                  : activeSection === label)
+                  : (label === "Hub" ? ["Home", "Checklist", "Meal Plan"].includes(activeSection) : activeSection === label))
                   ? "text-[#f3c64f]"
                   : "text-white"
               }`}
             >
-              <span className="text-lg leading-none">
+              <span className="text-xl leading-none">
                 {icon}
               </span>
-              <span className="mt-1 truncate text-[8px] font-bold">
+              <span className="mt-1 truncate text-[9px] font-bold">
                 {label}
               </span>
 
               {(
                 (label === "Sports"
                   ? ["Sports", "Challenge", "Events", "Locker Room", "Trophy Room"].includes(activeSection)
-                  : activeSection === label)
+                  : (label === "Hub" ? ["Home", "Checklist", "Meal Plan"].includes(activeSection) : activeSection === label))
               ) && (
                 <span className="absolute bottom-0 h-0.5 w-10 rounded-full bg-[#f3c64f]" />
               )}
@@ -7782,6 +7968,15 @@ export default function Home() {
           ))}
         </div>
       </nav>
+
+      {activeSection === "Food" && signedInPlayer && <PantryManager playerId={signedInPlayer.id} />}
+      {activeSection === "Food" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🧺</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Food & Canning</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to see and update the family food inventory.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => { const signIn = document.getElementById("signin"); if (signIn instanceof HTMLDetailsElement) signIn.open = true; signIn?.scrollIntoView({ behavior: "smooth" }); }, 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
+
+      {activeSection === "House" && signedInPlayer && <HouseManager playerId={signedInPlayer.id} />}
+      {activeSection === "House" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><h1 className="text-2xl font-black text-[#10254a]">🏡 House</h1><p className="mt-2 text-sm text-slate-600">Sign in to see maintenance and utility history.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => { const signIn = document.getElementById("signin"); if (signIn instanceof HTMLDetailsElement) signIn.open = true; signIn?.scrollIntoView({ behavior: "smooth" }); }, 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
+
+      {activeSection === "Prayer" && signedInPlayer && <FamilyPrayerBoard />}
+      {activeSection === "Prayer" && !signedInPlayer && <section className="mx-auto max-w-lg px-4 py-12 text-center"><div className="text-4xl">🙏</div><h1 className="mt-3 text-2xl font-black text-[#10254a]">Family Prayer</h1><p className="mt-2 text-sm font-medium text-slate-600">Sign in to share prayer requests with the family.</p><button onClick={() => { setActiveSection("Home"); window.setTimeout(() => { const signIn = document.getElementById("signin"); if (signIn instanceof HTMLDetailsElement) signIn.open = true; signIn?.scrollIntoView({ behavior: "smooth" }); }, 0); }} className="mt-4 rounded-xl bg-[#10254a] px-5 py-3 text-sm font-black text-white">Go to sign in</button></section>}
 
       {selectedEventGuide && (
         <div className="fixed inset-0 z-[135] flex items-end justify-center bg-slate-950/60 backdrop-blur-sm sm:items-center sm:p-4">
@@ -9062,7 +9257,7 @@ export default function Home() {
                         onClick={() => setActiveSection("Home")}
                         className="mt-5 rounded-xl bg-[#06284a] px-6 py-3 text-sm font-black text-white"
                       >
-                        Back to Home
+                        Back to Hub
                       </button>
                     </div>
                   )}

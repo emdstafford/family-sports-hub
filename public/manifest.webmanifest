@@ -1,7 +1,7 @@
 {
-  "name": "FamBam Sports",
-  "short_name": "FamBam Sports",
-  "description": "Family sports picks, challenges, standings, and game-day fun for the FamBam.",
+  "name": "FamBam Hub",
+  "short_name": "FamBam",
+  "description": "Our family, all in one place: plans, pets, sports, and memories.",
   "id": "/",
   "start_url": "/",
   "display": "standalone",
@@ -10,14 +10,22 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon-192.png?v=souther-20261021",
+      "src": "/api/brand-icon?size=192&v=sl-a3",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icon-512.png?v=souther-20261021",
+      "src": "/api/brand-icon?size=512&v=sl-a3",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/fambam-hub-icon.svg?v=sl-a3",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

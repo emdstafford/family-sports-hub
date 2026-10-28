@@ -28,7 +28,7 @@ function isKentucky(name: string) { const n = normalize(name); return n === "ken
 function isGeorgia(name: string) { const n = normalize(name); return n === "georgia" || n === "georgiabulldogs"; }
 function getRank(name: string, rankingMap: Map<string, number>) {
   const n = normalize(name); const exact = rankingMap.get(n); if (exact !== undefined) return exact;
-  for (const [team, rank] of rankingMap.entries()) if (n.startsWith(team) || team.startsWith(n)) return rank;
+  for (const [team, rank] of rankingMap.entries()) if (n.length > 5 && team.length > 5 && (n.startsWith(team) || team.startsWith(n))) return rank;
   return null;
 }
 function isFinal(status: string | null) { return ["final", "completed", "finished", "closed"].includes((status ?? "").toLowerCase()); }
@@ -129,6 +129,9 @@ export async function POST(request: Request) {
       // Use the sport classification here. Historical imports may label the same
       // legitimate college-football game with a different provider identifier.
       if (sport !== "College Football") continue;
+      // The public Games API intentionally hides future CFBD rows because they include stale D-II/D-III fixtures.
+      // Never select a game that the family cannot see or pick.
+      if (game.external_provider === "cfbd") continue;
 
       const homeRank = getRank(home, rankingMap); const awayRank = getRank(away, rankingMap);
       let score = 30; let mandatory = false; let worthy = false; let reason = "Best available college football game";

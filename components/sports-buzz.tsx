@@ -12,6 +12,8 @@ const familyTeam = (team: string) => {
   return favorites.some(favorite => name.includes(favorite));
 };
 const relevantGame = (game: Game) => familyTeam(game.home) || familyTeam(game.away);
+const majorNews = /upset|shock|stun|stunned|knock(?:ed)? out|eliminat|giant.kill|historic|record.break|thrill|dramatic|comeback|last.minute|penalt(?:y|ies)|final|champion|title|trophy|derby|rival|win|beat|defeat|victor|advance|clinche|sweep/i;
+const headlineScore = (s: NewsStory) => (/upset|shock|stun|giant.kill|historic|champion|title|trophy|eliminat|knock(?:ed)? out/i.test(s.title) ? 5 : 0) + (/win|beat|defeat|victor|advance|comeback|dramatic|final/i.test(s.title) ? 2 : 0);
 const cup = /fa cup|carabao|efl cup|league cup|champions league|europa league|conference league|playoff|tournament|world series|stanley cup|march madness/i;
 const dateLabel = (value: string | null) => value ? new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" }).format(new Date(value)) : "Date TBD";
 
@@ -77,12 +79,12 @@ export default function SportsBuzz() {
     </article>
     <div className="mt-4 rounded-2xl border border-slate-200 bg-[#f7f9fd] p-4">
       <h3 className="text-lg font-black text-[#06284a]">🗞️ Latest family sports headlines</h3>
-      <p className="mt-1 text-xs text-slate-500">Fresh articles from published news sources, checked every 15 minutes while the app is open. Tap to read the full reporting. Headlines are not independently verified match summaries.</p>
-      {news.length ? <div className="mt-3 space-y-3">{news.slice(0, 10).map(story => <article key={story.link + story.topic} className="rounded-xl bg-white p-3 shadow-sm">
+      <p className="mt-1 text-xs text-slate-500">Only major wins, upsets, dramatic finishes, and big cup stories. Up to four headlines, refreshed every 15 minutes while open. Tap to read the original reporting.</p>
+      {news.some(story => majorNews.test(story.title)) ? <div className="mt-3 space-y-3">{news.filter(story => majorNews.test(story.title)).sort((a,b) => headlineScore(b) - headlineScore(a) || Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).slice(0, 4).map(story => <article key={story.link + story.topic} className="rounded-xl bg-white p-3 shadow-sm">
         <div className="text-xs font-black text-[#84651a]">{story.topic} · {story.source}</div>
         <a href={story.link} target="_blank" rel="noopener noreferrer" className="mt-1 block text-sm font-bold text-[#06284a] underline decoration-slate-300 underline-offset-2">{story.title}</a>
         <p className="mt-1 text-xs text-slate-500">{new Date(story.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
-      </article>)}</div> : <p className="mt-3 text-sm text-slate-500">{newsAvailable ? "Checking the latest sports reporting…" : "News sources are temporarily unavailable. Game scores below still work."}</p>}
+      </article>)}</div> : <p className="mt-3 text-sm text-slate-500">{newsAvailable ? "No major wins or upsets to feature right now. Check back after the next big game!" : "News sources are temporarily unavailable. Game scores below still work."}</p>}
     </div>
     <div className="mt-4 rounded-2xl border border-amber-200 bg-[#fff9e9] p-4">
       <div className="text-xs font-black uppercase tracking-wider text-amber-800">✨ Beyond the scoreboard</div>

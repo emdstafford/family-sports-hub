@@ -51,6 +51,22 @@ export default function SportsBuzz() {
   return <section className="mt-4 rounded-3xl border border-[#e6dfcf] bg-white p-4 shadow-sm" aria-label="Sports Buzz">
     <div className="flex items-center justify-between gap-2"><div><div className="text-xs font-black uppercase tracking-widest text-[#8a6b1e]">🏆 Souther Ladies</div><h2 className="text-xl font-black text-[#06284a]">The Sports Buzz</h2></div><span className="rounded-full bg-[#f8f0d9] px-3 py-1 text-xs font-bold text-[#725719]">Auto-updating</span></div>
     <p className="mt-1 text-xs text-slate-500">Important games and what they mean, based on the latest synced results. Refreshes while the app is open.</p>
+    <article className="mt-4 rounded-2xl border border-amber-200 bg-[#fff9e9] p-4">
+      <div className="text-xs font-black uppercase tracking-wider text-amber-800">🚨 Verified cup upset · Oct 27, 2026</div>
+      <h3 className="mt-2 text-xl font-black text-[#06284a]">Arsenal knocked OUT by fourth-tier Fleetwood! 😭😂</h3>
+      <p className="mt-2 text-base font-black text-[#06284a]">Fleetwood Town 1–1 Arsenal · Fleetwood win 5–3 on penalties</p>
+      <p className="mt-3 text-sm font-semibold text-slate-700">Here's what happened:</p>
+      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
+        <li>Aaron Loupalo-Bi gave Fleetwood a surprise lead in the 21st minute.</li>
+        <li>Viktor Gyökeres equalized for Arsenal in the 50th minute.</li>
+        <li>Max Dowman was sent off late in the match.</li>
+        <li>Fleetwood goalkeeper Jay Lynch saved a shootout penalty, and Fleetwood advanced.</li>
+      </ul>
+      <div className="mt-3 rounded-xl bg-white/80 p-3 text-sm text-slate-800"><strong>Why it matters:</strong> Fleetwood play in League Two, England's fourth tier, and were 84 places below Arsenal in the football pyramid. Arsenal are out of the Carabao Cup, but this doesn't eliminate them from the Premier League, Champions League, or FA Cup. Fleetwood reach the quarter-finals for the first time!</div>
+      <p className="mt-3 text-sm font-bold text-[#84651a]">🏆 Cinderella Watch: Our Arsenal became the giant that got killed. 😭</p>
+      <a className="mt-3 inline-block text-sm font-bold text-blue-800 underline" href="https://www.efl.com/news/2026/october/28/carabao-cup--fleetwood-town-shock-arsenal-in-shootout-win/" target="_blank" rel="noopener noreferrer">Read the official EFL match report ↗</a>
+      <p className="mt-2 text-xs text-slate-500">Verified editorial feature · Published Oct 28. Match results below refresh automatically; this article does not auto-update.</p>
+    </article>
     <div className="mt-4 rounded-2xl border border-amber-200 bg-[#fff9e9] p-4">
       <div className="text-xs font-black uppercase tracking-wider text-amber-800">✨ Beyond the scoreboard</div>
       <h3 className="mt-1 text-lg font-black text-[#06284a]">Why this game matters</h3>

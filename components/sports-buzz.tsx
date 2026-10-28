@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+type NewsStory = { title: string; link: string; source: string; publishedAt: string; topic: string };
 type Game = { id: string; sport: string; competition: string; home: string; away: string; startsAt: string | null; homeScore: number | null; awayScore: number | null; status: string; sourceNotes?: string | null };
 const favorites = ["arsenal", "aston villa", "liverpool", "afc wimbledon", "university of kentucky", "kentucky wildcats", "canucks", "braves", "cubs", "georgia bulldogs", "rock lobsters"];
 const familyTeam = (team: string) => {
@@ -16,6 +17,8 @@ const dateLabel = (value: string | null) => value ? new Intl.DateTimeFormat("en-
 
 export default function SportsBuzz() {
   const [games, setGames] = useState<Game[]>([]);
+  const [news, setNews] = useState<NewsStory[]>([]);
+  const [newsAvailable, setNewsAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [showCinderella, setShowCinderella] = useState(true);
@@ -30,8 +33,13 @@ export default function SportsBuzz() {
       } catch { /* Retain previously loaded stories. */ }
       finally { if (active) setLoading(false); }
     }
+    async function refreshNews() {
+      try { const response = await fetch("/api/sports-buzz-news"); if (!response.ok) throw new Error("News unavailable"); const data = await response.json(); if (active) { setNews(Array.isArray(data.stories) ? data.stories : []); setNewsAvailable(Boolean(data.available)); } }
+      catch { if (active) setNewsAvailable(false); }
+    }
+    void refreshNews();
     void refresh();
-    const timer = setInterval(() => void refresh(), 15 * 60 * 1000);
+    const timer = setInterval(() => { void refresh(); void refreshNews(); }, 15 * 60 * 1000);
     return () => { active = false; clearInterval(timer); };
   }, []);
   const stories = useMemo(() => {
@@ -67,6 +75,15 @@ export default function SportsBuzz() {
       <a className="mt-3 inline-block text-sm font-bold text-blue-800 underline" href="https://www.efl.com/news/2026/october/28/carabao-cup--fleetwood-town-shock-arsenal-in-shootout-win/" target="_blank" rel="noopener noreferrer">Read the official EFL match report ↗</a>
       <p className="mt-2 text-xs text-slate-500">Verified editorial feature · Published Oct 28. Match results below refresh automatically; this article does not auto-update.</p>
     </article>
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-[#f7f9fd] p-4">
+      <h3 className="text-lg font-black text-[#06284a]">🗞️ Latest family sports headlines</h3>
+      <p className="mt-1 text-xs text-slate-500">Fresh articles from published news sources, checked every 15 minutes while the app is open. Tap to read the full reporting. Headlines are not independently verified match summaries.</p>
+      {news.length ? <div className="mt-3 space-y-3">{news.slice(0, 10).map(story => <article key={story.link + story.topic} className="rounded-xl bg-white p-3 shadow-sm">
+        <div className="text-xs font-black text-[#84651a]">{story.topic} · {story.source}</div>
+        <a href={story.link} target="_blank" rel="noopener noreferrer" className="mt-1 block text-sm font-bold text-[#06284a] underline decoration-slate-300 underline-offset-2">{story.title}</a>
+        <p className="mt-1 text-xs text-slate-500">{new Date(story.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+      </article>)}</div> : <p className="mt-3 text-sm text-slate-500">{newsAvailable ? "Checking the latest sports reporting…" : "News sources are temporarily unavailable. Game scores below still work."}</p>}
+    </div>
     <div className="mt-4 rounded-2xl border border-amber-200 bg-[#fff9e9] p-4">
       <div className="text-xs font-black uppercase tracking-wider text-amber-800">✨ Beyond the scoreboard</div>
       <h3 className="mt-1 text-lg font-black text-[#06284a]">Why this game matters</h3>
